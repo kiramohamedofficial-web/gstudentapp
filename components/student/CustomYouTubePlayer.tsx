@@ -53,6 +53,7 @@ const PLAYER_CONTAINER_ID = 'youtube-player-container';
 
 const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson, playlist, onLessonComplete }) => {
     const playerRef = useRef<any>(null);
+    const playerWrapperRef = useRef<HTMLDivElement>(null);
     const [isPlayerReady, setIsPlayerReady] = useState(false);
     const [currentLesson, setCurrentLesson] = useState<Lesson>(initialLesson);
     const [playerState, setPlayerState] = useState<number>(-1);
@@ -65,6 +66,7 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
     const [availableQualities, setAvailableQualities] = useState<string[]>([]);
     const [currentQuality, setCurrentQuality] = useState<string>('auto');
     const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(false);
     
     const { addToast } = useToast();
     const progressIntervalRef = useRef<number | null>(null);
@@ -201,6 +203,14 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
         };
     }, [isPlayerReady, playerState, isLooping, playNextVideo, currentLesson.id]);
 
+    useEffect(() => {
+        const onFullscreenChange = () => {
+            setIsFullscreen(!!document.fullscreenElement);
+        };
+        document.addEventListener('fullscreenchange', onFullscreenChange);
+        return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
+    }, []);
+
     const handlePlayPause = () => playerRef.current && (playerState === window.YT?.PlayerState?.PLAYING ? playerRef.current.pauseVideo() : playerRef.current.playVideo());
     const handleToggleMute = () => {
         if (!playerRef.current) return;
@@ -224,10 +234,16 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
         playerRef.current.seekTo(duration * percent, true);
     };
     const handleFullscreen = () => {
-      const iframe = playerRef.current?.getIframe();
-      if (iframe?.requestFullscreen) {
-        iframe.requestFullscreen();
-      }
+        const elem = playerWrapperRef.current;
+        if (!elem) return;
+
+        if (!document.fullscreenElement) {
+            elem.requestFullscreen().catch((err) => {
+                addToast(`خطأ في تفعيل وضع ملء الشاشة: ${err.message}`, ToastType.ERROR);
+            });
+        } else {
+            document.exitFullscreen();
+        }
     };
      const handleQualityChange = (quality: string) => {
         playerRef.current?.setPlaybackQuality(quality);
@@ -255,8 +271,8 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
 
     return (
         <div className="flex flex-col lg:flex-row gap-4">
-            <div className="flex-[3] min-w-0">
-                <div className="aspect-video bg-black rounded-lg overflow-hidden shadow-2xl relative" onContextMenu={(e) => e.preventDefault()}>
+            <div className={`flex-[3] min-w-0 ${isFullscreen ? 'flex flex-col bg-black' : ''}`} ref={playerWrapperRef}>
+                <div className={`${isFullscreen ? 'flex-grow w-full' : 'aspect-video'} bg-black rounded-lg overflow-hidden shadow-2xl relative`} onContextMenu={(e) => e.preventDefault()}>
                     {!isPlayerReady && (
                          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 z-10">
                             <CosmicLoader />
@@ -265,13 +281,12 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
                     )}
                     <div id={PLAYER_CONTAINER_ID} className="w-full h-full" />
                     
-                    {/* Smart Overlay to prevent clicks and provide custom play/pause button */}
                     <div
                         className="absolute inset-0 z-20 cursor-pointer flex items-center justify-center group"
                         onClick={handlePlayPause}
+                        onContextMenu={(e) => e.preventDefault()}
                         aria-label={isPlaying ? "Pause video" : "Play video"}
                     >
-                        {/* Visual Play/Pause Indicator */}
                         <div className={`
                             w-20 h-20 bg-black/60 backdrop-blur-sm rounded-full flex items-center justify-center
                             transition-all duration-300 ease-in-out
@@ -285,9 +300,15 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
                             )}
                         </div>
                     </div>
+                    
+                    {!isFullscreen && <div 
+                      className="absolute bottom-2 right-2 w-24 h-12 z-30 pointer-events-none" 
+                      style={{ backgroundColor: 'var(--bg-primary)' }}
+                      aria-hidden="true"
+                    />}
                 </div>
 
-                <div className="bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg p-4 mt-4 shadow-lg">
+                <div className={`bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg p-4 mt-4 shadow-lg ${isFullscreen ? 'flex-shrink-0' : ''}`}>
                     <div className="custom-player-progress-container" onClick={handleSeek}>
                         <div className="custom-player-progress-bar" style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}></div>
                     </div>
