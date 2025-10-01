@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { User, Theme, Grade } from '../../types';
 import { getGradeById, getAllGrades } from '../../services/storageService';
@@ -17,7 +18,7 @@ interface StudentDashboardProps {
 type StudentView = 'home' | 'curriculum' | 'subscription' | 'profile';
 
 const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
-  const { user } = props;
+  const { user, theme, setTheme, onLogout } = props;
   const [activeView, setActiveView] = useState<StudentView>('home');
   
   const studentGrade = useMemo(() => getGradeById(user.grade), [user.grade]);
@@ -53,7 +54,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
       case 'subscription':
         return <Subscription user={user} />;
       case 'profile':
-        return <Profile user={user} />;
+        return <Profile user={user} onLogout={onLogout} theme={theme} setTheme={setTheme} />;
       default:
         return null;
     }

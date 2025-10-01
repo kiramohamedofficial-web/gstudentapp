@@ -1,7 +1,6 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { User, Theme } from '../../types';
-import { THEMES } from '../../constants';
 import { BookOpenIcon, HomeIcon, UserCircleIcon, CreditCardIcon } from '../common/Icons';
 
 type StudentView = 'home' | 'curriculum' | 'subscription' | 'profile';
@@ -45,8 +44,6 @@ const StudentBottomNav: React.FC<{ activeView: string; onNavClick: (view: Studen
 
 
 const StudentLayout: React.FC<StudentLayoutProps> = ({ user, onLogout, theme, setTheme, children, onNavClick, activeView }) => {
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
-
   const navItems = [
     { id: 'home', label: 'الرئيسية', icon: HomeIcon },
     { id: 'curriculum', label: 'المنهج', icon: BookOpenIcon },
@@ -59,8 +56,8 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ user, onLogout, theme, se
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
         <header className="h-20 bg-[var(--bg-primary)] flex items-center justify-between px-4 md:px-8 border-b border-[var(--border-primary)]">
-           <div className="relative">
-            <button onClick={() => setIsProfileOpen(!isProfileOpen)} className="flex items-center space-x-3 space-x-reverse group">
+           <div>
+            <div className="flex items-center space-x-3 space-x-reverse group">
               <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 flex items-center justify-center text-white font-bold text-lg transition-transform duration-300 group-hover:scale-110">
                 {user.name.charAt(0)}
               </div>
@@ -68,31 +65,7 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ user, onLogout, theme, se
                 <span className="font-semibold text-sm md:text-md text-[var(--text-primary)]">{user.name}</span>
                 <span className="block text-xs text-[var(--text-secondary)]">طالب</span>
               </div>
-            </button>
-            {isProfileOpen && (
-              <div className="absolute left-0 mt-3 w-56 bg-[var(--bg-secondary)] rounded-lg shadow-2xl py-2 border border-[var(--border-primary)] z-20 fade-in">
-                <div className="px-4 py-2 text-sm text-[var(--text-primary)] font-semibold border-b border-[var(--border-primary)] mb-2">{user.name}</div>
-                <div className="px-4 py-2 text-xs text-[var(--text-secondary)]">تغيير السمة</div>
-                <div className="flex justify-around px-4 py-2">
-                    {THEMES.map(t => (
-                        <button key={t.id} onClick={() => setTheme(t.id)} title={t.name} className={`w-8 h-8 rounded-full transition-transform hover:scale-110 ${theme === t.id ? 'ring-2 ring-[var(--accent-primary)]' : ''} theme-${t.id}-bg`}>
-                          {/* Special backgrounds for themes */}
-                          {t.id === 'dark' && <div className="w-full h-full rounded-full bg-gray-800"></div>}
-                          {t.id === 'light' && <div className="w-full h-full rounded-full bg-gray-100"></div>}
-                          {t.id === 'gold' && <div className="w-full h-full rounded-full bg-yellow-100"></div>}
-                          {t.id === 'pink' && <div className="w-full h-full rounded-full bg-pink-100"></div>}
-                        </button>
-                    ))}
-                </div>
-                <div className="border-t border-[var(--border-primary)] my-2"></div>
-                <button
-                  onClick={onLogout}
-                  className="w-full text-right block px-4 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors"
-                >
-                  تسجيل الخروج
-                </button>
-              </div>
-            )}
+            </div>
           </div>
           <div className="md:hidden text-xl font-black" style={{ background: 'var(--accent-gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
              بوابة الطالب

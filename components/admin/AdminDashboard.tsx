@@ -10,6 +10,7 @@ import { ChartBarIcon, UsersIcon, CurrencyDollarIcon, BellIcon } from '../common
 import RevenueChart from './RevenueChart';
 import ContentManagementView from './ContentManagementView';
 import QrCodeGeneratorView from './QrCodeGeneratorView';
+import AdminSettingsView from './AdminSettingsView';
 
 interface AdminDashboardProps {
   user: User;
@@ -152,6 +153,7 @@ const MainDashboard: React.FC<{ onNavigate: (view: AdminView) => void }> = ({ on
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
+  const { user, onLogout, theme, setTheme } = props;
   const [activeView, setActiveView] = useState<AdminView>('dashboard');
   const [selectedStudent, setSelectedStudent] = useState<User | null>(null);
 
@@ -185,7 +187,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
       case 'tools':
         return <QrCodeGeneratorView />;
       case 'settings':
-        return <div className="text-[var(--text-primary)]">الإعدادات (قيد الإنشاء)</div>;
+        return <AdminSettingsView user={user} theme={theme} setTheme={setTheme} onLogout={onLogout} />;
       case 'dashboard':
       default:
         return <MainDashboard onNavigate={setActiveView} />;

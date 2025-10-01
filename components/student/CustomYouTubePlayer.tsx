@@ -300,12 +300,6 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
                             )}
                         </div>
                     </div>
-                    
-                    {!isFullscreen && <div 
-                      className="absolute bottom-2 right-2 w-24 h-12 z-30 pointer-events-none" 
-                      style={{ backgroundColor: 'var(--bg-primary)' }}
-                      aria-hidden="true"
-                    />}
                 </div>
 
                 <div className={`bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg p-4 mt-4 shadow-lg ${isFullscreen ? 'flex-shrink-0' : ''}`}>
