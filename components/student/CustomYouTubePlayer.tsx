@@ -10,7 +10,8 @@ import {
   VolumeOffIcon,
   ArrowsExpandIcon,
   ChevronDoubleLeftIcon,
-  ChevronDoubleRightIcon
+  ChevronDoubleRightIcon,
+  CogIcon
 } from '../common/Icons';
 
 // A single promise to ensure the YouTube API is loaded only once.
@@ -61,7 +62,10 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
     const [duration, setDuration] = useState(0);
     const [currentTime, setCurrentTime] = useState(0);
     const [isLooping, setIsLooping] = useState(false);
-    const [isShuffling, setIsShuffling] = useState(false);
+    const [availableQualities, setAvailableQualities] = useState<string[]>([]);
+    const [currentQuality, setCurrentQuality] = useState<string>('auto');
+    const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
+    const [showPauseOverlay, setShowPauseOverlay] = useState(false);
     
     const { addToast } = useToast();
     const progressIntervalRef = useRef<number | null>(null);
@@ -71,7 +75,6 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
     
     const currentPlaylistIndex = playlist.findIndex(l => l.id === currentLesson.id);
 
-    // Sync internal state with external prop
     useEffect(() => {
         setCurrentLesson(initialLesson);
     }, [initialLesson]);
@@ -94,7 +97,6 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
         playVideoByIndex(prevIndex);
     }, [currentPlaylistIndex, playlist.length, playVideoByIndex]);
 
-    // Player initialization, runs once on mount
     useEffect(() => {
         let isMounted = true;
         
@@ -119,7 +121,17 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
                            if(isMounted) setIsPlayerReady(true);
                         },
                         'onStateChange': (event: any) => {
-                            if(isMounted) setPlayerState(event.data);
+                            if (!isMounted) return;
+                            setPlayerState(event.data);
+                            setShowPauseOverlay(event.data === window.YT?.PlayerState?.PAUSED);
+                            
+                            if (event.data === window.YT?.PlayerState?.PLAYING) {
+                                const qualities = playerRef.current?.getAvailableQualityLevels();
+                                if (qualities && qualities.length > 0) {
+                                    setAvailableQualities(qualities);
+                                }
+                                setCurrentQuality(playerRef.current?.getPlaybackQuality());
+                            }
                         },
                         'onError': (event: any) => {
                             console.error('YouTube Player Error:', event.data);
@@ -145,24 +157,20 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
         };
     }, []);
 
-    // Load video content when player is ready or lesson changes
     useEffect(() => {
         if (isPlayerReady && playerRef.current && currentLesson.content) {
             playerRef.current.loadVideoById(currentLesson.content);
         }
     }, [isPlayerReady, currentLesson.content]);
 
-    // Handle player state changes (autoplay, video end, progress tracking)
     useEffect(() => {
         const player = playerRef.current;
         if (!isPlayerReady || !player) return;
 
-        // Autoplay cued videos
         if (playerState === window.YT?.PlayerState?.CUED) {
             player.playVideo();
         }
 
-        // Handle video ending
         if (playerState === window.YT?.PlayerState?.ENDED) {
             onLessonCompleteRef.current(currentLesson.id);
             if (isLooping) {
@@ -172,7 +180,6 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
             }
         }
         
-        // Handle progress bar updates
         if (playerState === window.YT?.PlayerState?.PLAYING) {
             setDuration(player.getDuration() || 0);
             setVolume(player.getVolume() || 100);
@@ -195,7 +202,6 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
         };
     }, [isPlayerReady, playerState, isLooping, playNextVideo, currentLesson.id]);
 
-    // Control handlers
     const handlePlayPause = () => playerRef.current && (playerState === 1 ? playerRef.current.pauseVideo() : playerRef.current.playVideo());
     const handleToggleMute = () => {
         if (!playerRef.current) return;
@@ -210,6 +216,7 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
     const handleSpeedChange = (speed: number) => {
         setPlaybackRate(speed);
         playerRef.current?.setPlaybackRate(speed);
+        setIsSettingsMenuOpen(false);
     };
     const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
         if (!playerRef.current || !duration) return;
@@ -223,6 +230,19 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
         iframe.requestFullscreen();
       }
     };
+     const handleQualityChange = (quality: string) => {
+        playerRef.current?.setPlaybackQuality(quality);
+        setCurrentQuality(quality);
+        setIsSettingsMenuOpen(false);
+    };
+    const formatQualityLabel = (quality: string): string => {
+        const qualityMap: { [key: string]: string } = {
+            'hd2160': '4K', 'hd1440': '1440p', 'hd1080': '1080p',
+            'hd720': '720p', 'large': '480p', 'medium': '360p',
+            'small': '240p', 'tiny': '144p', 'auto': 'تلقائي'
+        };
+        return qualityMap[quality] || quality;
+    };
 
     const formatTime = (seconds: number) => {
         if (isNaN(seconds) || seconds < 0) return '0:00';
@@ -234,7 +254,7 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
     return (
         <div className="flex flex-col lg:flex-row gap-4">
             <div className="flex-[3] min-w-0">
-                <div className="aspect-video bg-black rounded-lg overflow-hidden shadow-2xl relative">
+                <div className="aspect-video bg-black rounded-lg overflow-hidden shadow-2xl relative" onContextMenu={(e) => e.preventDefault()}>
                     {!isPlayerReady && (
                          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 z-10">
                             <CosmicLoader />
@@ -242,6 +262,13 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
                         </div>
                     )}
                     <div id={PLAYER_CONTAINER_ID} className="w-full h-full" />
+                    {showPauseOverlay && (
+                        <div
+                            className="absolute inset-0 bg-transparent z-20 cursor-pointer"
+                            onClick={handlePlayPause}
+                            aria-label="Play video"
+                        />
+                    )}
                 </div>
 
                 <div className="bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg p-4 mt-4 shadow-lg">
@@ -253,29 +280,53 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
                         <span>{formatTime(duration)}</span>
                     </div>
                     
-                    <div className="flex flex-wrap items-center gap-2 mt-4">
-                        <button onClick={handlePlayPause} className="custom-player-btn p-2" disabled={!isPlayerReady}>
-                            {playerState === 1 ? <PauseIcon className="w-6 h-6"/> : <PlayIcon className="w-6 h-6"/>}
-                        </button>
-                        <button onClick={handleToggleMute} className="custom-player-btn p-2" disabled={!isPlayerReady}>
-                            {isMuted ? <VolumeOffIcon className="w-6 h-6"/> : <SpeakerphoneIcon className="w-6 h-6"/>}
-                        </button>
-                         <div className="flex items-center gap-2 flex-grow min-w-[120px]">
-                            <input type="range" min="0" max="100" value={volume} className="custom-player-slider" onChange={handleVolumeChange} disabled={!isPlayerReady}/>
-                         </div>
-                         <button onClick={handleFullscreen} className="custom-player-btn p-2" disabled={!isPlayerReady}>
-                            <ArrowsExpandIcon className="w-6 h-6"/>
-                        </button>
-                    </div>
-
-                    <div className="mt-4 pt-4 border-t border-[var(--border-primary)]">
-                        <h3 className="text-sm font-semibold text-[var(--text-secondary)] mb-2">سرعة التشغيل</h3>
-                        <div className="flex flex-wrap gap-2">
-                            {[0.5, 1, 1.5, 2].map(speed => (
-                                <button key={speed} onClick={() => handleSpeedChange(speed)} className={`custom-player-btn px-3 py-1 text-xs ${playbackRate === speed ? 'active' : ''}`} disabled={!isPlayerReady}>
-                                    {speed}x
+                    <div className="flex flex-wrap items-center justify-between gap-2 mt-4">
+                        <div className="flex items-center gap-2">
+                            <button onClick={handlePlayPause} className="custom-player-btn p-2" disabled={!isPlayerReady}>
+                                {playerState === 1 ? <PauseIcon className="w-6 h-6"/> : <PlayIcon className="w-6 h-6"/>}
+                            </button>
+                            <button onClick={handleToggleMute} className="custom-player-btn p-2" disabled={!isPlayerReady}>
+                                {isMuted ? <VolumeOffIcon className="w-6 h-6"/> : <SpeakerphoneIcon className="w-6 h-6"/>}
+                            </button>
+                             <div className="flex items-center gap-2 flex-grow min-w-[120px]">
+                                <input type="range" min="0" max="100" value={volume} className="custom-player-slider" onChange={handleVolumeChange} disabled={!isPlayerReady}/>
+                             </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                             <div className="relative">
+                                <button onClick={() => setIsSettingsMenuOpen(!isSettingsMenuOpen)} className="custom-player-btn p-2" disabled={!isPlayerReady}>
+                                    <CogIcon className="w-6 h-6"/>
                                 </button>
-                            ))}
+                                {isSettingsMenuOpen && (
+                                    <div className="absolute bottom-full mb-2 right-0 w-40 bg-[var(--bg-tertiary)] rounded-md shadow-lg border border-[var(--border-primary)] z-20 fade-in">
+                                        <div className="p-2">
+                                            <h4 className="text-xs font-bold text-[var(--text-secondary)] px-2 pb-1 border-b border-[var(--border-primary)]">سرعة التشغيل</h4>
+                                            <div className="grid grid-cols-2 gap-1 mt-1">
+                                                {[0.5, 1, 1.5, 2].map(speed => (
+                                                    <button key={speed} onClick={() => handleSpeedChange(speed)} className={`text-sm rounded py-1 ${playbackRate === speed ? 'bg-[var(--accent-primary)] text-white' : 'hover:bg-[var(--bg-secondary)]'}`}>
+                                                        {speed === 1 ? 'عادي' : `${speed}x`}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        {availableQualities.length > 0 && (
+                                            <div className="p-2 border-t border-[var(--border-primary)]">
+                                                <h4 className="text-xs font-bold text-[var(--text-secondary)] px-2 pb-1">الجودة</h4>
+                                                <div className="mt-1">
+                                                    {availableQualities.map(q => (
+                                                        <button key={q} onClick={() => handleQualityChange(q)} className={`block text-sm w-full text-right rounded px-2 py-1 ${currentQuality === q ? 'bg-[var(--accent-primary)] text-white' : 'hover:bg-[var(--bg-secondary)]'}`}>
+                                                            {formatQualityLabel(q)}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                            <button onClick={handleFullscreen} className="custom-player-btn p-2" disabled={!isPlayerReady}>
+                                <ArrowsExpandIcon className="w-6 h-6"/>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -306,7 +357,6 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
                      <button onClick={playPreviousVideo} disabled={!isPlayerReady || playlist.length <= 1} className="custom-player-btn p-2"><ChevronDoubleLeftIcon className="w-5 h-5"/></button>
                      <button onClick={playNextVideo} disabled={!isPlayerReady || playlist.length <= 1} className="custom-player-btn p-2"><ChevronDoubleRightIcon className="w-5 h-5"/></button>
                      <button onClick={() => setIsLooping(!isLooping)} className={`custom-player-btn text-xs px-3 ${isLooping ? 'active' : ''}`} disabled={!isPlayerReady}>تكرار</button>
-                     <button onClick={() => setIsShuffling(!isShuffling)} disabled className={`custom-player-btn text-xs px-3 ${isShuffling ? 'active' : ''}`}>خلط</button>
                 </div>
             </div>
         </div>
