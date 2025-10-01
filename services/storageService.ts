@@ -46,7 +46,7 @@ const grades: Grade[] = [
                 id: 'l_matter_props_1',
                 title: 'شرح درس المادة وخواصها',
                 type: LessonType.EXPLANATION,
-                content: 'Q4E4-Iy4NEs',
+                content: 'sGlqdJ2MBx0',
                 isCompleted: false,
               },
             ],
