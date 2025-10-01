@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { User, Role, Theme } from './types';
+import { User, Role, Theme, ToastType } from './types';
 import { initData, getUserByCredentials, addActivityLog } from './services/storageService';
 import LoginScreen from './components/auth/LoginScreen';
 import StudentDashboard from './components/student/StudentDashboard';
@@ -8,12 +8,14 @@ import AdminDashboard from './components/admin/AdminDashboard';
 import { THEME_CLASSES } from './constants';
 import CosmicLoader from './components/common/Loader';
 import { ToastContainer } from './components/common/Toast';
+import { useToast } from './useToast';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [theme, setTheme] = useState<Theme>(Theme.DARK);
   const [authError, setAuthError] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const { addToast } = useToast();
 
   useEffect(() => {
     try {
@@ -30,6 +32,41 @@ const App: React.FC = () => {
       setIsLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    const showCopyWarning = () => {
+      addToast('النسخ غير مسموح به لحماية حقوق الملكية.', ToastType.INFO);
+    };
+
+    const preventDefaultAction = (e: Event) => {
+      e.preventDefault();
+      showCopyWarning();
+    };
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Disable DevTools shortcuts and copy/paste/save
+      if (
+        e.key === 'F12' ||
+        (e.ctrlKey && e.shiftKey && ['I', 'J', 'C'].includes(e.key.toUpperCase())) ||
+        (e.ctrlKey && ['C', 'X', 'U', 'S', 'P'].includes(e.key.toUpperCase()))
+      ) {
+        e.preventDefault();
+        showCopyWarning();
+      }
+    };
+
+    document.addEventListener('contextmenu', preventDefaultAction);
+    document.addEventListener('copy', preventDefaultAction);
+    document.addEventListener('cut', preventDefaultAction);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('contextmenu', preventDefaultAction);
+      document.removeEventListener('copy', preventDefaultAction);
+      document.removeEventListener('cut', preventDefaultAction);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [addToast]);
 
   useEffect(() => {
     const root = document.documentElement;
