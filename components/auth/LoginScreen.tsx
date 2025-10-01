@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { AtomIcon } from '../common/Icons';
+import { AtomIcon, ArrowRightIcon } from '../common/Icons';
 
 const CosmicFlowBackground: React.FC = () => {
     return (
@@ -10,7 +11,13 @@ const CosmicFlowBackground: React.FC = () => {
     );
 };
 
-const LoginScreen: React.FC<{ onLogin: (username: string, code: string) => void; error: string; }> = ({ onLogin, error }) => {
+interface LoginScreenProps {
+  onLogin: (username: string, code: string) => void;
+  error: string;
+  onBack: () => void;
+}
+
+const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, error, onBack }) => {
   const [username, setUsername] = useState('');
   const [code, setCode] = useState('');
 
@@ -22,6 +29,13 @@ const LoginScreen: React.FC<{ onLogin: (username: string, code: string) => void;
   return (
     <div className="relative flex items-center justify-center min-h-screen text-white overflow-hidden p-4">
       <CosmicFlowBackground />
+      <button 
+        onClick={onBack}
+        className="absolute top-6 left-6 z-20 flex items-center space-x-2 space-x-reverse text-slate-300 hover:text-white transition-colors duration-200 group"
+      >
+        <ArrowRightIcon className="w-5 h-5 transition-transform duration-300 group-hover:-translate-x-1" />
+        <span>العودة للرئيسية</span>
+      </button>
       <div 
         className="relative z-10 flex flex-col items-center p-6 md:p-10 space-y-8 w-full max-w-md
                   bg-black/40 backdrop-blur-2xl border border-white/10 rounded-3xl shadow-2xl shadow-blue-500/10
@@ -32,9 +46,9 @@ const LoginScreen: React.FC<{ onLogin: (username: string, code: string) => void;
             <AtomIcon className="w-12 h-12 text-white" />
           </div>
           <h1 className="text-4xl md:text-5xl font-black tracking-tight" style={{ background: 'linear-gradient(120deg, #58a6ff, #3fb950)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-            دكتور أحمد صابر
+            تسجيل الدخول
           </h1>
-          <p className="text-slate-300 mt-3 text-sm md:text-base">مرحباً بك في فصلك الدراسي الرقمي للعلوم</p>
+          <p className="text-slate-300 mt-3 text-sm md:text-base">مرحباً بعودتك! أدخل بياناتك للمتابعة.</p>
         </div>
         
         <form onSubmit={handleSubmit} className="w-full space-y-5 fade-in fade-in-delay-1">

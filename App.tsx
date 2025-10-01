@@ -9,12 +9,14 @@ import { THEME_CLASSES } from './constants';
 import CosmicLoader from './components/common/Loader';
 import { ToastContainer } from './components/common/Toast';
 import { useToast } from './useToast';
+import WelcomeScreen from './components/welcome/WelcomeScreen';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [theme, setTheme] = useState<Theme>(Theme.DARK);
   const [authError, setAuthError] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [preLoginView, setPreLoginView] = useState<'welcome' | 'login'>('welcome');
   const { addToast } = useToast();
 
   useEffect(() => {
@@ -102,6 +104,7 @@ const App: React.FC = () => {
     }
     setCurrentUser(null);
     localStorage.removeItem('currentUser');
+    setPreLoginView('welcome');
   }, [currentUser]);
   
   const handleSetTheme = useCallback((newTheme: Theme): void => {
@@ -120,7 +123,10 @@ const App: React.FC = () => {
     }
   
     if (!currentUser) {
-      return <LoginScreen onLogin={handleLogin} error={authError} />;
+      if (preLoginView === 'welcome') {
+        return <WelcomeScreen onNavigateToLogin={() => setPreLoginView('login')} />;
+      }
+      return <LoginScreen onLogin={handleLogin} error={authError} onBack={() => setPreLoginView('welcome')} />;
     }
   
     if (currentUser.role === Role.ADMIN) {
