@@ -4,13 +4,15 @@ import { Grade } from '../types';
 
 // Per coding guidelines, the API key is sourced directly from process.env.API_KEY
 // and is assumed to be pre-configured and valid.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
 
 export const getAIExplanation = async (
   topic: string,
   question: string,
   grade: Grade['name']
 ): Promise<string> => {
+  // Initialize the AI client here to prevent app crash on load due to undefined process.env in browser.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+  
   // The prompt is structured to guide the AI to act as a friendly and expert science teacher.
   const prompt = `
     أنت دكتور أحمد صابر، معلم علوم خبير وودود لطلاب المرحلتين الإعدادية والثانوية.
