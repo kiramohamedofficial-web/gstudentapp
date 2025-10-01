@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dr. Ahmed Saber</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+  <script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
+    "react/": "https://aistudiocdn.com/react@^19.1.1/",
+    "react": "https://aistudiocdn.com/react@^19.1.1",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.21.0"
+  }
+}
+</script>
+<style>
+  :root {
+    --font-family-sans: 'Cairo', sans-serif;
+  }
+  body {
+    font-family: var(--font-family-sans);
+    transition: background-color 0.5s ease;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Theme Variables */
+  .theme-dark {
+    --bg-primary: #0D1117;
+    --bg-secondary: #161B22;
+    --bg-tertiary: #21262D;
+    --border-primary: #30363D;
+    --text-primary: #c9d1d9;
+    --text-secondary: #8b949e;
+    --accent-primary: #58a6ff;
+    --accent-secondary: #3fb950;
+    --accent-gradient: linear-gradient(to right, #1f6feb, #2ea043);
+    --shadow-color: rgba(0, 0, 0, 0.4);
+  }
+  .theme-light {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f6f8fa;
+    --bg-tertiary: #e1e4e8;
+    --border-primary: #d0d7de;
+    --text-primary: #24292f;
+    --text-secondary: #57606a;
+    --accent-primary: #0969da;
+    --accent-secondary: #1a7f37;
+    --accent-gradient: linear-gradient(to right, #0969da, #1a7f37);
+    --shadow-color: rgba(0, 0, 0, 0.1);
+  }
+  .theme-gold {
+    --bg-primary: #fffaf0;
+    --bg-secondary: #fdf5e6;
+    --bg-tertiary: #f5deb3;
+    --border-primary: #e6cdaa;
+    --text-primary: #5c4033;
+    --text-secondary: #8b7355;
+    --accent-primary: #d4af37;
+    --accent-secondary: #b8860b;
+    --accent-gradient: linear-gradient(to right, #cfb53b, #c5b358);
+    --shadow-color: rgba(184, 134, 11, 0.15);
+  }
+  .theme-pink {
+    --bg-primary: #fff0f5;
+    --bg-secondary: #ffe4e1;
+    --bg-tertiary: #f8c8dc;
+    --border-primary: #f4b3c2;
+    --text-primary: #6d284f;
+    --text-secondary: #8e4585;
+    --accent-primary: #db2777;
+    --accent-secondary: #e11d48;
+    --accent-gradient: linear-gradient(to right, #ec4899, #f43f5e);
+    --shadow-color: rgba(219, 39, 119, 0.1);
+  }
+  
+  /* Cosmic Flow Background */
+  @keyframes move-background {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  .cosmic-flow-background {
+    background: radial-gradient(ellipse at bottom, #0d1117 0%, #161b22 100%);
+    overflow: hidden;
+    position: relative;
+  }
+  .cosmic-flow-background::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(125deg, rgba(88, 166, 255, 0.1), rgba(63, 185, 80, 0.1), rgba(88, 166, 255, 0.1));
+    background-size: 400% 400%;
+    animation: move-background 15s ease infinite;
+    z-index: 1;
+  }
+  #stars, #stars2, #stars3 {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    z-index: 0;
+  }
+  @keyframes animate-stars {
+    0% { transform: translateY(0px); }
+    100% { transform: translateY(-2000px); }
+  }
+  #stars {
+    background: transparent url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="2000"><circle cx="200" cy="200" r="1" fill="white"/><circle cx="500" cy="800" r="1" fill="white"/><circle cx="1200" cy="400" r="1" fill="white"/><circle cx="1800" cy="1100" r="0.5" fill="white"/><circle cx="900" cy="1500" r="1" fill="white"/><circle cx="1500" cy="1800" r="0.5" fill="white"/></svg>') repeat;
+    animation: animate-stars 50s linear infinite;
+  }
+  #stars2 {
+    background: transparent url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="2000"><circle cx="100" cy="600" r="0.5" fill="white"/><circle cx="800" cy="300" r="0.5" fill="white"/><circle cx="1400" cy="900" r="0.5" fill="white"/><circle cx="1900" cy="1400" r="0.5" fill="white"/><circle cx="400" cy="1200" r="0.5" fill="white"/><circle cx="1100" cy="1700" r="0.5" fill="white"/></svg>') repeat;
+    animation: animate-stars 100s linear infinite;
+  }
+
+  /* View & Content Animations */
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .fade-in {
+    animation: fade-in 0.5s ease-out forwards;
+  }
+  .fade-in-delay-1 { animation-delay: 0.1s; }
+  .fade-in-delay-2 { animation-delay: 0.2s; }
+  .fade-in-delay-3 { animation-delay: 0.3s; }
+  .fade-in-delay-4 { animation-delay: 0.4s; }
+
+  /* Loading Spinner */
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  @keyframes pulse-galaxy {
+    0%, 100% {
+      box-shadow: 0 0 10px #58a6ff, 0 0 20px #58a6ff, 0 0 40px #58a6ff, 0 0 60px #3fb950;
+    }
+    50% {
+      box-shadow: 0 0 20px #58a6ff, 0 0 40px #58a6ff, 0 0 80px #3fb950, 0 0 100px #3fb950;
+    }
+  }
+  .cosmic-loader {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    position: relative;
+    animation: pulse-galaxy 2s infinite ease-in-out;
+  }
+  .cosmic-loader::before, .cosmic-loader::after {
+    content: "";
+    position: absolute;
+    height: 100%;
+    width: 100%;
+    border-radius: 50%;
+    border: 2px solid transparent;
+  }
+  .cosmic-loader::before {
+    border-top-color: #58a6ff;
+    animation: spin 1.5s linear infinite;
+  }
+  .cosmic-loader::after {
+    border-left-color: #3fb950;
+    animation: spin 0.5s linear infinite reverse;
+  }
+  
+  /* Button Pulse Animation */
+  @keyframes pulse-light {
+      0% {
+          box-shadow: 0 0 0 0 rgba(88, 166, 255, 0.7);
+      }
+      70% {
+          box-shadow: 0 0 0 10px rgba(88, 166, 255, 0);
+      }
+      100% {
+          box-shadow: 0 0 0 0 rgba(88, 166, 255, 0);
+      }
+  }
+  .pulse-btn {
+      animation: pulse-light 2s infinite;
+  }
+
+  /* Input Focus Glow */
+  .glow-on-focus:focus {
+      box-shadow: 0 0 15px rgba(88, 166, 255, 0.6);
+  }
+
+  /* Chart Animation */
+  @keyframes draw-path {
+    from { stroke-dashoffset: 1000; }
+    to { stroke-dashoffset: 0; }
+  }
+  .chart-line {
+    stroke-dasharray: 1000;
+    animation: draw-path 2s ease-out forwards;
+  }
+  @keyframes fade-in-circle {
+    from { opacity: 0; r: 0; }
+    to { opacity: 1; r: 5; }
+  }
+  .chart-point {
+    animation: fade-in-circle 0.5s ease-out forwards;
+  }
+  
+  /* Circular Progress Animation */
+  .progress-circle-bar {
+    transition: stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  @keyframes progress-text-animation {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+  }
+  .progress-circle-text {
+      animation: progress-text-animation 1s ease-out 0.5s forwards;
+      opacity: 0;
+  }
+
+  /* Plus Pattern for Grade Cards */
+  .plus-pattern {
+    background-image:
+      radial-gradient(circle at center, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+      radial-gradient(circle at center, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    background-size: 20px 20px;
+    background-position: 0 0, 10px 10px;
+  }
+
+  /* Toast Notifications */
+  .toast-container {
+      position: fixed;
+      top: 1.5rem;
+      right: 1.5rem;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+  }
+  @keyframes slide-in-right {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+  }
+  .toast-item {
+      width: 100%;
+      max-width: 22rem; /* 352px */
+      padding: 1rem;
+      border-radius: 0.75rem;
+      box-shadow: 0 10px 15px -3px var(--shadow-color), 0 4px 6px -4px var(--shadow-color);
+      backdrop-filter: blur(10px);
+      border-width: 1px;
+      animation: slide-in-right 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  }
+
+  /* Custom YouTube Player Styles */
+    .custom-player-btn {
+        background-color: var(--bg-tertiary);
+        color: var(--text-secondary);
+        border: 1px solid transparent;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .custom-player-btn:hover:not(:disabled) {
+        background-color: var(--accent-primary);
+        color: white;
+    }
+    .custom-player-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    .custom-player-btn.active {
+        background-color: var(--accent-primary);
+        color: white;
+    }
+    .custom-player-slider {
+        flex: 1;
+        -webkit-appearance: none;
+        height: 5px;
+        background: var(--bg-tertiary);
+        border-radius: 5px;
+        outline: none;
+        transition: opacity 0.2s ease;
+    }
+    .custom-player-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        background: var(--accent-primary);
+        cursor: pointer;
+        transition: transform 0.2s ease;
+    }
+    .custom-player-slider::-webkit-slider-thumb:hover {
+        transform: scale(1.2);
+    }
+    .custom-player-progress-container {
+        width: 100%;
+        height: 6px;
+        background-color: var(--bg-tertiary);
+        border-radius: 3px;
+        cursor: pointer;
+        position: relative;
+    }
+    .custom-player-progress-bar {
+        height: 100%;
+        background-color: var(--accent-primary);
+        border-radius: 3px;
+        width: 0%;
+        position: relative;
+    }
+    .custom-player-progress-bar::after {
+        content: '';
+        position: absolute;
+        right: 0;
+        top: 50%;
+        transform: translate(50%, -50%) scale(0);
+        width: 14px;
+        height: 14px;
+        background-color: var(--accent-primary);
+        border-radius: 50%;
+        transition: transform 0.2s ease;
+    }
+    .custom-player-progress-container:hover .custom-player-progress-bar::after {
+        transform: translate(50%, -50%) scale(1);
+    }
+
+  /* Responsive Adjustments */
+  @media (max-width: 767px) {
+    body {
+      -webkit-text-size-adjust: 100%; /* Prevent font scaling in landscape */
+    }
+    .main-content-padding {
+        padding: 1rem;
+    }
+    .main-content-padding-bottom {
+        padding-bottom: 7rem; /* Space for bottom nav */
+    }
+    .toast-container {
+        top: 1rem;
+        left: 1rem;
+        right: 1rem;
+        align-items: center;
+    }
+  }
+</style>
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

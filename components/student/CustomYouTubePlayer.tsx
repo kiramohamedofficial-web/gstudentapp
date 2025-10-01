@@ -1,0 +1,316 @@
+
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Lesson, ToastType } from '../../types';
+import { useToast } from '../../useToast';
+import CosmicLoader from '../common/Loader';
+import {
+  PlayIcon,
+  PauseIcon,
+  SpeakerphoneIcon,
+  VolumeOffIcon,
+  ArrowsExpandIcon,
+  ChevronDoubleLeftIcon,
+  ChevronDoubleRightIcon
+} from '../common/Icons';
+
+// A single promise to ensure the YouTube API is loaded only once.
+let youtubeApiPromise: Promise<void> | null = null;
+const loadYouTubeApi = (): Promise<void> => {
+    if (youtubeApiPromise) {
+        return youtubeApiPromise;
+    }
+    youtubeApiPromise = new Promise((resolve) => {
+        if (window.YT && window.YT.Player) {
+            return resolve();
+        }
+        const scriptUrl = 'https://www.youtube.com/iframe_api';
+        if (!window.onYouTubeIframeAPIReadyCallbacks) {
+            window.onYouTubeIframeAPIReadyCallbacks = [];
+            window.onYouTubeIframeAPIReady = () => {
+                window.onYouTubeIframeAPIReadyCallbacks?.forEach(callback => callback());
+                window.onYouTubeIframeAPIReadyCallbacks = [];
+            };
+        }
+        window.onYouTubeIframeAPIReadyCallbacks.push(resolve);
+        const existingScript = document.querySelector(`script[src="${scriptUrl}"]`);
+        if (!existingScript) {
+            const tag = document.createElement('script');
+            tag.src = scriptUrl;
+            document.head.appendChild(tag);
+        }
+    });
+    return youtubeApiPromise;
+};
+
+interface CustomYouTubePlayerProps {
+    initialLesson: Lesson;
+    playlist: Lesson[];
+    onLessonComplete: (lessonId: string) => void;
+}
+
+const PLAYER_CONTAINER_ID = 'youtube-player-container';
+
+const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson, playlist, onLessonComplete }) => {
+    const playerRef = useRef<any>(null);
+    const [isPlayerReady, setIsPlayerReady] = useState(false);
+    const [currentLesson, setCurrentLesson] = useState<Lesson>(initialLesson);
+    const [playerState, setPlayerState] = useState<number>(-1);
+    const [isMuted, setIsMuted] = useState(false);
+    const [volume, setVolume] = useState(100);
+    const [playbackRate, setPlaybackRate] = useState(1);
+    const [duration, setDuration] = useState(0);
+    const [currentTime, setCurrentTime] = useState(0);
+    const [isLooping, setIsLooping] = useState(false);
+    const [isShuffling, setIsShuffling] = useState(false);
+    
+    const { addToast } = useToast();
+    const progressIntervalRef = useRef<number | null>(null);
+
+    const onLessonCompleteRef = useRef(onLessonComplete);
+    useEffect(() => { onLessonCompleteRef.current = onLessonComplete; }, [onLessonComplete]);
+    
+    const currentPlaylistIndex = playlist.findIndex(l => l.id === currentLesson.id);
+
+    // Sync internal state with external prop
+    useEffect(() => {
+        setCurrentLesson(initialLesson);
+    }, [initialLesson]);
+
+    const playVideoByIndex = useCallback((index: number) => {
+        if (index >= 0 && index < playlist.length) {
+            setCurrentLesson(playlist[index]);
+        }
+    }, [playlist]);
+
+    const playNextVideo = useCallback(() => {
+        let nextIndex = currentPlaylistIndex + 1;
+        if (nextIndex >= playlist.length) nextIndex = 0;
+        playVideoByIndex(nextIndex);
+    }, [currentPlaylistIndex, playlist.length, playVideoByIndex]);
+    
+    const playPreviousVideo = useCallback(() => {
+        let prevIndex = currentPlaylistIndex - 1;
+        if (prevIndex < 0) prevIndex = playlist.length - 1;
+        playVideoByIndex(prevIndex);
+    }, [currentPlaylistIndex, playlist.length, playVideoByIndex]);
+
+    // Player initialization, runs once on mount
+    useEffect(() => {
+        let isMounted = true;
+        
+        const initPlayer = async () => {
+            try {
+                await loadYouTubeApi();
+                if (!isMounted || !document.getElementById(PLAYER_CONTAINER_ID) || playerRef.current) return;
+
+                playerRef.current = new window.YT.Player(PLAYER_CONTAINER_ID, {
+                    height: '100%',
+                    width: '100%',
+                    playerVars: { 
+                        'playsinline': 1, 
+                        'controls': 0, 
+                        'modestbranding': 1, 
+                        'rel': 0,
+                        'enablejsapi': 1,
+                        'origin': window.location.origin,
+                    },
+                    events: {
+                        'onReady': () => {
+                           if(isMounted) setIsPlayerReady(true);
+                        },
+                        'onStateChange': (event: any) => {
+                            if(isMounted) setPlayerState(event.data);
+                        },
+                        'onError': (event: any) => {
+                            console.error('YouTube Player Error:', event.data);
+                            if (isMounted) addToast(`حدث خطأ في تحميل الفيديو (كود: ${event.data}).`, ToastType.ERROR);
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error("Failed to initialize YouTube player:", error);
+                if (isMounted) addToast('فشل تحميل مشغل الفيديو.', ToastType.ERROR);
+            }
+        };
+
+        initPlayer();
+
+        return () => {
+            isMounted = false;
+            progressIntervalRef.current && clearInterval(progressIntervalRef.current);
+            if (playerRef.current && typeof playerRef.current.destroy === 'function') {
+                playerRef.current.destroy();
+            }
+            playerRef.current = null;
+        };
+    }, []);
+
+    // Load video content when player is ready or lesson changes
+    useEffect(() => {
+        if (isPlayerReady && playerRef.current && currentLesson.content) {
+            playerRef.current.loadVideoById(currentLesson.content);
+        }
+    }, [isPlayerReady, currentLesson.content]);
+
+    // Handle player state changes (autoplay, video end, progress tracking)
+    useEffect(() => {
+        const player = playerRef.current;
+        if (!isPlayerReady || !player) return;
+
+        // Autoplay cued videos
+        if (playerState === window.YT?.PlayerState?.CUED) {
+            player.playVideo();
+        }
+
+        // Handle video ending
+        if (playerState === window.YT?.PlayerState?.ENDED) {
+            onLessonCompleteRef.current(currentLesson.id);
+            if (isLooping) {
+                player.playVideo();
+            } else {
+                playNextVideo();
+            }
+        }
+        
+        // Handle progress bar updates
+        if (playerState === window.YT?.PlayerState?.PLAYING) {
+            setDuration(player.getDuration() || 0);
+            setVolume(player.getVolume() || 100);
+            setIsMuted(player.isMuted() || false);
+
+            progressIntervalRef.current = window.setInterval(() => {
+                setCurrentTime(player.getCurrentTime() || 0);
+            }, 500);
+        } else {
+            if (progressIntervalRef.current) {
+                clearInterval(progressIntervalRef.current);
+                progressIntervalRef.current = null;
+            }
+        }
+
+        return () => {
+            if (progressIntervalRef.current) {
+                clearInterval(progressIntervalRef.current);
+            }
+        };
+    }, [isPlayerReady, playerState, isLooping, playNextVideo, currentLesson.id]);
+
+    // Control handlers
+    const handlePlayPause = () => playerRef.current && (playerState === 1 ? playerRef.current.pauseVideo() : playerRef.current.playVideo());
+    const handleToggleMute = () => {
+        if (!playerRef.current) return;
+        playerRef.current.isMuted() ? playerRef.current.unMute() : playerRef.current.mute();
+        setIsMuted(playerRef.current.isMuted());
+    };
+    const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const newVolume = parseInt(e.target.value, 10);
+        setVolume(newVolume);
+        playerRef.current?.setVolume(newVolume);
+    };
+    const handleSpeedChange = (speed: number) => {
+        setPlaybackRate(speed);
+        playerRef.current?.setPlaybackRate(speed);
+    };
+    const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (!playerRef.current || !duration) return;
+        const rect = e.currentTarget.getBoundingClientRect();
+        const percent = (e.clientX - rect.left) / rect.width;
+        playerRef.current.seekTo(duration * percent, true);
+    };
+    const handleFullscreen = () => {
+      const iframe = playerRef.current?.getIframe();
+      if (iframe?.requestFullscreen) {
+        iframe.requestFullscreen();
+      }
+    };
+
+    const formatTime = (seconds: number) => {
+        if (isNaN(seconds) || seconds < 0) return '0:00';
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    };
+
+    return (
+        <div className="flex flex-col lg:flex-row gap-4">
+            <div className="flex-[3] min-w-0">
+                <div className="aspect-video bg-black rounded-lg overflow-hidden shadow-2xl relative">
+                    {!isPlayerReady && (
+                         <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 z-10">
+                            <CosmicLoader />
+                            <p className="mt-4 text-white">جاري تحميل الفيديو...</p>
+                        </div>
+                    )}
+                    <div id={PLAYER_CONTAINER_ID} className="w-full h-full" />
+                </div>
+
+                <div className="bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg p-4 mt-4 shadow-lg">
+                    <div className="custom-player-progress-container" onClick={handleSeek}>
+                        <div className="custom-player-progress-bar" style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}></div>
+                    </div>
+                    <div className="flex justify-between text-xs text-[var(--text-secondary)]">
+                        <span>{formatTime(currentTime)}</span>
+                        <span>{formatTime(duration)}</span>
+                    </div>
+                    
+                    <div className="flex flex-wrap items-center gap-2 mt-4">
+                        <button onClick={handlePlayPause} className="custom-player-btn p-2" disabled={!isPlayerReady}>
+                            {playerState === 1 ? <PauseIcon className="w-6 h-6"/> : <PlayIcon className="w-6 h-6"/>}
+                        </button>
+                        <button onClick={handleToggleMute} className="custom-player-btn p-2" disabled={!isPlayerReady}>
+                            {isMuted ? <VolumeOffIcon className="w-6 h-6"/> : <SpeakerphoneIcon className="w-6 h-6"/>}
+                        </button>
+                         <div className="flex items-center gap-2 flex-grow min-w-[120px]">
+                            <input type="range" min="0" max="100" value={volume} className="custom-player-slider" onChange={handleVolumeChange} disabled={!isPlayerReady}/>
+                         </div>
+                         <button onClick={handleFullscreen} className="custom-player-btn p-2" disabled={!isPlayerReady}>
+                            <ArrowsExpandIcon className="w-6 h-6"/>
+                        </button>
+                    </div>
+
+                    <div className="mt-4 pt-4 border-t border-[var(--border-primary)]">
+                        <h3 className="text-sm font-semibold text-[var(--text-secondary)] mb-2">سرعة التشغيل</h3>
+                        <div className="flex flex-wrap gap-2">
+                            {[0.5, 1, 1.5, 2].map(speed => (
+                                <button key={speed} onClick={() => handleSpeedChange(speed)} className={`custom-player-btn px-3 py-1 text-xs ${playbackRate === speed ? 'active' : ''}`} disabled={!isPlayerReady}>
+                                    {speed}x
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="flex-[1] bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg shadow-lg max-h-[70vh] flex flex-col">
+                <h3 className="text-lg font-bold p-4 border-b border-[var(--border-primary)] text-[var(--text-primary)]">الدروس في هذه الوحدة</h3>
+                <div className="overflow-y-auto flex-grow">
+                    {playlist.map((item, index) => (
+                        <div 
+                            key={item.id} 
+                            onClick={() => isPlayerReady && playVideoByIndex(index)}
+                            className={`flex items-center p-3 border-b border-[var(--border-primary)] transition-all duration-200 ${isPlayerReady ? 'cursor-pointer hover:bg-[var(--bg-tertiary)]' : 'opacity-70'} ${item.id === currentLesson.id ? 'bg-[var(--bg-secondary)] border-r-4 border-[var(--accent-primary)]' : ''}`}
+                        >
+                             <div className="w-16 h-9 bg-black rounded flex-shrink-0 ml-3">
+                                <img src={`https://img.youtube.com/vi/${item.content}/default.jpg`} alt={item.title} className="w-full h-full object-cover"/>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className={`font-semibold text-sm truncate ${item.id === currentLesson.id ? 'text-[var(--accent-primary)]' : 'text-[var(--text-primary)]'}`}>
+                                    {item.title}
+                                </p>
+                                <p className="text-xs text-[var(--text-secondary)]">{item.type}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                <div className="p-2 border-t border-[var(--border-primary)] flex justify-around">
+                     <button onClick={playPreviousVideo} disabled={!isPlayerReady || playlist.length <= 1} className="custom-player-btn p-2"><ChevronDoubleLeftIcon className="w-5 h-5"/></button>
+                     <button onClick={playNextVideo} disabled={!isPlayerReady || playlist.length <= 1} className="custom-player-btn p-2"><ChevronDoubleRightIcon className="w-5 h-5"/></button>
+                     <button onClick={() => setIsLooping(!isLooping)} className={`custom-player-btn text-xs px-3 ${isLooping ? 'active' : ''}`} disabled={!isPlayerReady}>تكرار</button>
+                     <button onClick={() => setIsShuffling(!isShuffling)} disabled className={`custom-player-btn text-xs px-3 ${isShuffling ? 'active' : ''}`}>خلط</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default CustomYouTubePlayer;
