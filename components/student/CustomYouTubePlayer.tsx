@@ -65,7 +65,6 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
     const [availableQualities, setAvailableQualities] = useState<string[]>([]);
     const [currentQuality, setCurrentQuality] = useState<string>('auto');
     const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
-    const [showPauseOverlay, setShowPauseOverlay] = useState(false);
     
     const { addToast } = useToast();
     const progressIntervalRef = useRef<number | null>(null);
@@ -113,6 +112,7 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
                         'controls': 0, 
                         'modestbranding': 1, 
                         'rel': 0,
+                        'iv_load_policy': 3,
                         'enablejsapi': 1,
                         'origin': window.location.origin,
                     },
@@ -123,7 +123,6 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
                         'onStateChange': (event: any) => {
                             if (!isMounted) return;
                             setPlayerState(event.data);
-                            setShowPauseOverlay(event.data === window.YT?.PlayerState?.PAUSED);
                             
                             if (event.data === window.YT?.PlayerState?.PLAYING) {
                                 const qualities = playerRef.current?.getAvailableQualityLevels();
@@ -202,7 +201,7 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
         };
     }, [isPlayerReady, playerState, isLooping, playNextVideo, currentLesson.id]);
 
-    const handlePlayPause = () => playerRef.current && (playerState === 1 ? playerRef.current.pauseVideo() : playerRef.current.playVideo());
+    const handlePlayPause = () => playerRef.current && (playerState === window.YT?.PlayerState?.PLAYING ? playerRef.current.pauseVideo() : playerRef.current.playVideo());
     const handleToggleMute = () => {
         if (!playerRef.current) return;
         playerRef.current.isMuted() ? playerRef.current.unMute() : playerRef.current.mute();
@@ -251,6 +250,9 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
         return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
     };
 
+    const isPlaying = playerState === window.YT?.PlayerState?.PLAYING;
+    const isPaused = playerState === window.YT?.PlayerState?.PAUSED;
+
     return (
         <div className="flex flex-col lg:flex-row gap-4">
             <div className="flex-[3] min-w-0">
@@ -262,13 +264,27 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
                         </div>
                     )}
                     <div id={PLAYER_CONTAINER_ID} className="w-full h-full" />
-                    {showPauseOverlay && (
-                        <div
-                            className="absolute inset-0 bg-transparent z-20 cursor-pointer"
-                            onClick={handlePlayPause}
-                            aria-label="Play video"
-                        />
-                    )}
+                    
+                    {/* Smart Overlay to prevent clicks and provide custom play/pause button */}
+                    <div
+                        className="absolute inset-0 z-20 cursor-pointer flex items-center justify-center group"
+                        onClick={handlePlayPause}
+                        aria-label={isPlaying ? "Pause video" : "Play video"}
+                    >
+                        {/* Visual Play/Pause Indicator */}
+                        <div className={`
+                            w-20 h-20 bg-black/60 backdrop-blur-sm rounded-full flex items-center justify-center
+                            transition-all duration-300 ease-in-out
+                            ${isPaused ? 'opacity-100 scale-100' : 'opacity-0 scale-125 group-hover:opacity-100 group-hover:scale-100'}
+                            pointer-events-none
+                        `}>
+                            {isPlaying ? (
+                                <PauseIcon className="w-10 h-10 text-white" />
+                            ) : (
+                                <PlayIcon className="w-10 h-10 text-white ml-1" />
+                            )}
+                        </div>
+                    </div>
                 </div>
 
                 <div className="bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg p-4 mt-4 shadow-lg">
@@ -283,7 +299,7 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
                     <div className="flex flex-wrap items-center justify-between gap-2 mt-4">
                         <div className="flex items-center gap-2">
                             <button onClick={handlePlayPause} className="custom-player-btn p-2" disabled={!isPlayerReady}>
-                                {playerState === 1 ? <PauseIcon className="w-6 h-6"/> : <PlayIcon className="w-6 h-6"/>}
+                                {isPlaying ? <PauseIcon className="w-6 h-6"/> : <PlayIcon className="w-6 h-6"/>}
                             </button>
                             <button onClick={handleToggleMute} className="custom-player-btn p-2" disabled={!isPlayerReady}>
                                 {isMuted ? <VolumeOffIcon className="w-6 h-6"/> : <SpeakerphoneIcon className="w-6 h-6"/>}
