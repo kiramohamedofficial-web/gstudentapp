@@ -153,7 +153,8 @@ const setData = <T>(key: string, data: T): void => {
 
 export const getUserByCredentials = (name: string, code: string): User | undefined => {
   const allUsers = getData<User>('users');
-  return allUsers.find(u => u.name === name && u.code === code);
+  // FIX: Trim whitespace from inputs and stored data to prevent login failures due to invisible characters.
+  return allUsers.find(u => u.name.trim() === name.trim() && u.code.trim() === code.trim());
 };
 
 export const getSubscriptionByUserId = (userId: string): Subscription | undefined => {
@@ -246,7 +247,8 @@ export const deleteLesson = (gradeId: number, semesterId: string, unitId: string
     if (!grade) return;
     const semester = grade.semesters.find(s => s.id === semesterId);
     if (!semester) return;
-    const unit = semester.units.find(u => u.id !== unitId);
+    // FIX: This was finding the wrong unit (the first one that was NOT the target). Corrected to find the correct unit.
+    const unit = semester.units.find(u => u.id === unitId);
     if (!unit) return;
     unit.lessons = unit.lessons.filter(l => l.id !== lessonId);
     updateGrade(grade);

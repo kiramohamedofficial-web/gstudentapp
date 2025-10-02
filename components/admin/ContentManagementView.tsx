@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { Grade, Semester, Unit, Lesson, LessonType, Question, ToastType } from '../../types';
 import { 
@@ -187,7 +188,7 @@ interface GroupedLesson {
     parts: Partial<Record<LessonType, Lesson>>;
 }
 
-// Fix: Add a specific type for modal data to avoid `any` and subsequent errors.
+// FIX: Add a specific type for modal data to avoid `any` and subsequent errors.
 interface ModalData {
     grade?: Grade;
     semester?: Semester;
@@ -197,6 +198,7 @@ interface ModalData {
     group?: GroupedLesson;
 }
 
+// FIX: Update component props to use specific types instead of `any`.
 const LessonGroupCard: React.FC<{
     group: GroupedLesson;
     grade: Grade;
@@ -205,12 +207,12 @@ const LessonGroupCard: React.FC<{
     openModal: (type: string, data: Partial<ModalData>) => void;
 }> = ({ group, grade, semester, unit, openModal }) => {
     const [addMenuOpen, setAddMenuOpen] = useState(false);
-    const availableParts = Object.values(lessonTypeDetails);
-    const missingParts = availableParts.filter(p => !group.parts[p.label as LessonType]);
+    const availablePartTypes = Object.values(LessonType);
+    const missingPartTypes = availablePartTypes.filter(type => !group.parts[type]);
 
     const handleAddPart = (type: LessonType) => {
         setAddMenuOpen(false);
-        const titlePrefix = type === LessonType.EXPLANATION ? 'شرح' : type === LessonType.HOMEWORK ? 'واجب' : type === LessonType.EXAM ? 'امتحان' : 'ملخص';
+        const titlePrefix = lessonTypeDetails[type].label;
         openModal('add-lesson', {
             grade, semester, unit,
             prefill: {
@@ -229,12 +231,15 @@ const LessonGroupCard: React.FC<{
                         <button onClick={() => setAddMenuOpen(p => !p)} className="text-green-400 hover:text-green-300"><PlusIcon className="w-5 h-5"/></button>
                         {addMenuOpen && (
                             <div className="absolute left-0 mt-2 w-36 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-md shadow-lg z-10">
-                                {missingParts.map(part => (
-                                    <button key={part.label} onClick={() => handleAddPart(part.label as LessonType)} className="w-full text-right px-3 py-2 text-sm hover:bg-[var(--bg-tertiary)] flex items-center">
-                                        <part.icon className="w-4 h-4 ml-2 text-[var(--text-secondary)]" /> {part.verb}
-                                    </button>
-                                ))}
-                                {missingParts.length === 0 && <span className="block text-center text-xs p-2 text-[var(--text-secondary)]">كل الأجزاء مضافة</span>}
+                                {missingPartTypes.map(type => {
+                                    const partDetail = lessonTypeDetails[type];
+                                    return (
+                                        <button key={type} onClick={() => handleAddPart(type)} className="w-full text-right px-3 py-2 text-sm hover:bg-[var(--bg-tertiary)] flex items-center">
+                                            <partDetail.icon className="w-4 h-4 ml-2 text-[var(--text-secondary)]" /> {partDetail.verb}
+                                        </button>
+                                    );
+                                })}
+                                {missingPartTypes.length === 0 && <span className="block text-center text-xs p-2 text-[var(--text-secondary)]">كل الأجزاء مضافة</span>}
                             </div>
                         )}
                     </div>
@@ -269,6 +274,7 @@ const ContentManagementView: React.FC = () => {
     const [dataVersion, setDataVersion] = useState(0);
     const grades = useMemo(() => getAllGrades(), [dataVersion]);
     const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
+    // FIX: Use the specific `ModalData` type for modal state to improve type safety.
     const [modalState, setModalState] = useState<{ type: string | null; data: Partial<ModalData> }>({ type: null, data: {} });
     const { addToast } = useToast();
 

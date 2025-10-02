@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { User, Role, Theme, ToastType } from './types';
 import { initData, getUserByCredentials, addActivityLog } from './services/storageService';
