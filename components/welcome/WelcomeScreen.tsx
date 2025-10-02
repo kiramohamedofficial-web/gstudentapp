@@ -1,5 +1,5 @@
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { getAllGrades } from '../../services/storageService';
 import { Grade, LessonType } from '../../types';
 import { AtomIcon, ArrowLeftIcon, PhoneIcon, YoutubeIcon, FacebookIcon, VideoCameraSolidIcon, BookBookmarkIcon, ClockSolidIcon, UsersSolidIcon, BookOpenIcon, VideoCameraIcon } from '../common/Icons';
@@ -59,12 +59,40 @@ const HeroSection: React.FC<{ onNavigateToLogin: () => void }> = ({ onNavigateTo
 // Feature Card Component
 const FeatureCard: React.FC<{ icon: React.ElementType, title: string, description: string, delay: number }> = ({ icon: Icon, title, description, delay }) => {
     const [isAnimated, setIsAnimated] = useState(false);
+    const cardRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            (entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting) {
+                        setIsAnimated(true);
+                        observer.unobserve(entry.target); // Animate only once
+                    }
+                });
+            },
+            {
+                threshold: 0.5, // Trigger when 50% of the card is visible
+            }
+        );
+
+        const currentCardRef = cardRef.current;
+        if (currentCardRef) {
+            observer.observe(currentCardRef);
+        }
+
+        return () => {
+            if (currentCardRef) {
+                observer.unobserve(currentCardRef);
+            }
+        };
+    }, []);
 
     return (
         <div
+            ref={cardRef}
             className={`relative bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-primary)] transition-all duration-300 transform hover:-translate-y-2 hover:border-[var(--accent-primary)] hover:shadow-2xl hover:shadow-blue-500/10 fade-in group text-right overflow-hidden feature-card ${isAnimated ? 'is-animated' : ''}`}
             style={{ animationDelay: `${delay}ms` }}
-            onMouseEnter={() => setIsAnimated(true)}
         >
             <div className="absolute top-0 left-0 h-full w-24 pointer-events-none transform -translate-x-4">
                  <svg width="100%" height="100%" viewBox="0 0 80 240" preserveAspectRatio="none">
