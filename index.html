@@ -500,7 +500,30 @@
   }
 
   /* Responsive Adjustments */
-  @media (max-width: 767px) {
+  @media (max-width: 1024px) { /* Tablet Styles */
+    .main-content-padding {
+        padding: 1.5rem;
+    }
+    h1 {
+        font-size: 2.5rem; /* ~40px */
+        line-height: 1.2;
+    }
+    h2 {
+        font-size: 2rem;   /* ~32px */
+    }
+    .hero-section {
+        padding-top: 5rem;
+        padding-bottom: 5rem;
+    }
+    .feature-card {
+      min-height: 220px;
+    }
+    .youtube-playlist-container {
+        max-height: 50vh;
+    }
+  }
+
+  @media (max-width: 767px) { /* Mobile Styles */
     body {
       -webkit-text-size-adjust: 100%; /* Prevent font scaling in landscape */
     }
@@ -512,6 +535,60 @@
         left: 1rem;
         right: 1rem;
         align-items: center;
+    }
+    h1, .text-4xl, .text-5xl, .text-6xl {
+        font-size: 2.25rem !important; /* ~36px */
+        line-height: 1.25 !important;
+    }
+    h2, .text-3xl {
+        font-size: 1.75rem !important; /* ~28px */
+    }
+    h3, .text-2xl {
+        font-size: 1.25rem !important; /* ~20px */
+    }
+    .hero-section {
+        padding-top: 4rem;
+        padding-bottom: 4rem;
+        text-align: center;
+    }
+    .hero-icon-container {
+        width: 12rem; /* 192px */
+        height: 12rem;
+    }
+    .hero-icon-container svg {
+        width: 6rem;
+        height: 6rem;
+    }
+    .feature-card {
+      min-height: unset;
+      text-align: right;
+    }
+    .custom-player-controls-container {
+      padding: 0.75rem;
+    }
+    .custom-player-controls-container .flex-wrap {
+      gap: 0.5rem;
+    }
+    .custom-player-btn {
+        padding: 0.5rem;
+    }
+    .youtube-playlist-container {
+        max-height: 40vh;
+    }
+  }
+
+  @media (max-width: 480px) { /* Small Mobile Styles */
+    h1, .text-4xl, .text-5xl, .text-6xl {
+        font-size: 1.875rem !important; /* ~30px */
+    }
+    h2, .text-3xl {
+        font-size: 1.5rem !important; /* ~24px */
+    }
+    .custom-player-slider {
+        display: none; /* Hide volume slider for more space */
+    }
+    .login-form-container {
+        padding: 1rem;
     }
   }
 </style>

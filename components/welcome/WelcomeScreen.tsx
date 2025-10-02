@@ -28,7 +28,7 @@ const Header: React.FC<{ onNavigateToLogin: () => void }> = ({ onNavigateToLogin
 
 // Hero Section Component
 const HeroSection: React.FC<{ onNavigateToLogin: () => void }> = ({ onNavigateToLogin }) => (
-    <section className="relative container mx-auto px-6 pt-24 pb-16 md:py-28 overflow-hidden">
+    <section className="hero-section relative container mx-auto px-6 pt-24 pb-16 md:py-28 overflow-hidden">
         <div className="grid md:grid-cols-2 gap-8 items-center">
             <div className="text-center md:text-right z-10">
                 <h1 className="text-4xl md:text-6xl font-black leading-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-green-400 mb-4 fade-in">
@@ -48,7 +48,7 @@ const HeroSection: React.FC<{ onNavigateToLogin: () => void }> = ({ onNavigateTo
             </div>
             <div className="relative h-72 md:h-96 flex items-center justify-center fade-in fade-in-delay-2">
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-green-400/20 rounded-full blur-3xl"></div>
-                 <div className="relative w-56 h-56 md:w-72 md:h-72 rounded-full border-4 border-white/10 shadow-2xl flex items-center justify-center bg-gradient-to-br from-blue-500/10 to-green-400/10">
+                 <div className="hero-icon-container relative w-56 h-56 md:w-72 md:h-72 rounded-full border-4 border-white/10 shadow-2xl flex items-center justify-center bg-gradient-to-br from-blue-500/10 to-green-400/10">
                     <BookBookmarkIcon className="w-32 h-32 md:w-40 md:h-40 text-white/80" />
                 </div>
             </div>

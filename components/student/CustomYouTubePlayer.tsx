@@ -339,7 +339,7 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
                 </div>
 
                 <div className={`player-controls-wrapper ${showControls ? 'opacity-100' : 'opacity-0'} ${isFullscreen ? 'flex-shrink-0' : 'relative'}`}>
-                    <div className={`bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg p-4 mt-4 shadow-lg`}>
+                    <div className={`custom-player-controls-container bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg p-4 mt-4 shadow-lg`}>
                         <div className="custom-player-progress-container" onClick={handleSeek}>
                             <div className="custom-player-progress-bar" style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}></div>
                         </div>
@@ -402,7 +402,7 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
             </div>
 
             {!isFullscreen && (
-                <div className="lg:flex-[1] bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg shadow-lg lg:max-h-[75vh] flex flex-col">
+                <div className="youtube-playlist-container lg:flex-[1] bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg shadow-lg lg:max-h-[75vh] flex flex-col">
                     <h3 className="text-lg font-bold p-4 border-b border-[var(--border-primary)] text-[var(--text-primary)]">الدروس في هذه الوحدة</h3>
                     <div className="overflow-y-auto flex-grow">
                         {playlist.map((item, index) => (

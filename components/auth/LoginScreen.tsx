@@ -38,7 +38,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, error, onBack }) => 
         <span>العودة للرئيسية</span>
       </button>
       <div 
-        className="relative z-10 flex flex-col items-center p-6 md:p-10 space-y-8 w-full max-w-md
+        className="login-form-container relative z-10 flex flex-col items-center p-6 md:p-10 space-y-8 w-full max-w-md
                   bg-black/40 backdrop-blur-2xl border border-white/10 rounded-3xl shadow-2xl shadow-blue-500/10
                   transition-all duration-500 ease-in-out"
       >

@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { Grade, Semester, Unit, Lesson, LessonType, Question, ToastType } from '../../types';
 import { 
@@ -187,7 +186,7 @@ interface GroupedLesson {
     parts: Partial<Record<LessonType, Lesson>>;
 }
 
-// FIX: Define a specific type for modal data to avoid `any` and subsequent errors.
+// FIX: Define a specific type for modal data to avoid `any` and subsequent type errors.
 interface ModalData {
     grade?: Grade;
     semester?: Semester;
@@ -273,7 +272,6 @@ const ContentManagementView: React.FC = () => {
     const [dataVersion, setDataVersion] = useState(0);
     const grades = useMemo(() => getAllGrades(), [dataVersion]);
     const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
-    // FIX: Use the specific `ModalData` type for modal state to improve type safety.
     const [modalState, setModalState] = useState<{ type: string | null; data: Partial<ModalData> }>({ type: null, data: {} });
     const { addToast } = useToast();
 
@@ -374,7 +372,6 @@ const ContentManagementView: React.FC = () => {
                                     </div>
                                     <div className="space-y-2 pl-2 border-r-2 border-[var(--border-primary)]">
                                         {semester.units.map(unit => {
-                                            // FIX: Correctly typed the reduce accumulator by casting the initial value, which resolves type inference issues.
                                             const groupedLessons = unit.lessons.reduce((acc, lesson) => {
                                                 const baseTitle = lesson.title.replace(/^(شرح|واجب|امتحان|ملخص)\s/, '').trim();
                                                 if (!acc[baseTitle]) {
