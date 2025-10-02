@@ -38,8 +38,19 @@ export const getAIExplanation = async (
       contents: prompt,
     });
     return response.text;
-  } catch (error) {
-    console.error("Error fetching AI explanation:", error);
-    return "عذراً، لقد واجهت خطأ أثناء محاولة إنشاء شرح. يرجى المحاولة مرة أخرى لاحقًا.";
+  } catch (error: unknown) {
+    console.error("Gemini API Error:", error);
+    let userMessage = "عذراً، لقد واجهت خطأ أثناء محاولة إنشاء شرح. يرجى المحاولة مرة أخرى لاحقًا.";
+    
+    if (error instanceof Error) {
+        // Check for specific common API errors if possible
+        if (error.message.includes('API key not valid')) {
+            userMessage = "حدث خطأ في المصادقة مع المساعد الذكي. يرجى التواصل مع الدعم الفني.";
+        } else if (error.message.includes('429')) { // Too Many Requests
+            userMessage = "الطلب على المساعد الذكي مرتفع حاليًا. يرجى الانتظار قليلاً ثم المحاولة مرة أخرى.";
+        }
+    }
+    
+    return userMessage;
   }
 };

@@ -128,31 +128,34 @@ const activityLogs: ActivityLog[] = [];
 const accessTokens: AccessToken[] = [];
 const subscriptionRequests: SubscriptionRequest[] = [];
 
-// Data Access Functions
-export const initData = (): void => {
-  if (!localStorage.getItem('users')) {
-    localStorage.setItem('users', JSON.stringify(users));
-    localStorage.setItem('subscriptions', JSON.stringify(subscriptions));
-    localStorage.setItem('grades', JSON.stringify(grades));
-    localStorage.setItem('activityLogs', JSON.stringify(activityLogs));
-    localStorage.setItem('accessTokens', JSON.stringify(accessTokens));
-    localStorage.setItem('subscriptionRequests', JSON.stringify(subscriptionRequests));
-    // Add home screen data to local storage as well if it needs to be persisted
-    localStorage.setItem('featuredTeachers', JSON.stringify(featuredTeachers));
-    localStorage.setItem('featuredCourses', JSON.stringify(featuredCourses));
-    localStorage.setItem('featuredBooks', JSON.stringify(featuredBooks));
-  }
-};
-
 const getData = <T>(key: string): T[] => {
   const data = localStorage.getItem(key);
   return data ? JSON.parse(data) : [];
 };
 
 const setData = <T>(key: string, data: T): void => {
-    localStorage.setItem(key, JSON.stringify(data));
+    try {
+        localStorage.setItem(key, JSON.stringify(data));
+    } catch (error) {
+        console.error(`Failed to save data for key "${key}" to localStorage.`, error);
+        // This fails silently in the UI to prevent crashing, e.g., if storage is full.
+    }
 };
 
+// Data Access Functions
+export const initData = (): void => {
+  if (!localStorage.getItem('users')) {
+    setData('users', users);
+    setData('subscriptions', subscriptions);
+    setData('grades', grades);
+    setData('activityLogs', activityLogs);
+    setData('accessTokens', accessTokens);
+    setData('subscriptionRequests', subscriptionRequests);
+    setData('featuredTeachers', featuredTeachers);
+    setData('featuredCourses', featuredCourses);
+    setData('featuredBooks', featuredBooks);
+  }
+};
 
 export const getUserByCredentials = (identifier: string, code: string): User | undefined => {
   const allUsers = getData<User>('users');
@@ -194,7 +197,7 @@ export const addActivityLog = (action: string, details: string): void => {
         action,
         details,
     };
-    localStorage.setItem('activityLogs', JSON.stringify([newLog, ...logs]));
+    setData('activityLogs', [newLog, ...logs]);
 };
 export const getActivityLogs = (): ActivityLog[] => getData<ActivityLog>('activityLogs');
 

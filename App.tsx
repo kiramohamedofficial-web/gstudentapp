@@ -107,6 +107,44 @@ const App: React.FC = () => {
       window.removeEventListener('focus', handleFocus);
     };
   }, [currentUser]);
+  
+  // Enhanced protection against screenshots and DevTools
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const triggerProtection = () => {
+      addToast('تصوير الشاشة أو فحص الصفحة غير مسموح به.', ToastType.ERROR);
+      setIsWindowFocused(false); // This will show the protection overlay
+    };
+
+    // Detect Print Screen key
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'PrintScreen') {
+        navigator.clipboard.writeText(''); // Attempt to clear clipboard to prevent paste
+        triggerProtection();
+      }
+    };
+
+    // Detect DevTools opening by checking window dimensions
+    const devToolsDetector = () => {
+      const threshold = 160;
+      if (
+        window.outerWidth - window.innerWidth > threshold ||
+        window.outerHeight - window.innerHeight > threshold
+      ) {
+        triggerProtection();
+      }
+    };
+    
+    const intervalId = setInterval(devToolsDetector, 1000);
+    document.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      document.removeEventListener('keyup', handleKeyUp);
+      clearInterval(intervalId);
+    };
+  }, [currentUser, addToast]);
+
 
   const handleLogin = useCallback((identifier: string, code: string): void => {
     const user = getUserByCredentials(identifier, code);

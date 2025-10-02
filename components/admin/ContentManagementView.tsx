@@ -1,7 +1,4 @@
 
-
-
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { Grade, Semester, Unit, Lesson, LessonType, Question, ToastType } from '../../types';
 import { 
@@ -190,7 +187,7 @@ interface GroupedLesson {
     parts: Partial<Record<LessonType, Lesson>>;
 }
 
-// FIX: Add a specific type for modal data to avoid `any` and subsequent errors.
+// FIX: Define a specific type for modal data to avoid `any` and subsequent errors.
 interface ModalData {
     grade?: Grade;
     semester?: Semester;

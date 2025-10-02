@@ -122,14 +122,14 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, grade, onLesson
             case LessonType.EXAM:
                 return <Quiz questions={lesson.questions || []} />;
             case LessonType.SUMMARY:
-                return <div className="p-6 bg-[var(--bg-primary)] rounded-lg prose prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: lesson.content }} />;
+                return <div className="p-6 bg-[var(--bg-primary)] rounded-lg prose prose-invert" dangerouslySetInnerHTML={{ __html: lesson.content }} />;
             default:
                 return <p>المحتوى غير متوفر.</p>;
         }
     };
     
     return (
-        <div className="text-[var(--text-primary)]">
+        <div className="text-[var(--text-primary)] max-w-7xl mx-auto">
             <button onClick={onBack} className="mb-6 text-[var(--accent-primary)] hover:underline">
                 العودة إلى المنهج &rarr;
             </button>
