@@ -515,6 +515,12 @@
 </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Polyfill for process.env to prevent crashes in browser environments like after export.
+      if (typeof window.process === 'undefined') {
+        window.process = { env: {} };
+      }
+    </script>
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>

@@ -10,8 +10,17 @@ export const getAIExplanation = async (
   question: string,
   grade: Grade['name']
 ): Promise<string> => {
-  // Initialize the AI client here to prevent app crash on load due to undefined process.env in browser.
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+  // This check ensures the app doesn't crash if the API key is not provided
+  // in the environment, which is common after exporting the project.
+  if (!process.env.API_KEY) {
+    const errorMessage = "مفتاح API غير متوفر. لا يمكن استخدام المساعد الذكي.";
+    const userFriendlyMessage = "عذرًا، خدمة المساعد الذكي غير متاحة حاليًا بسبب مشكلة في الإعدادات. يرجى التواصل مع مسؤول المنصة.";
+    console.error(errorMessage);
+    return userFriendlyMessage;
+  }
+
+  // Initialize the AI client.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   // The prompt is structured to guide the AI to act as a friendly and expert teacher.
   const prompt = `

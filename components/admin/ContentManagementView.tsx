@@ -349,7 +349,7 @@ const ContentManagementView: React.FC = () => {
                                     </div>
                                     <div className="space-y-2 pl-2 border-r-2 border-[var(--border-primary)]">
                                         {semester.units.map(unit => {
-                                            // FIX: Explicitly typed the accumulator in the reduce function to ensure correct type inference for `groupedLessons`.
+                                            // FIX: Explicitly typed the accumulator's initial value to ensure correct type inference for `groupedLessons`.
                                             const groupedLessons = unit.lessons.reduce((acc: Record<string, GroupedLesson>, lesson) => {
                                                 const baseTitle = lesson.title.replace(/^(شرح|واجب|امتحان|ملخص)\s/, '').trim();
                                                 if (!acc[baseTitle]) {
@@ -357,7 +357,7 @@ const ContentManagementView: React.FC = () => {
                                                 }
                                                 acc[baseTitle].parts[lesson.type] = lesson;
                                                 return acc;
-                                            }, {});
+                                            }, {} as Record<string, GroupedLesson>);
 
                                             return (
                                                 <div key={unit.id} className="bg-[var(--bg-primary)] p-3 rounded-md">
