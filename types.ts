@@ -16,6 +16,7 @@ export type StudentView = 'home' | 'grades' | 'subscription' | 'profile';
 export interface User {
   id: string;
   name: string;
+  email?: string;
   code: string; // Used as password
   grade: number;
   role: Role;

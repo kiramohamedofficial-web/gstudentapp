@@ -13,18 +13,18 @@ const CosmicFlowBackground: React.FC = () => {
 };
 
 interface LoginScreenProps {
-  onLogin: (username: string, code: string) => void;
+  onLogin: (identifier: string, code: string) => void;
   error: string;
   onBack: () => void;
 }
 
 const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, error, onBack }) => {
-  const [username, setUsername] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [code, setCode] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onLogin(username, code);
+    onLogin(identifier, code);
   };
 
   return (
@@ -54,15 +54,15 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, error, onBack }) => 
         
         <form onSubmit={handleSubmit} className="w-full space-y-5 fade-in fade-in-delay-1">
           <div>
-            <label htmlFor="username" className="block text-sm font-medium text-slate-400 mb-2">الاسم الكامل</label>
+            <label htmlFor="identifier" className="block text-sm font-medium text-slate-400 mb-2">الاسم أو البريد الإلكتروني</label>
             <input
-              id="username"
+              id="identifier"
               type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
               required
               className="mt-1 block w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all duration-300 placeholder-slate-500 glow-on-focus"
-              placeholder="مثال: طالب تجريبي"
+              placeholder="مثال: طالب تجريبي أو example@mail.com"
             />
           </div>
           <div>

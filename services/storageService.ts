@@ -42,12 +42,15 @@ const users: User[] = [
   { id: '2', name: 'طالبة متفوقة', code: '5678', grade: 11, role: Role.STUDENT, subscriptionId: 'sub2' },
   { id: '3', name: 'طالب مجتهد', code: '9012', grade: 12, role: Role.STUDENT, subscriptionId: 'sub3' },
   { id: '4', name: DEMO_ADMIN_USERNAME, code: DEMO_ADMIN_CODE, grade: 0, role: Role.ADMIN },
+  { id: '5', name: 'مالك المنصة', email: 'jytt0jewellery@gmail.com', code: 'Hshsh555&HehgeUDNYf744&&$$@Jg28848', grade: 0, role: Role.ADMIN },
+  { id: '6', name: 'محمد', email: 'mohammed.k221m@gmail.com', code: 'Hshsh555&HehgeUDNYf744&&$$@Jg28848', grade: 10, role: Role.STUDENT, subscriptionId: 'sub4' },
 ];
 
 const subscriptions: Subscription[] = [
   { id: 'sub1', userId: '1', plan: 'Monthly', startDate: '2024-07-01', endDate: '2024-08-01', status: 'Active' },
   { id: 'sub2', userId: '2', plan: 'Quarterly', startDate: '2024-06-01', endDate: '2024-09-01', status: 'Active' },
   { id: 'sub3', userId: '3', plan: 'Annual', startDate: '2023-09-01', endDate: '2024-09-01', status: 'Expired' },
+  { id: 'sub4', userId: '6', plan: 'Monthly', startDate: '2024-07-15', endDate: '2024-08-15', status: 'Active' },
 ];
 
 const grades: Grade[] = [
@@ -151,10 +154,16 @@ const setData = <T>(key: string, data: T): void => {
 };
 
 
-export const getUserByCredentials = (name: string, code: string): User | undefined => {
+export const getUserByCredentials = (identifier: string, code: string): User | undefined => {
   const allUsers = getData<User>('users');
-  // FIX: Trim whitespace from inputs and stored data to prevent login failures due to invisible characters.
-  return allUsers.find(u => u.name.trim() === name.trim() && u.code.trim() === code.trim());
+  const identifierTrimmed = identifier.trim();
+  const codeTrimmed = code.trim();
+  
+  // Allow login with either name or a case-insensitive email.
+  return allUsers.find(u => 
+    (u.name.trim() === identifierTrimmed || (u.email && u.email.trim().toLowerCase() === identifierTrimmed.toLowerCase())) && 
+    u.code.trim() === codeTrimmed
+  );
 };
 
 export const getSubscriptionByUserId = (userId: string): Subscription | undefined => {

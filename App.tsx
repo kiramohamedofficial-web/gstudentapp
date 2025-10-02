@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { User, Role, Theme, ToastType } from './types';
 import { initData, getUserByCredentials, addActivityLog } from './services/storageService';
@@ -107,8 +108,8 @@ const App: React.FC = () => {
     };
   }, [currentUser]);
 
-  const handleLogin = useCallback((username: string, code: string): void => {
-    const user = getUserByCredentials(username, code);
+  const handleLogin = useCallback((identifier: string, code: string): void => {
+    const user = getUserByCredentials(identifier, code);
     if (user) {
       setCurrentUser(user);
       localStorage.setItem('currentUser', JSON.stringify(user));
