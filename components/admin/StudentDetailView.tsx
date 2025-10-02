@@ -1,7 +1,13 @@
+
 import React, { useMemo } from 'react';
-import { User, Grade, Subscription, Lesson } from '../../types';
+import { User, Grade, Subscription, Lesson, LessonType } from '../../types';
 import { getGradeById, getSubscriptionByUserId } from '../../services/storageService';
 import { ArrowRightIcon, CheckCircleIcon, ClockIcon } from '../common/Icons';
+
+interface GroupedLesson {
+    baseTitle: string;
+    parts: Partial<Record<LessonType, Lesson>>;
+}
 
 interface StudentDetailViewProps {
   user: User;
@@ -26,6 +32,23 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
   if (!grade) {
     return <div>Could not load student data.</div>;
   }
+  
+  const groupLessons = (lessons: Lesson[]): GroupedLesson[] => {
+    const lessonGroups: Record<string, Partial<Record<LessonType, Lesson>>> = {};
+
+    lessons.forEach(lesson => {
+        const baseTitle = lesson.title.replace(/^(شرح|واجب|امتحان|ملخص)\s/, '').trim();
+        if (!lessonGroups[baseTitle]) {
+            lessonGroups[baseTitle] = {};
+        }
+        lessonGroups[baseTitle][lesson.type] = lesson;
+    });
+
+    return Object.entries(lessonGroups).map(([baseTitle, parts]) => ({
+        baseTitle,
+        parts,
+    }));
+  };
 
   return (
     <div className="fade-in">
@@ -64,7 +87,7 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
                     ></div>
                 </div>
                 <p className="text-center mt-3 text-sm text-[var(--text-secondary)]">
-                    أكمل الطالب <span className="font-bold text-[var(--text-primary)]">{completedLessons}</span> من أصل <span className="font-bold text-[var(--text-primary)]">{totalLessons}</span> درس.
+                    أكمل الطالب <span className="font-bold text-[var(--text-primary)]">{completedLessons}</span> من أصل <span className="font-bold text-[var(--text-primary)]">{totalLessons}</span> جزء.
                 </p>
             </div>
           </div>
@@ -78,29 +101,40 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
                     <div key={semester.id}>
                         <h3 className="text-md font-semibold text-[var(--text-secondary)] border-r-2 border-[var(--accent-primary)] pr-3 mb-3">{semester.title}</h3>
                         <div className="space-y-3">
-                            {semester.units.map(unit => (
-                                <div key={unit.id}>
-                                    <p className="font-bold text-sm text-[var(--text-primary)] mb-2">{unit.title}</p>
-                                    <ul className="space-y-2 pr-4 border-r border-[var(--border-primary)]">
-                                        {unit.lessons.map((lesson: Lesson) => (
-                                            <li key={lesson.id} className="flex items-center justify-between text-sm">
-                                                <span className="text-[var(--text-secondary)]">{lesson.title}</span>
-                                                {lesson.isCompleted ? (
-                                                    <div className="flex items-center space-x-1 space-x-reverse text-green-400">
-                                                        <CheckCircleIcon className="w-4 h-4" />
-                                                        <span>مكتمل</span>
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex items-center space-x-1 space-x-reverse text-yellow-500">
-                                                        <ClockIcon className="w-4 h-4" />
-                                                        <span>قيد الانتظار</span>
-                                                    </div>
-                                                )}
-                                            </li>
+                            {semester.units.map(unit => {
+                                const groupedLessons = groupLessons(unit.lessons);
+                                return (
+                                <div key={unit.id} className="bg-[var(--bg-secondary)] p-3 rounded-lg">
+                                    <p className="font-bold text-md text-[var(--text-primary)] mb-2">{unit.title}</p>
+                                    <div className="space-y-3 pr-2 border-r border-[var(--border-primary)]">
+                                        {groupedLessons.map((group) => (
+                                            <div key={group.baseTitle}>
+                                                <p className="font-semibold text-sm text-[var(--text-secondary)] mb-1">{group.baseTitle}</p>
+                                                <ul className="space-y-1 pr-2">
+                                                    {Object.values(group.parts).map((lesson) => lesson && (
+                                                        <li key={lesson.id} className="flex items-center justify-between text-sm">
+                                                            <span className="text-[var(--text-secondary)]">{lesson.type}</span>
+                                                            {lesson.isCompleted ? (
+                                                                <div className="flex items-center space-x-1 space-x-reverse text-green-400">
+                                                                    <CheckCircleIcon className="w-4 h-4" />
+                                                                    <span>مكتمل</span>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="flex items-center space-x-1 space-x-reverse text-yellow-500">
+                                                                    <ClockIcon className="w-4 h-4" />
+                                                                    <span>قيد الانتظار</span>
+                                                                </div>
+                                                            )}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
                                         ))}
-                                    </ul>
+                                        {groupedLessons.length === 0 && <p className="text-xs text-center text-[var(--text-secondary)] py-2">لا توجد دروس لهذه المادة بعد.</p>}
+                                    </div>
                                 </div>
-                            ))}
+                                )}
+                            )}
                         </div>
                     </div>
                 ))}

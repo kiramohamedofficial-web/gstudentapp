@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Lesson, ToastType } from '../../types';
 import { useToast } from '../../useToast';
@@ -129,10 +128,13 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
                             if (event.data === window.YT?.PlayerState?.PLAYING) {
                                 const qualities = playerRef.current?.getAvailableQualityLevels();
                                 if (qualities && qualities.length > 0) {
-                                    setAvailableQualities(qualities);
+                                    setAvailableQualities(['auto', ...qualities.filter(q => q !== 'auto')]);
                                 }
                                 setCurrentQuality(playerRef.current?.getPlaybackQuality());
                             }
+                        },
+                        'onPlaybackQualityChange': (event: any) => {
+                           if(isMounted) setCurrentQuality(event.data);
                         },
                         'onError': (event: any) => {
                             console.error('YouTube Player Error:', event.data);
@@ -329,7 +331,7 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
                                     <CogIcon className="w-6 h-6"/>
                                 </button>
                                 {isSettingsMenuOpen && (
-                                    <div className="absolute bottom-full mb-2 right-0 w-40 bg-[var(--bg-tertiary)] rounded-md shadow-lg border border-[var(--border-primary)] z-20 fade-in">
+                                    <div className="absolute bottom-full mb-2 right-0 w-40 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-md shadow-lg border border-[var(--border-primary)] z-20 fade-in">
                                         <div className="p-2">
                                             <h4 className="text-xs font-bold text-[var(--text-secondary)] px-2 pb-1 border-b border-[var(--border-primary)]">سرعة التشغيل</h4>
                                             <div className="grid grid-cols-2 gap-1 mt-1">
@@ -340,10 +342,10 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
                                                 ))}
                                             </div>
                                         </div>
-                                        {availableQualities.length > 0 && (
+                                        {availableQualities.length > 1 && (
                                             <div className="p-2 border-t border-[var(--border-primary)]">
                                                 <h4 className="text-xs font-bold text-[var(--text-secondary)] px-2 pb-1">الجودة</h4>
-                                                <div className="mt-1">
+                                                <div className="mt-1 max-h-32 overflow-y-auto">
                                                     {availableQualities.map(q => (
                                                         <button key={q} onClick={() => handleQualityChange(q)} className={`block text-sm w-full text-right rounded px-2 py-1 ${currentQuality === q ? 'bg-[var(--accent-primary)] text-white' : 'hover:bg-[var(--bg-secondary)]'}`}>
                                                             {formatQualityLabel(q)}

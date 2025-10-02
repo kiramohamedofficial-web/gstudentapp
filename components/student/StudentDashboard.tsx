@@ -1,12 +1,13 @@
 
 import React, { useState, useMemo } from 'react';
-import { User, Theme, Grade } from '../../types';
+import { User, Theme, Grade, Unit } from '../../types';
 import { getGradeById, getAllGrades } from '../../services/storageService';
 import StudentLayout from '../layout/StudentLayout';
 import CourseView from './CourseView';
 import Subscription from './Subscription';
 import Profile from './Profile';
 import HomeScreen from './HomeScreen';
+import SubjectSelectionScreen from './SubjectSelectionScreen';
 
 interface StudentDashboardProps {
   user: User;
@@ -22,20 +23,27 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
   const [activeView, setActiveView] = useState<StudentView>('home');
   
   const studentGrade = useMemo(() => getGradeById(user.grade), [user.grade]);
-  const [viewingGrade, setViewingGrade] = useState<Grade | null>(studentGrade);
+  const [viewingGrade, setViewingGrade] = useState<Grade | null>(null);
+  const [selectedUnit, setSelectedUnit] = useState<Unit | null>(null);
   const allGrades = useMemo(() => getAllGrades(), []);
 
   const handleGradeSelect = (grade: Grade) => {
     setViewingGrade(grade);
+    setSelectedUnit(null);
     setActiveView('curriculum');
   };
 
   const handleNavClick = (view: StudentView) => {
     if (view === 'curriculum') {
       setViewingGrade(studentGrade);
+      setSelectedUnit(null); // Reset unit when navigating to curriculum section
     }
     setActiveView(view);
   };
+  
+  const handleSubjectSelect = (unit: Unit) => {
+    setSelectedUnit(unit);
+  }
 
   const renderContent = () => {
     switch (activeView) {
@@ -50,7 +58,19 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
             </div>
           );
         }
-        return <CourseView grade={viewingGrade} />;
+        if (!selectedUnit) {
+            return (
+                <SubjectSelectionScreen 
+                    grade={viewingGrade} 
+                    onSubjectSelect={handleSubjectSelect} 
+                    onBack={() => {
+                        setViewingGrade(null);
+                        setActiveView('home');
+                    }} 
+                />
+            );
+        }
+        return <CourseView grade={viewingGrade} unit={selectedUnit} onBack={() => setSelectedUnit(null)} />;
       case 'subscription':
         return <Subscription user={user} />;
       case 'profile':

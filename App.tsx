@@ -10,6 +10,7 @@ import CosmicLoader from './components/common/Loader';
 import { ToastContainer } from './components/common/Toast';
 import { useToast } from './useToast';
 import WelcomeScreen from './components/welcome/WelcomeScreen';
+import { ShieldCheckIcon } from './components/common/Icons';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -17,6 +18,7 @@ const App: React.FC = () => {
   const [authError, setAuthError] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [preLoginView, setPreLoginView] = useState<'welcome' | 'login'>('welcome');
+  const [isWindowFocused, setIsWindowFocused] = useState(true);
   const { addToast } = useToast();
 
   useEffect(() => {
@@ -86,6 +88,26 @@ const App: React.FC = () => {
 
   }, [theme]);
 
+  // ScreenShot and Screen Recording Protection
+  useEffect(() => {
+    if (!currentUser) return; // Only apply for logged-in users
+
+    const handleBlur = () => {
+      setIsWindowFocused(false);
+    };
+    const handleFocus = () => {
+      setIsWindowFocused(true);
+    };
+
+    window.addEventListener('blur', handleBlur);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      window.removeEventListener('blur', handleBlur);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [currentUser]);
+
   const handleLogin = useCallback((username: string, code: string): void => {
     const user = getUserByCredentials(username, code);
     if (user) {
@@ -105,6 +127,7 @@ const App: React.FC = () => {
     setCurrentUser(null);
     localStorage.removeItem('currentUser');
     setPreLoginView('welcome');
+    setIsWindowFocused(true); // Reset focus state on logout
   }, [currentUser]);
   
   const handleSetTheme = useCallback((newTheme: Theme): void => {
@@ -136,9 +159,26 @@ const App: React.FC = () => {
     return <StudentDashboard user={currentUser} onLogout={handleLogout} theme={theme} setTheme={handleSetTheme} />;
   }
 
+  const isContentProtected = !isWindowFocused && !!currentUser;
+
   return (
     <>
-      {renderContent()}
+      <div className={`transition-all duration-300 ${isContentProtected ? 'blur-md pointer-events-none' : ''}`}>
+        {renderContent()}
+      </div>
+
+      {isContentProtected && (
+        <div className="fixed inset-0 z-[1000] flex flex-col items-center justify-center bg-[var(--bg-primary)]/80 backdrop-blur-sm text-[var(--text-primary)] text-center p-4 fade-in">
+          <ShieldCheckIcon className="w-20 h-20 text-[var(--accent-primary)]" />
+          <h2 className="text-3xl font-bold mt-4">حماية المحتوى مفعلة</h2>
+          <p className="mt-2 max-w-md text-[var(--text-secondary)]">
+            لا يُسمح بتسجيل الشاشة أو أخذ لقطات منها لحماية حقوق الملكية.
+            <br />
+            سيظهر المحتوى مرة أخرى عند العودة إلى هذه النافذة.
+          </p>
+        </div>
+      )}
+      
       <ToastContainer />
     </>
   );
