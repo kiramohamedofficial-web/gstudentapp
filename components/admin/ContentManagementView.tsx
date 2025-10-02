@@ -369,7 +369,7 @@ const ContentManagementView: React.FC = () => {
                                     </div>
                                     <div className="space-y-2 pl-2 border-r-2 border-[var(--border-primary)]">
                                         {semester.units.map(unit => {
-                                            // Fix: Correctly typed the reduce accumulator by casting the initial value to avoid errors with generic type arguments.
+                                            // FIX: Correctly typed the reduce accumulator by casting the initial value, which resolves type inference issues.
                                             const groupedLessons = unit.lessons.reduce((acc, lesson) => {
                                                 const baseTitle = lesson.title.replace(/^(شرح|واجب|امتحان|ملخص)\s/, '').trim();
                                                 if (!acc[baseTitle]) {

@@ -135,6 +135,16 @@ const App: React.FC = () => {
     localStorage.setItem('theme', newTheme);
   }, []);
 
+  const handleNavigateToLogin = () => {
+    setAuthError('');
+    setPreLoginView('login');
+  };
+
+  const handleNavigateToWelcome = () => {
+    setAuthError('');
+    setPreLoginView('welcome');
+  };
+
   const renderContent = () => {
     if (isLoading) {
       return (
@@ -147,9 +157,9 @@ const App: React.FC = () => {
   
     if (!currentUser) {
       if (preLoginView === 'welcome') {
-        return <WelcomeScreen onNavigateToLogin={() => setPreLoginView('login')} />;
+        return <WelcomeScreen onNavigateToLogin={handleNavigateToLogin} />;
       }
-      return <LoginScreen onLogin={handleLogin} error={authError} onBack={() => setPreLoginView('welcome')} />;
+      return <LoginScreen onLogin={handleLogin} error={authError} onBack={handleNavigateToWelcome} />;
     }
   
     if (currentUser.role === Role.ADMIN) {

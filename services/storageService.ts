@@ -402,3 +402,91 @@ export const activateSubscription = (userId: string, plan: 'Monthly' | 'Quarterl
         addActivityLog('Subscription Activated', `Subscription for "${user.name}" has been activated.`);
     }
 };
+
+// --- Featured Teacher Functions ---
+export const addFeaturedTeacher = (teacher: Omit<FeaturedTeacher, 'id'>): void => {
+    const teachers = getData<FeaturedTeacher>('featuredTeachers');
+    const newTeacher: FeaturedTeacher = {
+        ...teacher,
+        id: `t_${Date.now()}`
+    };
+    setData('featuredTeachers', [...teachers, newTeacher]);
+    addActivityLog('Home Mgmt', `Added teacher: ${newTeacher.name}`);
+};
+
+export const updateFeaturedTeacher = (updatedTeacher: FeaturedTeacher): void => {
+    const teachers = getData<FeaturedTeacher>('featuredTeachers');
+    const index = teachers.findIndex(t => t.id === updatedTeacher.id);
+    if (index !== -1) {
+        teachers[index] = updatedTeacher;
+        setData('featuredTeachers', teachers);
+        addActivityLog('Home Mgmt', `Updated teacher: ${updatedTeacher.name}`);
+    }
+};
+
+export const deleteFeaturedTeacher = (teacherId: string): void => {
+    let teachers = getData<FeaturedTeacher>('featuredTeachers');
+    const teacherName = teachers.find(t => t.id === teacherId)?.name || 'Unknown';
+    teachers = teachers.filter(t => t.id !== teacherId);
+    setData('featuredTeachers', teachers);
+    addActivityLog('Home Mgmt', `Deleted teacher: ${teacherName}`);
+};
+
+// --- Featured Course Functions ---
+export const addFeaturedCourse = (course: Omit<Course, 'id'>): void => {
+    const courses = getData<Course>('featuredCourses');
+    const newCourse: Course = {
+        ...course,
+        id: `c_${Date.now()}`
+    };
+    setData('featuredCourses', [...courses, newCourse]);
+    addActivityLog('Home Mgmt', `Added course: ${newCourse.title}`);
+};
+
+export const updateFeaturedCourse = (updatedCourse: Course): void => {
+    const courses = getData<Course>('featuredCourses');
+    const index = courses.findIndex(c => c.id === updatedCourse.id);
+    if (index !== -1) {
+        courses[index] = updatedCourse;
+        setData('featuredCourses', courses);
+        addActivityLog('Home Mgmt', `Updated course: ${updatedCourse.title}`);
+    }
+};
+
+export const deleteFeaturedCourse = (courseId: string): void => {
+    let courses = getData<Course>('featuredCourses');
+    const courseTitle = courses.find(c => c.id === courseId)?.title || 'Unknown';
+    courses = courses.filter(c => c.id !== courseId);
+    setData('featuredCourses', courses);
+    addActivityLog('Home Mgmt', `Deleted course: ${courseTitle}`);
+};
+
+
+// --- Featured Book Functions ---
+export const addFeaturedBook = (book: Omit<Book, 'id'>): void => {
+    const books = getData<Book>('featuredBooks');
+    const newBook: Book = {
+        ...book,
+        id: `b_${Date.now()}`
+    };
+    setData('featuredBooks', [...books, newBook]);
+    addActivityLog('Home Mgmt', `Added book: ${newBook.title}`);
+};
+
+export const updateFeaturedBook = (updatedBook: Book): void => {
+    const books = getData<Book>('featuredBooks');
+    const index = books.findIndex(b => b.id === updatedBook.id);
+    if (index !== -1) {
+        books[index] = updatedBook;
+        setData('featuredBooks', books);
+        addActivityLog('Home Mgmt', `Updated book: ${updatedBook.title}`);
+    }
+};
+
+export const deleteFeaturedBook = (bookId: string): void => {
+    let books = getData<Book>('featuredBooks');
+    const bookTitle = books.find(b => b.id === bookId)?.title || 'Unknown';
+    books = books.filter(b => b.id !== bookId);
+    setData('featuredBooks', books);
+    addActivityLog('Home Mgmt', `Deleted book: ${bookTitle}`);
+};

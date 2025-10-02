@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { User, Theme } from '../../types';
-import { CollectionIcon, QrcodeIcon, CreditCardIcon, HomeIcon, UserCircleIcon, MenuIcon, XIcon } from '../common/Icons';
+import { CollectionIcon, QrcodeIcon, CreditCardIcon, HomeIcon, UserCircleIcon, MenuIcon, XIcon, TemplateIcon } from '../common/Icons';
 
 interface AdminLayoutProps {
   user: User;
@@ -9,7 +9,7 @@ interface AdminLayoutProps {
   theme: Theme;
   setTheme: (theme: Theme) => void;
   children: React.ReactNode;
-  onNavClick: (view: 'dashboard' | 'students' | 'subscriptions' | 'content' | 'tools' | 'settings') => void;
+  onNavClick: (view: 'dashboard' | 'students' | 'subscriptions' | 'content' | 'tools' | 'settings' | 'homeManagement') => void;
   activeView: string;
 }
 
@@ -19,6 +19,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ user, onLogout, theme, setThe
   const navItems = [
     { id: 'dashboard', label: 'الرئيسية', icon: HomeIcon },
     { id: 'content', label: 'المحتوى', icon: CollectionIcon },
+    { id: 'homeManagement', label: 'إدارة الرئيسية', icon: TemplateIcon },
     { id: 'subscriptions', label: 'الاشتراكات', icon: CreditCardIcon },
     { id: 'tools', label: 'الأدوات', icon: QrcodeIcon },
     { id: 'settings', label: 'الملف الشخصي', icon: UserCircleIcon },

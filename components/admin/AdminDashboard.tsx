@@ -11,6 +11,7 @@ import RevenueChart from './RevenueChart';
 import ContentManagementView from './ContentManagementView';
 import QrCodeGeneratorView from './QrCodeGeneratorView';
 import AdminSettingsView from './AdminSettingsView';
+import HomeManagementView from './HomeManagementView';
 
 interface AdminDashboardProps {
   user: User;
@@ -19,7 +20,7 @@ interface AdminDashboardProps {
   setTheme: (theme: Theme) => void;
 }
 
-type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'content' | 'tools' | 'settings';
+type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'content' | 'tools' | 'settings' | 'homeManagement';
 
 const StatCard: React.FC<{ title: string; value: string; icon: React.FC<{ className?: string; }>; delay: number; onClick?: () => void; }> = ({ title, value, icon: Icon, delay, onClick }) => (
     <div 
@@ -182,6 +183,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
         return <SubscriptionManagementView />;
       case 'students':
         return <StudentManagementView onViewDetails={handleViewStudentDetails} />;
+      case 'homeManagement':
+        return <HomeManagementView />;
       case 'content':
         return <ContentManagementView />;
       case 'tools':
