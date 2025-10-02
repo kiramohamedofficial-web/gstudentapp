@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { getAllGrades } from '../../services/storageService';
 import { Grade, LessonType } from '../../types';
 import { AtomIcon, ArrowLeftIcon, PhoneIcon, YoutubeIcon, FacebookIcon, VideoCameraSolidIcon, BookBookmarkIcon, ClockSolidIcon, UsersSolidIcon, BookOpenIcon, VideoCameraIcon } from '../common/Icons';
@@ -12,8 +12,8 @@ const Header: React.FC<{ onNavigateToLogin: () => void }> = ({ onNavigateToLogin
     <header className="fixed top-0 left-0 right-0 z-50 bg-[var(--bg-primary)]/80 backdrop-blur-md border-b border-[var(--border-primary)]">
         <div className="container mx-auto px-6 py-4 flex justify-between items-center">
             <div className="flex items-center space-x-2 space-x-reverse">
-                <AtomIcon className="w-8 h-8 text-[var(--accent-primary)]" />
-                <span className="text-xl font-bold">منصة د. أحمد صابر</span>
+                <BookBookmarkIcon className="w-8 h-8 text-[var(--accent-primary)]" />
+                <span className="text-xl font-bold">سنتر جوجل التعليمي</span>
             </div>
             <button
                 onClick={onNavigateToLogin}
@@ -31,10 +31,10 @@ const HeroSection: React.FC<{ onNavigateToLogin: () => void }> = ({ onNavigateTo
         <div className="grid md:grid-cols-2 gap-8 items-center">
             <div className="text-center md:text-right z-10">
                 <h1 className="text-4xl md:text-6xl font-black leading-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-green-400 mb-4 fade-in">
-                    رحلتك نحو التفوق في العلوم تبدأ هنا
+                    رحلتك نحو التفوق الدراسي تبدأ هنا
                 </h1>
                 <p className="text-lg md:text-xl text-[var(--text-secondary)] mb-8 fade-in fade-in-delay-1">
-                    مع د. أحمد صابر، نقدم لكم منصة تعليمية متكاملة لطلاب المرحلتين الإعدادية والثانوية، تجمع بين الشرح المبسط والتكنولوجيا التفاعلية الحديثة.
+                    منصة تعليمية متكاملة لجميع المواد الدراسية لطلاب المرحلتين الإعدادية والثانوية، تجمع بين الشرح المبسط والتكنولوجيا التفاعلية الحديثة.
                 </p>
                 <button
                     onClick={onNavigateToLogin}
@@ -47,9 +47,8 @@ const HeroSection: React.FC<{ onNavigateToLogin: () => void }> = ({ onNavigateTo
             </div>
             <div className="relative h-72 md:h-96 flex items-center justify-center fade-in fade-in-delay-2">
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-green-400/20 rounded-full blur-3xl"></div>
-                <div className="relative w-56 h-56 md:w-72 md:h-72 rounded-full overflow-hidden border-4 border-white/10 shadow-2xl">
-                    {/* Placeholder for Dr. Ahmed Saber's photo */}
-                    <img src="https://via.placeholder.com/288/0D1117/c9d1d9?text=Dr.A.S" alt="Dr. Ahmed Saber" className="w-full h-full object-cover" />
+                 <div className="relative w-56 h-56 md:w-72 md:h-72 rounded-full border-4 border-white/10 shadow-2xl flex items-center justify-center bg-gradient-to-br from-blue-500/10 to-green-400/10">
+                    <BookBookmarkIcon className="w-32 h-32 md:w-40 md:h-40 text-white/80" />
                 </div>
             </div>
         </div>
@@ -57,42 +56,50 @@ const HeroSection: React.FC<{ onNavigateToLogin: () => void }> = ({ onNavigateTo
 );
 
 // Feature Card Component
-const FeatureCard: React.FC<{ icon: React.ElementType, title: string, description: string, delay: number }> = ({ icon: Icon, title, description, delay }) => (
-    <div
-        className="relative bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-primary)] transition-all duration-300 transform hover:-translate-y-2 hover:border-[var(--accent-primary)] hover:shadow-2xl hover:shadow-blue-500/10 fade-in group text-right overflow-hidden"
-        style={{ animationDelay: `${delay}ms` }}>
-        
-        {/* Decorative curved line - inspired by image */}
-        <div className="absolute top-0 left-0 h-full w-24 pointer-events-none transform -translate-x-4">
-             <svg width="100%" height="100%" viewBox="0 0 80 240" preserveAspectRatio="none">
-                <path 
-                    d="M 70 20 C 0 80, 0 160, 70 220" 
-                    stroke="rgba(88, 166, 255, 0.15)" 
-                    strokeWidth="2" 
-                    fill="none" 
-                    className="transition-all duration-500 group-hover:stroke-[rgba(88,166,255,0.4)] group-hover:translate-x-2"
-                />
-            </svg>
-        </div>
+const FeatureCard: React.FC<{ icon: React.ElementType, title: string, description: string, delay: number }> = ({ icon: Icon, title, description, delay }) => {
+    const [isAnimated, setIsAnimated] = useState(false);
 
-        <div className="relative z-10 p-6 flex flex-col h-full">
-            <div className="mb-4 inline-block p-4 bg-gradient-to-br from-[#102949] to-[#161B22] rounded-xl border border-white/10 shadow-lg">
-                <Icon className="w-8 h-8 text-blue-400 transition-transform duration-300 group-hover:scale-110" />
+    return (
+        <div
+            className={`relative bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-primary)] transition-all duration-300 transform hover:-translate-y-2 hover:border-[var(--accent-primary)] hover:shadow-2xl hover:shadow-blue-500/10 fade-in group text-right overflow-hidden feature-card ${isAnimated ? 'is-animated' : ''}`}
+            style={{ animationDelay: `${delay}ms` }}
+            onMouseEnter={() => setIsAnimated(true)}
+        >
+            <div className="absolute top-0 left-0 h-full w-24 pointer-events-none transform -translate-x-4">
+                 <svg width="100%" height="100%" viewBox="0 0 80 240" preserveAspectRatio="none">
+                    <path 
+                        d="M 70 20 C 0 80, 0 160, 70 220" 
+                        stroke="rgba(88, 166, 255, 0.15)" 
+                        strokeWidth="2" 
+                        fill="none" 
+                        className="wavy-line-path transition-all duration-500 group-[.is-animated]:stroke-[rgba(88,166,255,0.4)]"
+                    />
+                </svg>
             </div>
-            <div className="flex-grow">
-                <h3 className="text-xl font-bold mb-2 text-slate-100">{title}</h3>
-                <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{description}</p>
+
+            <div className="relative z-10 p-6 flex flex-col h-full">
+                <div className="mb-4 inline-block p-4 bg-gradient-to-br from-[#102949] to-[#161B22] rounded-xl border border-white/10 shadow-lg">
+                    <Icon className="w-8 h-8 text-blue-400 transition-all duration-300 group-hover:scale-110 group-hover:text-green-400" />
+                </div>
+                <div className="flex-grow">
+                    <div className="typewriter-title-wrapper">
+                        <h3 className="text-xl font-bold mb-2 typewriter-title">{title}</h3>
+                    </div>
+                    <p className="text-sm leading-relaxed typewriter-description">{description}</p>
+                </div>
             </div>
         </div>
-    </div>
-);
+    );
+};
+
 
 // Grade Card Component
 const GradeCard: React.FC<{ grade: Grade; colorClass: string; delay: number }> = ({ grade, colorClass, delay }) => {
-    const { lessonCount, examCount } = useMemo(() => {
+    const { subjectsCount, examCount } = useMemo(() => {
         const lessons = grade.semesters.flatMap(s => s.units.flatMap(u => u.lessons));
+        const subjectsCount = grade.semesters[0]?.units.length || 0;
         return {
-            lessonCount: lessons.length,
+            subjectsCount,
             examCount: lessons.filter(l => l.type === LessonType.EXAM).length
         };
     }, [grade]);
@@ -120,12 +127,8 @@ const GradeCard: React.FC<{ grade: Grade; colorClass: string; delay: number }> =
                     <h3 className="text-3xl font-extrabold mb-2" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.4)' }}>{grade.name}</h3>
                     <div className="flex items-center space-x-4 space-x-reverse text-white/90 border-t border-white/20 pt-3 mt-3">
                         <div className="flex items-center space-x-2 space-x-reverse text-sm">
-                            <VideoCameraIcon className="w-5 h-5" />
-                            <span>{lessonCount} درس</span>
-                        </div>
-                        <div className="flex items-center space-x-2 space-x-reverse text-sm">
                             <BookOpenIcon className="w-5 h-5" />
-                            <span>{examCount} امتحان</span>
+                            <span>{subjectsCount} مادة</span>
                         </div>
                     </div>
                 </div>
@@ -165,8 +168,8 @@ const Footer = () => (
         <div className="container mx-auto px-6 py-12">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
                 <div className="md:col-span-2">
-                    <h3 className="text-xl font-bold mb-4">منصة د. أحمد صابر</h3>
-                    <p className="text-[var(--text-secondary)] max-w-md">منصة تعليمية رائدة تهدف إلى تقديم أفضل المحتويات التعليمية في مادة العلوم لطلاب المرحلتين الإعدادية والثانوية.</p>
+                    <h3 className="text-xl font-bold mb-4">سنتر جوجل التعليمي</h3>
+                    <p className="text-[var(--text-secondary)] max-w-md">منصة تعليمية رائدة تهدف إلى تقديم أفضل المحتويات التعليمية في جميع المواد لطلاب المرحلتين الإعدادية والثانوية.</p>
                 </div>
                 <div>
                     <h3 className="text-lg font-semibold mb-4">روابط سريعة</h3>
@@ -187,7 +190,7 @@ const Footer = () => (
         </div>
         <div className="bg-[var(--bg-primary)] border-t border-[var(--border-primary)]">
             <div className="container mx-auto px-6 py-4 text-center text-sm text-[var(--text-secondary)]">
-                &copy; {new Date().getFullYear()} Dr. Ahmed Saber. جميع الحقوق محفوظة.
+                &copy; {new Date().getFullYear()} سنتر جوجل التعليمي. جميع الحقوق محفوظة.
             </div>
         </div>
     </footer>

@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { AtomIcon, ArrowRightIcon } from '../common/Icons';
+import { BookBookmarkIcon, ArrowRightIcon } from '../common/Icons';
 
 const CosmicFlowBackground: React.FC = () => {
     return (
@@ -43,7 +43,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, error, onBack }) => 
       >
         <div className="text-center fade-in flex flex-col items-center">
           <div className="p-4 bg-gradient-to-br from-blue-500/20 to-green-500/20 rounded-full mb-4 border border-white/10">
-            <AtomIcon className="w-12 h-12 text-white" />
+            <BookBookmarkIcon className="w-12 h-12 text-white" />
           </div>
           <h1 className="text-4xl md:text-5xl font-black tracking-tight" style={{ background: 'linear-gradient(120deg, #58a6ff, #3fb950)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
             تسجيل الدخول
@@ -61,7 +61,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, error, onBack }) => 
               onChange={(e) => setUsername(e.target.value)}
               required
               className="mt-1 block w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all duration-300 placeholder-slate-500 glow-on-focus"
-              placeholder="مثال: عمر أحمد"
+              placeholder="مثال: طالب تجريبي"
             />
           </div>
           <div>
@@ -89,13 +89,13 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, error, onBack }) => 
 
         <div className="w-full pt-6 border-t border-white/10 flex flex-col sm:flex-row gap-4 fade-in fade-in-delay-2">
             <button 
-                onClick={() => onLogin('Omar Ahmed', '1234')}
+                onClick={() => onLogin('طالب تجريبي', '1234')}
                 className="w-full py-2 px-4 text-sm font-semibold text-white bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-all duration-300"
             >
                 دخول تجريبي (طالب)
             </button>
             <button 
-                onClick={() => onLogin('Dr. Ahmed Saber', 'admin')}
+                onClick={() => onLogin('مدير المنصة', 'admin')}
                 className="w-full py-2 px-4 text-sm font-semibold text-white bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-all duration-300"
             >
                 دخول تجريبي (مدير)

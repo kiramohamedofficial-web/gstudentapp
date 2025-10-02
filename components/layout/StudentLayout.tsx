@@ -91,7 +91,7 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ user, onLogout, theme, se
         </div>
         <NavContent />
         <div className="p-6 text-xs text-center text-[var(--text-secondary)]">
-          &copy; {new Date().getFullYear()} Dr. Ahmed Saber. All rights reserved.
+          &copy; {new Date().getFullYear()} سنتر جوجل التعليمي. All rights reserved.
         </div>
       </aside>
 
@@ -110,7 +110,7 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ user, onLogout, theme, se
             </div>
             <NavContent />
              <div className="p-6 text-xs text-center text-[var(--text-secondary)]">
-                &copy; {new Date().getFullYear()} Dr. Ahmed Saber. All rights reserved.
+                &copy; {new Date().getFullYear()} سنتر جوجل التعليمي. All rights reserved.
             </div>
           </div>
         </div>

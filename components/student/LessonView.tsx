@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Lesson, LessonType, Question, Grade, ToastType, Unit, Semester } from '../../types';
 import { getAIExplanation } from '../../services/geminiService';
 import Modal from '../common/Modal';
@@ -68,12 +68,24 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, grade, onLesson
     const [displayedResponse, setDisplayedResponse] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
+    const subjectTitle = useMemo(() => {
+        for (const semester of grade.semesters) {
+            for (const unit of semester.units) {
+                if (unit.lessons.some(l => l.id === lesson.id)) {
+                    return unit.title;
+                }
+            }
+        }
+        return lesson.title; // Fallback to lesson title
+    }, [grade, lesson]);
+
+
     const handleAskAI = async () => {
         if (!aiQuestion.trim()) return;
         setIsLoading(true);
         setAiResponse('');
         setDisplayedResponse('');
-        const response = await getAIExplanation(lesson.title, aiQuestion, grade.name);
+        const response = await getAIExplanation(subjectTitle, aiQuestion, grade.name);
         setAiResponse(response);
         setIsLoading(false);
     };
@@ -93,12 +105,16 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, grade, onLesson
                 const unitWithLesson = grade.semesters
                     .flatMap(s => s.units)
                     .find(u => u.lessons.some(l => l.id === lesson.id));
+                
+                if(!lesson.content) {
+                    return <div className="text-center p-8 bg-[var(--bg-primary)] rounded-lg">المحتوى غير متوفر لهذا الدرس بعد.</div>
+                }
 
                 return (
                     <CustomYouTubePlayer
                         key={lesson.id}
                         initialLesson={lesson}
-                        playlist={unitWithLesson?.lessons.filter(l => l.type === LessonType.EXPLANATION) || []}
+                        playlist={unitWithLesson?.lessons.filter(l => l.type === LessonType.EXPLANATION && l.content) || []}
                         onLessonComplete={onLessonComplete}
                     />
                 );
@@ -127,13 +143,13 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, grade, onLesson
                     اسأل المساعد الذكي
                 </button>
             </div>
-            <p className="text-lg text-[var(--text-secondary)] mb-6">{lesson.type}</p>
+            <p className="text-lg text-[var(--text-secondary)] mb-6">{lesson.type} - {subjectTitle}</p>
             
             {renderContent()}
             
-            <Modal isOpen={isHelpModalOpen} onClose={() => setHelpModalOpen(false)} title="مساعد دكتور أحمد صابر الذكي">
+            <Modal isOpen={isHelpModalOpen} onClose={() => setHelpModalOpen(false)} title="المساعد الذكي من سنتر جوجل">
                 <div className="space-y-4">
-                    <p className="text-sm text-slate-400">هل تواجه صعوبة في مفهوم ما؟ اطرح سؤالاً يتعلق بـ "{lesson.title}".</p>
+                    <p className="text-sm text-slate-400">هل تواجه صعوبة في مفهوم ما؟ اطرح سؤالاً يتعلق بمادة "{subjectTitle}".</p>
                     <textarea
                         value={aiQuestion}
                         onChange={(e) => setAiQuestion(e.target.value)}

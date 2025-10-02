@@ -90,7 +90,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ user, onLogout, theme, setThe
         </div>
         <NavContent/>
         <div className="p-6 text-xs text-center text-[var(--text-secondary)]">
-            &copy; {new Date().getFullYear()} Dr. Ahmed Saber.
+            &copy; {new Date().getFullYear()} سنتر جوجل التعليمي.
         </div>
       </aside>
 
@@ -109,7 +109,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ user, onLogout, theme, setThe
             </div>
             <NavContent />
             <div className="p-6 text-xs text-center text-[var(--text-secondary)]">
-                &copy; {new Date().getFullYear()} Dr. Ahmed Saber.
+                &copy; {new Date().getFullYear()} سنتر جوجل التعليمي.
             </div>
           </div>
         </div>

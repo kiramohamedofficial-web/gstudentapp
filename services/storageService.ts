@@ -11,12 +11,32 @@ import {
   SubscriptionRequest,
 } from '../types';
 
+// --- New Curriculum Data Generation ---
+
+const createPlaceholderLessons = (): Lesson[] => ([
+  { id: `l_exp_${Date.now()}_${Math.random()}`, title: 'شرح الدرس الأول', type: LessonType.EXPLANATION, content: '', isCompleted: false },
+  { id: `l_hw_${Date.now()}_${Math.random()}`, title: 'واجب الدرس الأول', type: LessonType.HOMEWORK, content: '', questions: [], isCompleted: false },
+]);
+
+const createUnitsFromSubjects = (subjects: string[], gradeId: number, semesterId: string): Unit[] => subjects.map((subject, i) => ({
+  id: `unit_${gradeId}_${semesterId}_${i}`,
+  title: subject,
+  lessons: createPlaceholderLessons()
+}));
+
+// --- Subject Lists ---
+const middle1_subjects = ['لغة عربية', 'لغة إنجليزية', 'رياضيات', 'علوم', 'دراسات اجتماعية', 'تربية دينية', 'كمبيوتر وتكنولوجيا معلومات', 'تربية فنية', 'تربية موسيقية', 'تربية رياضية'];
+const middle3_subjects = ['لغة عربية', 'لغة إنجليزية', 'رياضيات', 'علوم', 'دراسات اجتماعية', 'تربية دينية', 'كمبيوتر'];
+const sec1_subjects = ['لغة عربية', 'لغة إنجليزية', 'لغة ثانية', 'رياضيات', 'فيزياء', 'كيمياء', 'أحياء', 'تاريخ', 'جغرافيا', 'فلسفة ومنطق', 'تربية دينية', 'كمبيوتر', 'تربية وطنية'];
+const sec2_subjects = ['لغة عربية', 'لغة إنجليزية', 'لغة ثانية', 'رياضيات', 'فيزياء', 'كيمياء', 'أحياء', 'تاريخ', 'جغرافيا', 'فلسفة ومنطق', 'علم نفس', 'تربية دينية', 'تربية وطنية'];
+const sec3_subjects = ['لغة عربية', 'لغة إنجليزية', 'لغة ثانية', 'أحياء', 'كيمياء', 'فيزياء', 'جيولوجيا وعلوم البيئة', 'رياضيات تطبيقية', 'رياضيات بحتة', 'تاريخ', 'جغرافيا', 'علم نفس واجتماع', 'فلسفة ومنطق'];
+
 // Mock Data
 const users: User[] = [
-  { id: '1', name: 'Omar Ahmed', code: '1234', grade: 10, role: Role.STUDENT, subscriptionId: 'sub1' },
-  { id: '2', name: 'Fatima Ali', code: '5678', grade: 11, role: Role.STUDENT, subscriptionId: 'sub2' },
-  { id: '3', name: 'Youssef Hassan', code: '9012', grade: 12, role: Role.STUDENT, subscriptionId: 'sub3' },
-  { id: '4', name: 'Dr. Ahmed Saber', code: 'admin', grade: 0, role: Role.ADMIN },
+  { id: '1', name: 'طالب تجريبي', code: '1234', grade: 10, role: Role.STUDENT, subscriptionId: 'sub1' },
+  { id: '2', name: 'طالبة متفوقة', code: '5678', grade: 11, role: Role.STUDENT, subscriptionId: 'sub2' },
+  { id: '3', name: 'طالب مجتهد', code: '9012', grade: 12, role: Role.STUDENT, subscriptionId: 'sub3' },
+  { id: '4', name: 'مدير المنصة', code: 'admin', grade: 0, role: Role.ADMIN },
 ];
 
 const subscriptions: Subscription[] = [
@@ -28,99 +48,47 @@ const subscriptions: Subscription[] = [
 const grades: Grade[] = [
   // Middle School
   {
-    id: 7,
-    name: 'الصف الأول الإعدادي',
-    ordinal: '1st',
-    level: 'Middle',
-    levelAr: 'الإعدادي',
+    id: 7, name: 'الصف الأول الإعدادي', ordinal: '1st', level: 'Middle', levelAr: 'الإعدادي',
     semesters: [
-      {
-        id: 'sem1_7',
-        title: 'الفصل الدراسي الأول',
-        units: [
-          {
-            id: 'unit1_7_1',
-            title: 'الوحدة الأولى: المادة وخواصها',
-            lessons: [
-              {
-                id: 'l_matter_props_1',
-                title: 'شرح درس المادة وخواصها',
-                type: LessonType.EXPLANATION,
-                content: 'sGlqdJ2MBx0',
-                isCompleted: false,
-              },
-            ],
-          },
-        ],
-      },
+      { id: 'sem1_7', title: 'الفصل الدراسي الأول', units: createUnitsFromSubjects(middle1_subjects, 7, '1') },
+      { id: 'sem2_7', title: 'الفصل الدراسي الثاني', units: createUnitsFromSubjects(middle1_subjects, 7, '2') }
     ],
   },
   {
-    id: 8,
-    name: 'الصف الثاني الإعدادي',
-    ordinal: '2nd',
-    level: 'Middle',
-    levelAr: 'الإعدادي',
-    semesters: [{ id: 'sem1_8', title: 'الفصل الدراسي الأول', units: [] }],
+    id: 8, name: 'الصف الثاني الإعدادي', ordinal: '2nd', level: 'Middle', levelAr: 'الإعدادي',
+    semesters: [
+      { id: 'sem1_8', title: 'الفصل الدراسي الأول', units: createUnitsFromSubjects(middle1_subjects, 8, '1') },
+      { id: 'sem2_8', title: 'الفصل الدراسي الثاني', units: createUnitsFromSubjects(middle1_subjects, 8, '2') }
+    ],
   },
   {
-    id: 9,
-    name: 'الصف الثالث الإعدادي',
-    ordinal: '3rd',
-    level: 'Middle',
-    levelAr: 'الإعدادي',
-    semesters: [{ id: 'sem1_9', title: 'الفصل الدراسي الأول', units: [] }],
+    id: 9, name: 'الصف الثالث الإعدادي', ordinal: '3rd', level: 'Middle', levelAr: 'الإعدادي',
+    semesters: [
+      { id: 'sem1_9', title: 'الفصل الدراسي الأول', units: createUnitsFromSubjects(middle3_subjects, 9, '1') },
+      { id: 'sem2_9', title: 'الفصل الدراسي الثاني', units: createUnitsFromSubjects(middle3_subjects, 9, '2') }
+    ],
   },
   // Secondary School
   {
-    id: 10,
-    name: 'الصف الأول الثانوي',
-    ordinal: '1st',
-    level: 'Secondary',
-    levelAr: 'الثانوي',
+    id: 10, name: 'الصف الأول الثانوي', ordinal: '1st', level: 'Secondary', levelAr: 'الثانوي',
     semesters: [
-      {
-        id: 'sem1_10',
-        title: 'الفصل الدراسي الأول',
-        units: [
-          {
-            id: 'unit1_10_1',
-            title: 'الوحدة الأولى: الكيمياء والتركيب الذري',
-            lessons: [
-              { id: 'l1', title: 'مقدمة في بنية الذرة', type: LessonType.EXPLANATION, content: 'kMasjoWy-wE', isCompleted: true },
-              { id: 'l2', title: 'واجب بنية الذرة', type: LessonType.HOMEWORK, content: '', questions: [{ id: 'q1', text: 'ما هو الجسيم دون الذري الذي يحمل شحنة موجبة؟', options: ['الإلكترون', 'البروتون', 'النيوترون', 'الفوتون'], correctAnswer: 'البروتون' }], isCompleted: false },
-              { id: 'l3', title: 'ملخص الوحدة الأولى', type: LessonType.SUMMARY, content: '<h1>ملخص بنية الذرة</h1><p>تتكون الذرة من نواة تحتوي على بروتونات ونيوترونات، وتدور حولها إلكترونات.</p>', isCompleted: true },
-              { id: 'l4', title: 'امتحان على الوحدة الأولى', type: LessonType.EXAM, content: '', questions: [{ id: 'q2', text: 'ما هو العدد الذري لعنصر يحتوي على 6 بروتونات؟', options: ['6', '12', '5', '7'], correctAnswer: '6' }], isCompleted: false },
-            ],
-          },
-          {
-            id: 'unit2_10_1',
-            title: 'الوحدة الثانية: الفيزياء والحركة',
-            lessons: [
-              { id: 'l5', title: 'قوانين نيوتن للحركة', type: LessonType.EXPLANATION, content: 'vJ0UE06b7pM', isCompleted: true },
-              { id: 'l6', title: 'واجب قوانين نيوتن', type: LessonType.HOMEWORK, content: '', questions: [], isCompleted: true },
-              { id: 'l7', title: 'امتحان على الوحدة الثانية', type: LessonType.EXAM, content: '', questions: [], isCompleted: false },
-            ],
-          },
-        ],
-      },
+      { id: 'sem1_10', title: 'الفصل الدراسي الأول', units: createUnitsFromSubjects(sec1_subjects, 10, '1') },
+      { id: 'sem2_10', title: 'الفصل الدراسي الثاني', units: createUnitsFromSubjects(sec1_subjects, 10, '2') }
     ],
   },
   {
-    id: 11,
-    name: 'الصف الثاني الثانوي',
-    ordinal: '2nd',
-    level: 'Secondary',
-    levelAr: 'الثانوي',
-    semesters: [{ id: 'sem1_11', title: 'الفصل الدراسي الأول', units: [] }],
+    id: 11, name: 'الصف الثاني الثانوي', ordinal: '2nd', level: 'Secondary', levelAr: 'الثانوي',
+    semesters: [
+      { id: 'sem1_11', title: 'الفصل الدراسي الأول', units: createUnitsFromSubjects(sec2_subjects, 11, '1') },
+      { id: 'sem2_11', title: 'الفصل الدراسي الثاني', units: createUnitsFromSubjects(sec2_subjects, 11, '2') }
+    ],
   },
   {
-    id: 12,
-    name: 'الصف الثالث الثانوي',
-    ordinal: '3rd',
-    level: 'Secondary',
-    levelAr: 'الثانوي',
-    semesters: [{ id: 'sem1_12', title: 'الفصل الدراسي الأول', units: [] }],
+    id: 12, name: 'الصف الثالث الثانوي', ordinal: '3rd', level: 'Secondary', levelAr: 'الثانوي',
+    semesters: [
+      { id: 'sem1_12', title: 'الفصل الدراسي الأول', units: createUnitsFromSubjects(sec3_subjects, 12, '1') },
+      { id: 'sem2_12', title: 'الفصل الدراسي الثاني', units: createUnitsFromSubjects(sec3_subjects, 12, '2') }
+    ],
   },
 ];
 

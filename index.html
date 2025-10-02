@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Dr. Ahmed Saber</title>
+    <title>منصه سنتر جوجل التعليميه</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -159,6 +159,87 @@
   .fade-in-delay-2 { animation-delay: 0.2s; }
   .fade-in-delay-3 { animation-delay: 0.3s; }
   .fade-in-delay-4 { animation-delay: 0.4s; }
+
+  /* Wavy line and Typewriter animations for feature cards */
+  @keyframes animate-wavy-line {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+  }
+  .wavy-line-path {
+    animation: animate-wavy-line 4s ease-in-out infinite;
+  }
+
+  @keyframes typing {
+    from { width: 0; }
+    to { width: 100%; }
+  }
+  @keyframes blink-caret {
+    from, to { background-color: transparent; }
+    50% { background-color: var(--accent-primary); }
+  }
+
+  .typewriter-title-wrapper {
+    display: inline-flex;
+    direction: rtl;
+    align-items: baseline;
+    min-height: 1.5em; /* Prevent layout shift */
+  }
+  .typewriter-title-wrapper::before { /* RTL Caret */
+    content: '';
+    display: inline-block;
+    width: 3px;
+    height: 1.1em;
+    background-color: transparent;
+    margin-left: 4px;
+  }
+
+  /* Trigger blinking caret only during the typing animation */
+  .group.is-animated .typewriter-title-wrapper::before {
+    animation: blink-caret .75s step-end 2; /* Runs for 1.5s then stops */
+  }
+  
+  .typewriter-title {
+    display: inline-block;
+    overflow: hidden;
+    white-space: nowrap;
+    width: 0;
+    color: var(--text-primary);
+  }
+  
+  /* Trigger typing animation with the is-animated class */
+  .group.is-animated .typewriter-title {
+    animation: typing 1.5s steps(30, end) forwards;
+  }
+
+  .typewriter-description {
+    color: var(--text-secondary);
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.5s ease-out 1.5s, transform 0.5s ease-out 1.5s;
+  }
+
+  /* Trigger description fade-in with the is-animated class */
+  .group.is-animated .typewriter-description {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  
+  /* Feature Card Hover Glow */
+  .feature-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: radial-gradient(circle at 50% -20%, rgba(88, 166, 255, 0.15), transparent 70%);
+      opacity: 0;
+      transition: opacity 0.4s ease-out;
+      pointer-events: none;
+  }
+  .feature-card:hover::before {
+      opacity: 1;
+  }
 
   /* Loading Spinner */
   @keyframes spin {
