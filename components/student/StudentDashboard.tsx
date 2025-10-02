@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { User, Theme, Grade, Unit } from '../../types';
+import { User, Theme, Grade, Unit, StudentView } from '../../types';
 import { getGradeById, getAllGrades } from '../../services/storageService';
 import StudentLayout from '../layout/StudentLayout';
 import CourseView from './CourseView';
@@ -8,6 +8,7 @@ import Subscription from './Subscription';
 import Profile from './Profile';
 import HomeScreen from './HomeScreen';
 import SubjectSelectionScreen from './SubjectSelectionScreen';
+import StudentHomeScreen from './StudentHomeScreen';
 
 interface StudentDashboardProps {
   user: User;
@@ -15,8 +16,6 @@ interface StudentDashboardProps {
   theme: Theme;
   setTheme: (theme: Theme) => void;
 }
-
-type StudentView = 'home' | 'curriculum' | 'subscription' | 'profile';
 
 const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
   const { user, theme, setTheme, onLogout } = props;
@@ -30,13 +29,15 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
   const handleGradeSelect = (grade: Grade) => {
     setViewingGrade(grade);
     setSelectedUnit(null);
-    setActiveView('curriculum');
+    // This now implicitly transitions to the curriculum view logic
+    setActiveView('grades'); // Keep activeView consistent with the nav, logic inside will handle showing subject selection
   };
 
   const handleNavClick = (view: StudentView) => {
-    if (view === 'curriculum') {
-      setViewingGrade(studentGrade);
-      setSelectedUnit(null); // Reset unit when navigating to curriculum section
+    if (view === 'grades') {
+      // Reset curriculum selection when going to the grade list
+      setViewingGrade(null);
+      setSelectedUnit(null);
     }
     setActiveView(view);
   };
@@ -48,35 +49,28 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
   const renderContent = () => {
     switch (activeView) {
       case 'home':
+        return <StudentHomeScreen onNavigateToGrades={() => setActiveView('grades')} />;
+      case 'grades':
+        if (viewingGrade) {
+            if(selectedUnit) {
+                return <CourseView grade={viewingGrade} unit={selectedUnit} onBack={() => setSelectedUnit(null)} />;
+            }
+            return <SubjectSelectionScreen 
+                grade={viewingGrade} 
+                onSubjectSelect={handleSubjectSelect} 
+                onBack={() => {
+                    setViewingGrade(null);
+                }} 
+            />
+        }
         return <HomeScreen grades={allGrades} onSelectGrade={handleGradeSelect} />;
-      case 'curriculum':
-        if (!viewingGrade) {
-          return (
-            <div className="text-center p-8">
-              <h2 className="text-2xl font-bold mb-4">لم يتم تحديد المنهج</h2>
-              <p className="text-[var(--text-secondary)]">يرجى اختيار صف دراسي من الصفحة الرئيسية لعرض المنهج.</p>
-            </div>
-          );
-        }
-        if (!selectedUnit) {
-            return (
-                <SubjectSelectionScreen 
-                    grade={viewingGrade} 
-                    onSubjectSelect={handleSubjectSelect} 
-                    onBack={() => {
-                        setViewingGrade(null);
-                        setActiveView('home');
-                    }} 
-                />
-            );
-        }
-        return <CourseView grade={viewingGrade} unit={selectedUnit} onBack={() => setSelectedUnit(null)} />;
       case 'subscription':
         return <Subscription user={user} />;
       case 'profile':
         return <Profile user={user} onLogout={onLogout} theme={theme} setTheme={setTheme} />;
       default:
-        return null;
+        // Fallback to home screen if view is unknown
+        return <StudentHomeScreen onNavigateToGrades={() => setActiveView('grades')} />;
     }
   };
 

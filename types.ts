@@ -11,6 +11,8 @@ export enum Theme {
   PINK = 'pink',
 }
 
+export type StudentView = 'home' | 'grades' | 'subscription' | 'profile';
+
 export interface User {
   id: string;
   name: string;
@@ -44,7 +46,7 @@ export interface Question {
 }
 
 export interface Lesson {
-  id: string;
+  id:string;
   title: string;
   type: LessonType;
   content: string; // YouTube video ID, summary text, etc.
@@ -111,6 +113,33 @@ export interface ToastMessage {
   message: string;
   type: ToastType;
 }
+
+export interface FeaturedTeacher {
+    id: string;
+    name: string;
+    subject: string;
+    imageUrl: string;
+}
+
+export interface Course {
+  id: string; // could be unit id or a special course id
+  title: string;
+  subtitle: string;
+  coverImage: string;
+  fileCount: number;
+  videoCount: number;
+  quizCount: number;
+}
+
+export interface Book {
+  id: string;
+  title: string;
+  teacherName: string;
+  teacherImage: string;
+  price: number;
+  coverImage: string;
+}
+
 
 declare global {
   interface Window {

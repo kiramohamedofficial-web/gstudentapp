@@ -16,21 +16,19 @@ const TeacherCard: React.FC<{ unit: Unit; onClick: () => void; delay: number }> 
     return (
         <div
             onClick={onClick}
-            className="bg-[#1c222b] rounded-2xl shadow-lg border border-transparent hover:border-blue-500/50 transition-all duration-300 cursor-pointer flex overflow-hidden transform hover:-translate-y-1.5 fade-in"
+            className="bg-[var(--bg-primary)] rounded-2xl shadow-lg border border-[var(--border-primary)] hover:border-[var(--accent-primary)]/50 transition-all duration-300 cursor-pointer flex overflow-hidden transform hover:-translate-y-1.5 fade-in group"
             style={{ animationDelay: `${delay}ms` }}
         >
             <div className="flex-shrink-0 w-28 md:w-32 h-full">
                 <img src={teacherInfo.imageUrl} alt={teacherInfo.name} className="w-full h-full object-cover object-center" />
             </div>
-            <div className="flex-grow p-4 md:p-5 flex flex-col justify-center">
-                <h3 className="text-lg md:text-xl font-bold text-blue-300 flex items-center mb-1">
-                    <span className="ml-2 text-2xl">{teacherInfo.icon}</span>
+            <div className="flex-grow p-4 md:p-5 flex flex-col justify-center text-right">
+                <h3 className="text-lg md:text-xl font-bold text-[var(--accent-primary)] group-hover:text-[var(--accent-secondary)] transition-colors flex items-center mb-1 justify-end">
                     {unit.title}
+                    <span className="mr-2 text-2xl">{teacherInfo.icon}</span>
                 </h3>
-                <p className="text-md text-slate-200">{teacherInfo.name}</p>
-                <div className="mt-4 h-2 w-4/5 bg-slate-700 rounded-full overflow-hidden">
-                    <div className="h-full w-1/3 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full"></div>
-                </div>
+                <p className="text-md text-[var(--text-primary)]">{teacherInfo.name}</p>
+                 <p className="text-xs text-[var(--text-secondary)] mt-2">انقر لعرض محتوى المادة</p>
             </div>
         </div>
     );

@@ -1,3 +1,4 @@
+
 import {
   User,
   Subscription,
@@ -9,13 +10,16 @@ import {
   Unit,
   AccessToken,
   SubscriptionRequest,
+  FeaturedTeacher,
+  Course,
+  Book,
 } from '../types';
 import { DEMO_ADMIN_CODE, DEMO_ADMIN_USERNAME, DEMO_STUDENT_CODE, DEMO_STUDENT_USERNAME } from '../constants';
 
 // --- New Curriculum Data Generation ---
 
 const createPlaceholderLessons = (): Lesson[] => ([
-  { id: `l_exp_${Date.now()}_${Math.random()}`, title: 'شرح الدرس الأول', type: LessonType.EXPLANATION, content: '', isCompleted: false },
+  { id: `l_exp_${Date.now()}_${Math.random()}`, title: 'شرح الدرس الأول', type: LessonType.EXPLANATION, content: 'dQw4w9WgXcQ', isCompleted: false },
   { id: `l_hw_${Date.now()}_${Math.random()}`, title: 'واجب الدرس الأول', type: LessonType.HOMEWORK, content: '', questions: [], isCompleted: false },
 ]);
 
@@ -93,6 +97,30 @@ const grades: Grade[] = [
   },
 ];
 
+// --- New Home Screen Data ---
+
+const featuredTeachers: FeaturedTeacher[] = [
+    { id: 't1', name: 'كريم فكري', subject: 'اللغة الإنجليزية', imageUrl: 'https://i.ibb.co/bJCmnz5/teacher1.png' },
+    { id: 't2', name: 'حسين الجبلاوي', subject: 'اللغة الفرنسية', imageUrl: 'https://i.ibb.co/c2j3G55/teacher2.png' },
+    { id: 't3', name: 'ماجد المهندس', subject: 'الفيزياء', imageUrl: 'https://i.ibb.co/3Wf4QYf/teacher3.png' },
+    { id: 't4', name: 'إسماعيل السيد', subject: 'الأحياء', imageUrl: 'https://i.ibb.co/pwnLz3S/teacher4.png' },
+    { id: 't5', name: 'أحمد مدحي', subject: 'الكيمياء', imageUrl: 'https://i.ibb.co/z5pW7P6/teacher5.png' },
+];
+
+const featuredCourses: Course[] = [
+    { id: 'c1', title: 'UNIT 1 PART 1', subtitle: 'الحصة 3 - الصف الثالث الثانوي', coverImage: 'https://i.ibb.co/g7jCg0D/course1.png', fileCount: 1, videoCount: 2, quizCount: 1 },
+    { id: 'c2', title: 'Unit 1 part 3', subtitle: 'الحصة 3 - الصف الثالث الثانوي', coverImage: 'https://i.ibb.co/g7jCg0D/course1.png', fileCount: 2, videoCount: 1, quizCount: 1 },
+    { id: 'c3', title: 'Writing Skills 3', subtitle: 'الحصة 5 - الصف الأول الثانوي', coverImage: 'https://i.ibb.co/g7jCg0D/course1.png', fileCount: 0, videoCount: 2, quizCount: 0 },
+    { id: 'c4', title: 'حصة 5 (ت)', subtitle: 'الحصة 5 - الصف الأول الثانوي', coverImage: 'https://i.ibb.co/R9m4M58/course2.png', fileCount: 0, videoCount: 2, quizCount: 0 },
+];
+
+const featuredBooks: Book[] = [
+    { id: 'b1', title: 'كتاب الترم الأول - فرنساوي (3 ث)', teacherName: 'حسين الجبلاوي', teacherImage: 'https://i.ibb.co/c2j3G55/teacher2.png', price: 285, coverImage: 'https://i.ibb.co/q0V9bFN/book1.png' },
+    { id: 'b2', title: 'كتاب الترم الأول - فرنساوي (3 ث)', teacherName: 'حسين الجبلاوي', teacherImage: 'https://i.ibb.co/c2j3G55/teacher2.png', price: 285, coverImage: 'https://i.ibb.co/q0V9bFN/book1.png' },
+    { id: 'b3', title: 'كتاب الشرح والأسئلة', teacherName: 'كريم فكري', teacherImage: 'https://i.ibb.co/bJCmnz5/teacher1.png', price: 300, coverImage: 'https://i.ibb.co/yQxG4d8/book2.png' },
+];
+
+
 const activityLogs: ActivityLog[] = [];
 const accessTokens: AccessToken[] = [];
 const subscriptionRequests: SubscriptionRequest[] = [];
@@ -106,6 +134,10 @@ export const initData = (): void => {
     localStorage.setItem('activityLogs', JSON.stringify(activityLogs));
     localStorage.setItem('accessTokens', JSON.stringify(accessTokens));
     localStorage.setItem('subscriptionRequests', JSON.stringify(subscriptionRequests));
+    // Add home screen data to local storage as well if it needs to be persisted
+    localStorage.setItem('featuredTeachers', JSON.stringify(featuredTeachers));
+    localStorage.setItem('featuredCourses', JSON.stringify(featuredCourses));
+    localStorage.setItem('featuredBooks', JSON.stringify(featuredBooks));
   }
 };
 
@@ -137,6 +169,12 @@ export const getGradeById = (gradeId: number): Grade | undefined => {
 export const getAllGrades = (): Grade[] => getData<Grade>('grades');
 export const getAllUsers = (): User[] => getData<User>('users');
 export const getAllSubscriptions = (): Subscription[] => getData<Subscription>('subscriptions');
+
+// Home Screen Data Accessors
+export const getFeaturedTeachers = (): FeaturedTeacher[] => getData<FeaturedTeacher>('featuredTeachers');
+export const getFeaturedCourses = (): Course[] => getData<Course>('featuredCourses');
+export const getFeaturedBooks = (): Book[] => getData<Book>('featuredBooks');
+
 
 export const addActivityLog = (action: string, details: string): void => {
     const logs = getData<ActivityLog>('activityLogs');
@@ -208,7 +246,7 @@ export const deleteLesson = (gradeId: number, semesterId: string, unitId: string
     if (!grade) return;
     const semester = grade.semesters.find(s => s.id === semesterId);
     if (!semester) return;
-    const unit = semester.units.find(u => u.id === unitId);
+    const unit = semester.units.find(u => u.id !== unitId);
     if (!unit) return;
     unit.lessons = unit.lessons.filter(l => l.id !== lessonId);
     updateGrade(grade);

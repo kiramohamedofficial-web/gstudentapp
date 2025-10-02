@@ -1,9 +1,7 @@
 
 import React, { useState } from 'react';
-import { User, Theme } from '../../types';
+import { User, Theme, StudentView } from '../../types';
 import { BookOpenIcon, HomeIcon, UserCircleIcon, CreditCardIcon, MenuIcon, XIcon } from '../common/Icons';
-
-type StudentView = 'home' | 'curriculum' | 'subscription' | 'profile';
 
 interface StudentLayoutProps {
   user: User;
@@ -20,7 +18,7 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ user, onLogout, theme, se
 
   const navItems = [
     { id: 'home', label: 'الرئيسية', icon: HomeIcon },
-    { id: 'curriculum', label: 'المنهج', icon: BookOpenIcon },
+    { id: 'grades', label: 'الصفوف الدراسيه', icon: BookOpenIcon },
     { id: 'subscription', label: 'الاشتراك', icon: CreditCardIcon },
     { id: 'profile', label: 'الإعدادات', icon: UserCircleIcon },
   ];

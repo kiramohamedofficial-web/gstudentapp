@@ -187,12 +187,22 @@ interface GroupedLesson {
     parts: Partial<Record<LessonType, Lesson>>;
 }
 
+// Fix: Add a specific type for modal data to avoid `any` and subsequent errors.
+interface ModalData {
+    grade?: Grade;
+    semester?: Semester;
+    unit?: Unit;
+    lesson?: Lesson;
+    prefill?: Partial<Lesson>;
+    group?: GroupedLesson;
+}
+
 const LessonGroupCard: React.FC<{
     group: GroupedLesson;
     grade: Grade;
     semester: Semester;
     unit: Unit;
-    openModal: (type: string, data: any) => void;
+    openModal: (type: string, data: Partial<ModalData>) => void;
 }> = ({ group, grade, semester, unit, openModal }) => {
     const [addMenuOpen, setAddMenuOpen] = useState(false);
     const availableParts = Object.values(lessonTypeDetails);
@@ -259,7 +269,7 @@ const ContentManagementView: React.FC = () => {
     const [dataVersion, setDataVersion] = useState(0);
     const grades = useMemo(() => getAllGrades(), [dataVersion]);
     const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
-    const [modalState, setModalState] = useState<{ type: string | null, data: any }>({ type: null, data: {} });
+    const [modalState, setModalState] = useState<{ type: string | null; data: Partial<ModalData> }>({ type: null, data: {} });
     const { addToast } = useToast();
 
     const refreshData = () => setDataVersion(v => v + 1);
@@ -268,14 +278,16 @@ const ContentManagementView: React.FC = () => {
 
     const handleSaveUnit = (title: string) => {
         const { grade, semester, unit } = modalState.data;
-        if (unit) {
-            updateUnit(grade.id, semester.id, { ...unit, title });
-            addActivityLog('Content Update', `Unit "${unit.title}" updated to "${title}".`);
-            addToast('تم تعديل الوحدة بنجاح!', ToastType.SUCCESS);
-        } else {
-            addUnitToSemester(grade.id, semester.id, title);
-            addActivityLog('Content Add', `New unit "${title}" added to ${semester.title}.`);
-            addToast('تمت إضافة الوحدة بنجاح!', ToastType.SUCCESS);
+        if (grade && semester) {
+            if (unit) {
+                updateUnit(grade.id, semester.id, { ...unit, title });
+                addActivityLog('Content Update', `Unit "${unit.title}" updated to "${title}".`);
+                addToast('تم تعديل الوحدة بنجاح!', ToastType.SUCCESS);
+            } else {
+                addUnitToSemester(grade.id, semester.id, title);
+                addActivityLog('Content Add', `New unit "${title}" added to ${semester.title}.`);
+                addToast('تمت إضافة الوحدة بنجاح!', ToastType.SUCCESS);
+            }
         }
         refreshData();
         setModalState({ type: null, data: {} });
@@ -283,23 +295,27 @@ const ContentManagementView: React.FC = () => {
 
     const handleDeleteUnit = () => {
         const { grade, semester, unit } = modalState.data;
-        deleteUnit(grade.id, semester.id, unit.id);
-        addActivityLog('Content Delete', `Unit "${unit.title}" deleted.`);
-        addToast('تم حذف الوحدة بنجاح.', ToastType.SUCCESS);
+        if (grade && semester && unit) {
+            deleteUnit(grade.id, semester.id, unit.id);
+            addActivityLog('Content Delete', `Unit "${unit.title}" deleted.`);
+            addToast('تم حذف الوحدة بنجاح.', ToastType.SUCCESS);
+        }
         refreshData();
         setModalState({ type: null, data: {} });
     };
 
     const handleSaveLesson = (lessonData: Omit<Lesson, 'id' | 'isCompleted'> | Lesson) => {
         const { grade, semester, unit, lesson } = modalState.data;
-        if (lesson) {
-            updateLesson(grade.id, semester.id, unit.id, lessonData as Lesson);
-            addActivityLog('Content Update', `Lesson "${lesson.title}" updated.`);
-            addToast('تم تعديل الدرس بنجاح!', ToastType.SUCCESS);
-        } else {
-            addLessonToUnit(grade.id, semester.id, unit.id, lessonData);
-            addActivityLog('Content Add', `New lesson "${lessonData.title}" added to ${unit.title}.`);
-            addToast('تمت إضافة الدرس بنجاح!', ToastType.SUCCESS);
+        if (grade && semester && unit) {
+            if (lesson) {
+                updateLesson(grade.id, semester.id, unit.id, lessonData as Lesson);
+                addActivityLog('Content Update', `Lesson "${lesson.title}" updated.`);
+                addToast('تم تعديل الدرس بنجاح!', ToastType.SUCCESS);
+            } else {
+                addLessonToUnit(grade.id, semester.id, unit.id, lessonData);
+                addActivityLog('Content Add', `New lesson "${lessonData.title}" added to ${unit.title}.`);
+                addToast('تمت إضافة الدرس بنجاح!', ToastType.SUCCESS);
+            }
         }
         refreshData();
         setModalState({ type: null, data: {} });
@@ -307,27 +323,31 @@ const ContentManagementView: React.FC = () => {
     
     const handleDeleteLesson = () => {
         const { grade, semester, unit, lesson } = modalState.data;
-        deleteLesson(grade.id, semester.id, unit.id, lesson.id);
-        addActivityLog('Content Delete', `Lesson "${lesson.title}" deleted.`);
-        addToast('تم حذف الدرس بنجاح.', ToastType.SUCCESS);
+        if (grade && semester && unit && lesson) {
+            deleteLesson(grade.id, semester.id, unit.id, lesson.id);
+            addActivityLog('Content Delete', `Lesson "${lesson.title}" deleted.`);
+            addToast('تم حذف الدرس بنجاح.', ToastType.SUCCESS);
+        }
         refreshData();
         setModalState({ type: null, data: {} });
     };
 
     const handleDeleteGroup = () => {
         const { grade, semester, unit, group } = modalState.data;
-        Object.values(group.parts).forEach(lesson => {
-            if(lesson) {
-                deleteLesson(grade.id, semester.id, unit.id, lesson.id);
-            }
-        });
-        addActivityLog('Content Delete', `Lesson group "${group.baseTitle}" deleted.`);
-        addToast('تم حذف مجموعة الدرس بنجاح.', ToastType.SUCCESS);
+        if (grade && semester && unit && group) {
+            Object.values(group.parts).forEach(lesson => {
+                if(lesson) {
+                    deleteLesson(grade.id, semester.id, unit.id, lesson.id);
+                }
+            });
+            addActivityLog('Content Delete', `Lesson group "${group.baseTitle}" deleted.`);
+            addToast('تم حذف مجموعة الدرس بنجاح.', ToastType.SUCCESS);
+        }
         refreshData();
         setModalState({ type: null, data: {} });
     };
 
-    const openModal = (type: string, data: any) => setModalState({ type, data });
+    const openModal = (type: string, data: Partial<ModalData>) => setModalState({ type, data });
 
     return (
         <div>
@@ -349,8 +369,8 @@ const ContentManagementView: React.FC = () => {
                                     </div>
                                     <div className="space-y-2 pl-2 border-r-2 border-[var(--border-primary)]">
                                         {semester.units.map(unit => {
-                                            // FIX: Explicitly typed the accumulator's initial value to ensure correct type inference for `groupedLessons`.
-                                            const groupedLessons = unit.lessons.reduce((acc: Record<string, GroupedLesson>, lesson) => {
+                                            // Fix: Correctly typed the reduce accumulator by casting the initial value to avoid errors with generic type arguments.
+                                            const groupedLessons = unit.lessons.reduce((acc, lesson) => {
                                                 const baseTitle = lesson.title.replace(/^(شرح|واجب|امتحان|ملخص)\s/, '').trim();
                                                 if (!acc[baseTitle]) {
                                                     acc[baseTitle] = { baseTitle, parts: {} };
@@ -399,7 +419,7 @@ const ContentManagementView: React.FC = () => {
                 onClose={() => setModalState({ type: null, data: {} })}
                 onSave={handleSaveLesson}
                 lesson={modalState.type === 'edit-lesson' ? modalState.data.lesson : null}
-                prefill={modalState.type === 'add-lesson' ? modalState.data.prefill : null}
+                prefill={modalState.type === 'add-lesson' ? modalState.data.prefill : undefined}
             />
             <ConfirmationModal
                 isOpen={modalState.type === 'delete-unit'}
