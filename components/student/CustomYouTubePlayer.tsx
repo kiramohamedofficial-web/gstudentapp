@@ -69,6 +69,7 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [playerError, setPlayerError] = useState<string | null>(null);
     const [isMouseInPlayer, setIsMouseInPlayer] = useState(true);
+    const [aspectRatio, setAspectRatio] = useState('16/9');
     
     const { addToast } = useToast();
     const progressIntervalRef = useRef<number | null>(null);
@@ -263,6 +264,19 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
         setCurrentQuality(quality);
         setIsSettingsMenuOpen(false);
     };
+    
+    const handleAspectRatioChange = (newRatio: string) => {
+        setAspectRatio(newRatio);
+        setIsSettingsMenuOpen(false);
+    };
+
+    const aspectRatios = [
+        { value: '16/9', label: 'قياسي (شاشة)' },
+        { value: '21/9', label: 'سينمائي' },
+        { value: '4/3', label: 'كلاسيكي' },
+        { value: '9/16', label: 'هاتف (عمودي)' },
+    ];
+
     const formatQualityLabel = (quality: string): string => {
         const qualityMap: { [key: string]: string } = {
             'hd2160': '4K', 'hd1440': '1440p', 'hd1080': '1080p',
@@ -299,7 +313,11 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
                 onMouseMove={handleMouseMove}
                 onMouseLeave={() => setIsMouseInPlayer(false)}
             >
-                <div className={`${isFullscreen ? 'flex-grow w-full' : 'aspect-video'} bg-black rounded-lg overflow-hidden shadow-2xl relative`} onContextMenu={(e) => e.preventDefault()}>
+                <div 
+                  className={`${isFullscreen ? 'flex-grow w-full' : ''} bg-black rounded-lg overflow-hidden shadow-2xl relative transition-all duration-300`} 
+                  style={!isFullscreen ? { aspectRatio } : {}}
+                  onContextMenu={(e) => e.preventDefault()}
+                >
                     {(!isPlayerReady || playerError) && (
                          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 z-30 p-4 text-center">
                             {playerError ? (
@@ -366,13 +384,27 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
                                         <CogIcon className="w-6 h-6"/>
                                     </button>
                                     {isSettingsMenuOpen && (
-                                        <div className="absolute bottom-full mb-2 right-0 w-40 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-md shadow-lg border border-[var(--border-primary)] z-20 fade-in">
+                                        <div className="absolute bottom-full mb-2 right-0 w-48 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-md shadow-lg border border-[var(--border-primary)] z-20 fade-in">
                                             <div className="p-2">
                                                 <h4 className="text-xs font-bold text-[var(--text-secondary)] px-2 pb-1 border-b border-[var(--border-primary)]">سرعة التشغيل</h4>
                                                 <div className="grid grid-cols-2 gap-1 mt-1">
                                                     {[0.5, 1, 1.5, 2].map(speed => (
                                                         <button key={speed} onClick={() => handleSpeedChange(speed)} className={`text-sm rounded py-1 ${playbackRate === speed ? 'bg-[var(--accent-primary)] text-white' : 'hover:bg-[var(--bg-secondary)]'}`}>
                                                             {speed === 1 ? 'عادي' : `${speed}x`}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            <div className="p-2 border-t border-[var(--border-primary)]">
+                                                <h4 className="text-xs font-bold text-[var(--text-secondary)] px-2 pb-1">أبعاد الفيديو</h4>
+                                                <div className="mt-1 max-h-32 overflow-y-auto">
+                                                    {aspectRatios.map(ar => (
+                                                        <button 
+                                                            key={ar.value} 
+                                                            onClick={() => handleAspectRatioChange(ar.value)} 
+                                                            className={`block text-sm w-full text-right rounded px-2 py-1 ${aspectRatio === ar.value ? 'bg-[var(--accent-primary)] text-white' : 'hover:bg-[var(--bg-secondary)]'}`}
+                                                        >
+                                                            {ar.label}
                                                         </button>
                                                     ))}
                                                 </div>

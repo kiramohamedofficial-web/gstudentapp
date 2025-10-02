@@ -272,6 +272,7 @@ const ContentManagementView: React.FC = () => {
     const [dataVersion, setDataVersion] = useState(0);
     const grades = useMemo(() => getAllGrades(), [dataVersion]);
     const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
+    // FIX: Use the specific ModalData interface for modal state to ensure type safety.
     const [modalState, setModalState] = useState<{ type: string | null; data: Partial<ModalData> }>({ type: null, data: {} });
     const { addToast } = useToast();
 
@@ -350,6 +351,7 @@ const ContentManagementView: React.FC = () => {
         setModalState({ type: null, data: {} });
     };
 
+    // FIX: Use the specific ModalData interface for the data parameter to ensure type safety.
     const openModal = (type: string, data: Partial<ModalData>) => setModalState({ type, data });
 
     return (
