@@ -10,6 +10,7 @@ import {
   AccessToken,
   SubscriptionRequest,
 } from '../types';
+import { DEMO_ADMIN_CODE, DEMO_ADMIN_USERNAME, DEMO_STUDENT_CODE, DEMO_STUDENT_USERNAME } from '../constants';
 
 // --- New Curriculum Data Generation ---
 
@@ -33,10 +34,10 @@ const sec3_subjects = ['لغة عربية', 'لغة إنجليزية', 'لغة �
 
 // Mock Data
 const users: User[] = [
-  { id: '1', name: 'طالب تجريبي', code: '1234', grade: 10, role: Role.STUDENT, subscriptionId: 'sub1' },
+  { id: '1', name: DEMO_STUDENT_USERNAME, code: DEMO_STUDENT_CODE, grade: 10, role: Role.STUDENT, subscriptionId: 'sub1' },
   { id: '2', name: 'طالبة متفوقة', code: '5678', grade: 11, role: Role.STUDENT, subscriptionId: 'sub2' },
   { id: '3', name: 'طالب مجتهد', code: '9012', grade: 12, role: Role.STUDENT, subscriptionId: 'sub3' },
-  { id: '4', name: 'مدير المنصة', code: 'admin', grade: 0, role: Role.ADMIN },
+  { id: '4', name: DEMO_ADMIN_USERNAME, code: DEMO_ADMIN_CODE, grade: 0, role: Role.ADMIN },
 ];
 
 const subscriptions: Subscription[] = [

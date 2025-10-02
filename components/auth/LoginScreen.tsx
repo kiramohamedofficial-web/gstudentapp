@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { BookBookmarkIcon, ArrowRightIcon } from '../common/Icons';
+import { DEMO_ADMIN_CODE, DEMO_ADMIN_USERNAME, DEMO_STUDENT_CODE, DEMO_STUDENT_USERNAME } from '../../constants';
 
 const CosmicFlowBackground: React.FC = () => {
     return (
@@ -89,13 +90,13 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, error, onBack }) => 
 
         <div className="w-full pt-6 border-t border-white/10 flex flex-col sm:flex-row gap-4 fade-in fade-in-delay-2">
             <button 
-                onClick={() => onLogin('طالب تجريبي', '1234')}
+                onClick={() => onLogin(DEMO_STUDENT_USERNAME, DEMO_STUDENT_CODE)}
                 className="w-full py-2 px-4 text-sm font-semibold text-white bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-all duration-300"
             >
                 دخول تجريبي (طالب)
             </button>
             <button 
-                onClick={() => onLogin('مدير المنصة', 'admin')}
+                onClick={() => onLogin(DEMO_ADMIN_USERNAME, DEMO_ADMIN_CODE)}
                 className="w-full py-2 px-4 text-sm font-semibold text-white bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-all duration-300"
             >
                 دخول تجريبي (مدير)
