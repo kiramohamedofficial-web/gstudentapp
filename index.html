@@ -391,13 +391,11 @@
   }
 
   /* Custom YouTube Player Styles */
-    .player-controls-wrapper {
-        transition: opacity 0.3s ease-in-out;
-    }
     .custom-player-btn {
-        background-color: var(--bg-tertiary);
-        color: var(--text-secondary);
-        border: 1px solid transparent;
+        background-color: transparent;
+        color: white;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+        border: none;
         border-radius: 6px;
         cursor: pointer;
         transition: all 0.2s ease;
@@ -406,22 +404,22 @@
         justify-content: center;
     }
     .custom-player-btn:hover:not(:disabled) {
-        background-color: var(--accent-primary);
-        color: white;
+        background-color: rgba(255, 255, 255, 0.2);
+        transform: scale(1.1);
     }
     .custom-player-btn:disabled {
         opacity: 0.5;
         cursor: not-allowed;
     }
     .custom-player-btn.active {
-        background-color: var(--accent-primary);
-        color: white;
+        color: var(--accent-primary);
+        background-color: rgba(88, 166, 255, 0.2);
     }
     .custom-player-slider {
         flex: 1;
         -webkit-appearance: none;
-        height: 6px;
-        background: var(--bg-tertiary);
+        height: 5px;
+        background: rgba(255, 255, 255, 0.3);
         border-radius: 5px;
         outline: none;
         transition: opacity 0.2s ease;
@@ -440,11 +438,15 @@
     }
     .custom-player-progress-container {
         width: 100%;
-        height: 8px;
-        background-color: var(--bg-tertiary);
+        height: 5px;
+        background-color: rgba(255, 255, 255, 0.3);
         border-radius: 4px;
         cursor: pointer;
         position: relative;
+        transition: height 0.2s ease;
+    }
+    .custom-player-progress-container:hover {
+      height: 8px;
     }
     .custom-player-progress-bar {
         height: 100%;
@@ -548,9 +550,6 @@
     .feature-card {
       min-height: unset;
       text-align: right;
-    }
-    .custom-player-controls-container {
-      padding: 0.75rem;
     }
     .custom-player-controls-container .flex-wrap {
       gap: 0.5rem;

@@ -202,6 +202,7 @@ const LessonGroupCard: React.FC<{
     grade: Grade;
     semester: Semester;
     unit: Unit;
+    // FIX: Replaced `any` with `Partial<ModalData>` to ensure type safety.
     openModal: (type: string, data: Partial<ModalData>) => void;
 }> = ({ group, grade, semester, unit, openModal }) => {
     const [addMenuOpen, setAddMenuOpen] = useState(false);
@@ -272,7 +273,7 @@ const ContentManagementView: React.FC = () => {
     const [dataVersion, setDataVersion] = useState(0);
     const grades = useMemo(() => getAllGrades(), [dataVersion]);
     const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
-    // FIX: Use the specific ModalData interface for modal state to ensure type safety.
+    // FIX: Used the specific ModalData interface for modal state to ensure type safety, replacing `any`.
     const [modalState, setModalState] = useState<{ type: string | null; data: Partial<ModalData> }>({ type: null, data: {} });
     const { addToast } = useToast();
 
@@ -351,7 +352,7 @@ const ContentManagementView: React.FC = () => {
         setModalState({ type: null, data: {} });
     };
 
-    // FIX: Use the specific ModalData interface for the data parameter to ensure type safety.
+    // FIX: Used the specific ModalData interface for the data parameter to ensure type safety, replacing `any`.
     const openModal = (type: string, data: Partial<ModalData>) => setModalState({ type, data });
 
     return (

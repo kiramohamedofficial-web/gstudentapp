@@ -79,6 +79,8 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
     useEffect(() => { onLessonCompleteRef.current = onLessonComplete; }, [onLessonComplete]);
     
     const currentPlaylistIndex = playlist.findIndex(l => l.id === currentLesson.id);
+    const isPlaying = playerState === window.YT?.PlayerState?.PLAYING;
+    const isPaused = playerState === window.YT?.PlayerState?.PAUSED || playerState === window.YT?.PlayerState?.ENDED || playerState === -1;
 
     useEffect(() => {
         setCurrentLesson(initialLesson);
@@ -270,13 +272,26 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
         setIsSettingsMenuOpen(false);
     };
 
+    const handleMouseMove = () => {
+        setIsMouseInPlayer(true);
+        if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+        if (isPlaying) {
+            controlsTimeoutRef.current = window.setTimeout(() => setIsMouseInPlayer(false), 3000);
+        }
+    };
+
+    const handleMouseLeave = () => {
+        if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+        if (isPlaying) setIsMouseInPlayer(false);
+    };
+
+    const showControls = isPaused || isMouseInPlayer || isSettingsMenuOpen;
     const aspectRatios = [
         { value: '16/9', label: 'قياسي (شاشة)' },
         { value: '21/9', label: 'سينمائي' },
         { value: '4/3', label: 'كلاسيكي' },
         { value: '9/16', label: 'هاتف (عمودي)' },
     ];
-
     const formatQualityLabel = (quality: string): string => {
         const qualityMap: { [key: string]: string } = {
             'hd2160': '4K', 'hd1440': '1440p', 'hd1080': '1080p',
@@ -285,38 +300,25 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
         };
         return qualityMap[quality] || quality;
     };
-
     const formatTime = (seconds: number) => {
         if (isNaN(seconds) || seconds < 0) return '0:00';
         const mins = Math.floor(seconds / 60);
         const secs = Math.floor(seconds % 60);
         return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
     };
-    
-    const handleMouseMove = () => {
-        setIsMouseInPlayer(true);
-        if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-        if(isPlaying) {
-            controlsTimeoutRef.current = window.setTimeout(() => setIsMouseInPlayer(false), 3000);
-        }
-    };
-
-    const isPlaying = playerState === window.YT?.PlayerState?.PLAYING;
-    const isPaused = playerState === window.YT?.PlayerState?.PAUSED || playerState === window.YT?.PlayerState?.ENDED;
-    const showControls = isPaused || isMouseInPlayer || isSettingsMenuOpen;
 
     return (
         <div className="flex flex-col lg:flex-row gap-6">
             <div 
-                className={`lg:flex-[2] min-w-0 ${isFullscreen ? 'fixed inset-0 z-[100] bg-black flex flex-col' : 'relative'}`} 
+                className={`lg:flex-[2] min-w-0 ${isFullscreen ? 'fixed inset-0 z-[100] bg-black flex items-center justify-center' : 'relative'}`} 
                 ref={playerWrapperRef}
                 onMouseMove={handleMouseMove}
-                onMouseLeave={() => setIsMouseInPlayer(false)}
+                onMouseLeave={handleMouseLeave}
+                onContextMenu={(e) => e.preventDefault()}
             >
                 <div 
-                  className={`${isFullscreen ? 'flex-grow w-full' : ''} bg-black rounded-lg overflow-hidden shadow-2xl relative transition-all duration-300`} 
+                  className={`${isFullscreen ? 'w-full h-full' : 'relative w-full shadow-2xl'} bg-black rounded-lg overflow-hidden transition-all duration-300`} 
                   style={!isFullscreen ? { aspectRatio } : {}}
-                  onContextMenu={(e) => e.preventDefault()}
                 >
                     {(!isPlayerReady || playerError) && (
                          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 z-30 p-4 text-center">
@@ -338,7 +340,6 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
                     <div
                         className="absolute inset-0 z-20 cursor-pointer flex items-center justify-center group"
                         onClick={handlePlayPause}
-                        onContextMenu={(e) => e.preventDefault()}
                         aria-label={isPlaying ? "Pause video" : "Play video"}
                     >
                         <div className={`
@@ -354,79 +355,79 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
                             )}
                         </div>
                     </div>
-                </div>
-
-                <div className={`player-controls-wrapper ${showControls ? 'opacity-100' : 'opacity-0'} ${isFullscreen ? 'flex-shrink-0' : 'relative'}`}>
-                    <div className={`custom-player-controls-container bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg p-4 mt-4 shadow-lg`}>
-                        <div className="custom-player-progress-container" onClick={handleSeek}>
-                            <div className="custom-player-progress-bar" style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}></div>
-                        </div>
-                        <div className="flex justify-between text-xs text-[var(--text-secondary)] mt-1">
-                            <span>{formatTime(currentTime)}</span>
-                            <span>{formatTime(duration)}</span>
-                        </div>
-                        
-                        <div className="flex flex-wrap items-center justify-between gap-2 mt-2">
-                            <div className="flex items-center gap-2">
-                                <button onClick={handlePlayPause} className="custom-player-btn p-2" disabled={!isPlayerReady}>
-                                    {isPlaying ? <PauseIcon className="w-6 h-6"/> : <PlayIcon className="w-6 h-6"/>}
-                                </button>
-                                <button onClick={handleToggleMute} className="custom-player-btn p-2" disabled={!isPlayerReady}>
-                                    {isMuted || volume === 0 ? <VolumeOffIcon className="w-6 h-6"/> : <SpeakerphoneIcon className="w-6 h-6"/>}
-                                </button>
-                                 <div className="flex items-center gap-2 flex-grow min-w-[120px]">
-                                    <input type="range" min="0" max="100" value={volume} className="custom-player-slider" onChange={handleVolumeChange} disabled={!isPlayerReady}/>
-                                 </div>
+                    
+                    <div className={`absolute bottom-0 left-0 right-0 z-30 transition-all duration-300 ${showControls ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-full pointer-events-none'}`}>
+                        <div className={`px-4 pt-2 pb-3 bg-gradient-to-t from-black/80 to-transparent`}>
+                             <div className="custom-player-progress-container" onClick={handleSeek}>
+                                <div className="custom-player-progress-bar" style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}></div>
                             </div>
-                            <div className="flex items-center gap-2">
-                                 <div className="relative">
-                                    <button onClick={() => setIsSettingsMenuOpen(!isSettingsMenuOpen)} className="custom-player-btn p-2" disabled={!isPlayerReady}>
-                                        <CogIcon className="w-6 h-6"/>
+                            <div className="flex justify-between text-xs text-white/80 mt-1">
+                                <span>{formatTime(currentTime)}</span>
+                                <span>{formatTime(duration)}</span>
+                            </div>
+                            
+                            <div className="flex flex-wrap items-center justify-between gap-2 mt-2">
+                                <div className="flex items-center gap-2">
+                                    <button onClick={handlePlayPause} className="custom-player-btn p-2" disabled={!isPlayerReady}>
+                                        {isPlaying ? <PauseIcon className="w-6 h-6"/> : <PlayIcon className="w-6 h-6"/>}
                                     </button>
-                                    {isSettingsMenuOpen && (
-                                        <div className="absolute bottom-full mb-2 right-0 w-48 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-md shadow-lg border border-[var(--border-primary)] z-20 fade-in">
-                                            <div className="p-2">
-                                                <h4 className="text-xs font-bold text-[var(--text-secondary)] px-2 pb-1 border-b border-[var(--border-primary)]">سرعة التشغيل</h4>
-                                                <div className="grid grid-cols-2 gap-1 mt-1">
-                                                    {[0.5, 1, 1.5, 2].map(speed => (
-                                                        <button key={speed} onClick={() => handleSpeedChange(speed)} className={`text-sm rounded py-1 ${playbackRate === speed ? 'bg-[var(--accent-primary)] text-white' : 'hover:bg-[var(--bg-secondary)]'}`}>
-                                                            {speed === 1 ? 'عادي' : `${speed}x`}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                            <div className="p-2 border-t border-[var(--border-primary)]">
-                                                <h4 className="text-xs font-bold text-[var(--text-secondary)] px-2 pb-1">أبعاد الفيديو</h4>
-                                                <div className="mt-1 max-h-32 overflow-y-auto">
-                                                    {aspectRatios.map(ar => (
-                                                        <button 
-                                                            key={ar.value} 
-                                                            onClick={() => handleAspectRatioChange(ar.value)} 
-                                                            className={`block text-sm w-full text-right rounded px-2 py-1 ${aspectRatio === ar.value ? 'bg-[var(--accent-primary)] text-white' : 'hover:bg-[var(--bg-secondary)]'}`}
-                                                        >
-                                                            {ar.label}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                            {availableQualities.length > 1 && (
-                                                <div className="p-2 border-t border-[var(--border-primary)]">
-                                                    <h4 className="text-xs font-bold text-[var(--text-secondary)] px-2 pb-1">الجودة</h4>
-                                                    <div className="mt-1 max-h-32 overflow-y-auto">
-                                                        {availableQualities.map(q => (
-                                                            <button key={q} onClick={() => handleQualityChange(q)} className={`block text-sm w-full text-right rounded px-2 py-1 ${currentQuality === q ? 'bg-[var(--accent-primary)] text-white' : 'hover:bg-[var(--bg-secondary)]'}`}>
-                                                                {formatQualityLabel(q)}
+                                    <button onClick={handleToggleMute} className="custom-player-btn p-2" disabled={!isPlayerReady}>
+                                        {isMuted || volume === 0 ? <VolumeOffIcon className="w-6 h-6"/> : <SpeakerphoneIcon className="w-6 h-6"/>}
+                                    </button>
+                                     <div className="flex items-center gap-2 flex-grow min-w-[120px]">
+                                        <input type="range" min="0" max="100" value={volume} className="custom-player-slider" onChange={handleVolumeChange} disabled={!isPlayerReady}/>
+                                     </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                     <div className="relative">
+                                        <button onClick={() => setIsSettingsMenuOpen(!isSettingsMenuOpen)} className="custom-player-btn p-2" disabled={!isPlayerReady}>
+                                            <CogIcon className="w-6 h-6"/>
+                                        </button>
+                                        {isSettingsMenuOpen && (
+                                            <div className="absolute bottom-full mb-2 right-0 w-48 bg-black/80 backdrop-blur-md text-white rounded-md shadow-lg border border-white/20 z-20 fade-in">
+                                                <div className="p-2">
+                                                    <h4 className="text-xs font-bold text-white/70 px-2 pb-1 border-b border-white/20">سرعة التشغيل</h4>
+                                                    <div className="grid grid-cols-2 gap-1 mt-1">
+                                                        {[0.5, 1, 1.5, 2].map(speed => (
+                                                            <button key={speed} onClick={() => handleSpeedChange(speed)} className={`text-sm rounded py-1 ${playbackRate === speed ? 'bg-[var(--accent-primary)] text-white' : 'hover:bg-white/10'}`}>
+                                                                {speed === 1 ? 'عادي' : `${speed}x`}
                                                             </button>
                                                         ))}
                                                     </div>
                                                 </div>
-                                            )}
-                                        </div>
-                                    )}
+                                                <div className="p-2 border-t border-white/20">
+                                                    <h4 className="text-xs font-bold text-white/70 px-2 pb-1">أبعاد الفيديو</h4>
+                                                    <div className="mt-1 max-h-32 overflow-y-auto">
+                                                        {aspectRatios.map(ar => (
+                                                            <button 
+                                                                key={ar.value} 
+                                                                onClick={() => handleAspectRatioChange(ar.value)} 
+                                                                className={`block text-sm w-full text-right rounded px-2 py-1 ${aspectRatio === ar.value ? 'bg-[var(--accent-primary)] text-white' : 'hover:bg-white/10'}`}
+                                                            >
+                                                                {ar.label}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                                {availableQualities.length > 1 && (
+                                                    <div className="p-2 border-t border-white/20">
+                                                        <h4 className="text-xs font-bold text-white/70 px-2 pb-1">الجودة</h4>
+                                                        <div className="mt-1 max-h-32 overflow-y-auto">
+                                                            {availableQualities.map(q => (
+                                                                <button key={q} onClick={() => handleQualityChange(q)} className={`block text-sm w-full text-right rounded px-2 py-1 ${currentQuality === q ? 'bg-[var(--accent-primary)] text-white' : 'hover:bg-white/10'}`}>
+                                                                    {formatQualityLabel(q)}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <button onClick={handleFullscreen} className="custom-player-btn p-2" disabled={!isPlayerReady}>
+                                        <ArrowsExpandIcon className="w-6 h-6"/>
+                                    </button>
                                 </div>
-                                <button onClick={handleFullscreen} className="custom-player-btn p-2" disabled={!isPlayerReady}>
-                                    <ArrowsExpandIcon className="w-6 h-6"/>
-                                </button>
                             </div>
                         </div>
                     </div>
@@ -456,9 +457,9 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
                         ))}
                     </div>
                     <div className="p-2 border-t border-[var(--border-primary)] flex justify-around">
-                         <button onClick={playPreviousVideo} disabled={!isPlayerReady || playlist.length <= 1} className="custom-player-btn p-2"><ChevronDoubleLeftIcon className="w-5 h-5"/></button>
-                         <button onClick={playNextVideo} disabled={!isPlayerReady || playlist.length <= 1} className="custom-player-btn p-2"><ChevronDoubleRightIcon className="w-5 h-5"/></button>
-                         <button onClick={() => setIsLooping(!isLooping)} className={`custom-player-btn text-xs px-3 ${isLooping ? 'active' : ''}`} disabled={!isPlayerReady}>تكرار</button>
+                         <button onClick={playPreviousVideo} disabled={!isPlayerReady || playlist.length <= 1} className="custom-player-btn text-white/80 p-2"><ChevronDoubleLeftIcon className="w-5 h-5"/></button>
+                         <button onClick={playNextVideo} disabled={!isPlayerReady || playlist.length <= 1} className="custom-player-btn text-white/80 p-2"><ChevronDoubleRightIcon className="w-5 h-5"/></button>
+                         <button onClick={() => setIsLooping(!isLooping)} className={`custom-player-btn text-xs px-3 text-white/80 ${isLooping ? 'active' : ''}`} disabled={!isPlayerReady}>تكرار</button>
                     </div>
                 </div>
             )}
