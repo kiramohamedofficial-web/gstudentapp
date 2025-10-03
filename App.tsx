@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { User, Role, Theme, ToastType } from './types';
+import { User, Role, Theme } from './types';
 import { initData, getUserByCredentials, addActivityLog } from './services/storageService';
 import LoginScreen from './components/auth/LoginScreen';
 import StudentDashboard from './components/student/StudentDashboard';
@@ -10,7 +10,6 @@ import CosmicLoader from './components/common/Loader';
 import { ToastContainer } from './components/common/Toast';
 import { useToast } from './useToast';
 import WelcomeScreen from './components/welcome/WelcomeScreen';
-import { ShieldCheckIcon } from './components/common/Icons';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -18,7 +17,6 @@ const App: React.FC = () => {
   const [authError, setAuthError] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [preLoginView, setPreLoginView] = useState<'welcome' | 'login'>('welcome');
-  const [isWindowFocused, setIsWindowFocused] = useState(true);
   const { addToast } = useToast();
 
   useEffect(() => {
@@ -38,41 +36,6 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const showCopyWarning = () => {
-      addToast('النسخ غير مسموح به لحماية حقوق الملكية.', ToastType.INFO);
-    };
-
-    const preventDefaultAction = (e: Event) => {
-      e.preventDefault();
-      showCopyWarning();
-    };
-    
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Disable DevTools shortcuts and copy/paste/save
-      if (
-        e.key === 'F12' ||
-        (e.ctrlKey && e.shiftKey && ['I', 'J', 'C'].includes(e.key.toUpperCase())) ||
-        (e.ctrlKey && ['C', 'X', 'U', 'S', 'P'].includes(e.key.toUpperCase()))
-      ) {
-        e.preventDefault();
-        showCopyWarning();
-      }
-    };
-
-    document.addEventListener('contextmenu', preventDefaultAction);
-    document.addEventListener('copy', preventDefaultAction);
-    document.addEventListener('cut', preventDefaultAction);
-    document.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      document.removeEventListener('contextmenu', preventDefaultAction);
-      document.removeEventListener('copy', preventDefaultAction);
-      document.removeEventListener('cut', preventDefaultAction);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [addToast]);
-
-  useEffect(() => {
     const root = document.documentElement;
     
     // Remove all theme classes
@@ -87,64 +50,6 @@ const App: React.FC = () => {
     document.body.style.backgroundColor = THEME_CLASSES[theme].bodyBg;
 
   }, [theme]);
-
-  // ScreenShot and Screen Recording Protection
-  useEffect(() => {
-    if (!currentUser) return; // Only apply for logged-in users
-
-    const handleBlur = () => {
-      setIsWindowFocused(false);
-    };
-    const handleFocus = () => {
-      setIsWindowFocused(true);
-    };
-
-    window.addEventListener('blur', handleBlur);
-    window.addEventListener('focus', handleFocus);
-
-    return () => {
-      window.removeEventListener('blur', handleBlur);
-      window.removeEventListener('focus', handleFocus);
-    };
-  }, [currentUser]);
-  
-  // Enhanced protection against screenshots and DevTools
-  useEffect(() => {
-    if (!currentUser) return;
-
-    const triggerProtection = () => {
-      addToast('تصوير الشاشة أو فحص الصفحة غير مسموح به.', ToastType.ERROR);
-      setIsWindowFocused(false); // This will show the protection overlay
-    };
-
-    // Detect Print Screen key
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.key === 'PrintScreen') {
-        navigator.clipboard.writeText(''); // Attempt to clear clipboard to prevent paste
-        triggerProtection();
-      }
-    };
-
-    // Detect DevTools opening by checking window dimensions
-    const devToolsDetector = () => {
-      const threshold = 160;
-      if (
-        window.outerWidth - window.innerWidth > threshold ||
-        window.outerHeight - window.innerHeight > threshold
-      ) {
-        triggerProtection();
-      }
-    };
-    
-    const intervalId = setInterval(devToolsDetector, 1000);
-    document.addEventListener('keyup', handleKeyUp);
-
-    return () => {
-      document.removeEventListener('keyup', handleKeyUp);
-      clearInterval(intervalId);
-    };
-  }, [currentUser, addToast]);
-
 
   const handleLogin = useCallback((identifier: string, code: string): void => {
     const user = getUserByCredentials(identifier, code);
@@ -165,7 +70,6 @@ const App: React.FC = () => {
     setCurrentUser(null);
     localStorage.removeItem('currentUser');
     setPreLoginView('welcome');
-    setIsWindowFocused(true); // Reset focus state on logout
   }, [currentUser]);
   
   const handleSetTheme = useCallback((newTheme: Theme): void => {
@@ -207,25 +111,11 @@ const App: React.FC = () => {
     return <StudentDashboard user={currentUser} onLogout={handleLogout} theme={theme} setTheme={handleSetTheme} />;
   }
 
-  const isContentProtected = !isWindowFocused && !!currentUser;
-
   return (
     <>
-      <div className={`transition-all duration-300 ${isContentProtected ? 'blur-md pointer-events-none' : ''}`}>
+      <div className={`transition-all duration-300`}>
         {renderContent()}
       </div>
-
-      {isContentProtected && (
-        <div className="fixed inset-0 z-[1000] flex flex-col items-center justify-center bg-[var(--bg-primary)]/80 backdrop-blur-sm text-[var(--text-primary)] text-center p-4 fade-in">
-          <ShieldCheckIcon className="w-20 h-20 text-[var(--accent-primary)]" />
-          <h2 className="text-3xl font-bold mt-4">حماية المحتوى مفعلة</h2>
-          <p className="mt-2 max-w-md text-[var(--text-secondary)]">
-            لا يُسمح بتسجيل الشاشة أو أخذ لقطات منها لحماية حقوق الملكية.
-            <br />
-            سيظهر المحتوى مرة أخرى عند العودة إلى هذه النافذة.
-          </p>
-        </div>
-      )}
       
       <ToastContainer />
     </>
