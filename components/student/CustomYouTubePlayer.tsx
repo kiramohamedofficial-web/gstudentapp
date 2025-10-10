@@ -86,8 +86,8 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
     const [isMuted, setIsMuted] = useState(false);
     
     const [playbackRate, setPlaybackRate] = useState(1);
-    const [availableQualities, setAvailableQualities] = useState<string[]>([]);
     const [currentQuality, setCurrentQuality] = useState<string>('auto');
+    const [availableQualities, setAvailableQualities] = useState<string[]>([]);
 
 
     const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
@@ -146,11 +146,11 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
                             if (!isMounted) return;
                             setIsPlayerReady(true);
                             event.target.setPlaybackRate(playbackRate);
+                            setCurrentQuality(event.target.getPlaybackQuality());
                             const qualities = event.target.getAvailableQualityLevels();
-                            if (qualities && qualities.length > 0) {
+                            if (qualities) {
                                 setAvailableQualities(qualities);
                             }
-                            setCurrentQuality(event.target.getPlaybackQuality());
                         },
                         'onStateChange': (event: any) => { if (isMounted) setPlayerState(event.data); },
                         'onPlaybackQualityChange': (event: any) => { if (isMounted) setCurrentQuality(event.data); },
@@ -198,10 +198,9 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
         if (isPlaying && !lessonLoadedRef.current) {
             lessonLoadedRef.current = true;
             const qualities = player.getAvailableQualityLevels();
-            if (qualities && qualities.length > 0) {
+            if (qualities) {
                 setAvailableQualities(qualities);
             }
-            setCurrentQuality(player.getPlaybackQuality());
         }
 
         if (isPlaying) {
@@ -345,10 +344,12 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
                             <div className="relative w-full h-full overflow-hidden">
                                  {/* Main View */}
                                 <div className="settings-menu-view" style={{ transform: settingsView === 'main' ? 'translateX(0)' : 'translateX(-100%)' }}>
-                                    <button onClick={() => setSettingsView('quality')} className="settings-menu-item">
-                                        <span>الجودة</span>
-                                        <span className="value">{qualityLabelMap[currentQuality] || currentQuality} &rsaquo;</span>
-                                    </button>
+                                    {availableQualities.length > 0 && (
+                                        <button onClick={() => setSettingsView('quality')} className="settings-menu-item">
+                                            <span>الجودة</span>
+                                            <span className="value">{qualityLabelMap[currentQuality] || currentQuality} &rsaquo;</span>
+                                        </button>
+                                    )}
                                     <button onClick={() => setSettingsView('speed')} className="settings-menu-item">
                                         <span>السرعة</span>
                                         <span className="value">{playbackRate === 1 ? 'عادي' : `${playbackRate}x`} &rsaquo;</span>
@@ -359,23 +360,15 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
                                     <div className="settings-menu-header"><button onClick={() => setSettingsView('main')}><ChevronLeftIcon className="w-5 h-5 ml-2"/></button> السرعة</div>
                                     {speedOptions.map(s => <button key={s} onClick={() => handleSpeedChange(s)} className={`settings-menu-item ${playbackRate === s ? 'active' : ''}`}>{playbackRate === s && <CheckIcon className="w-4 h-4"/>}<span>{s === 1 ? 'عادي' : `${s}x`}</span></button>)}
                                 </div>
-                                {/* Quality View */}
+                                 {/* Quality View */}
                                 <div className="settings-menu-view absolute top-0 left-0 w-full" style={{ transform: settingsView === 'quality' ? 'translateX(0)' : 'translateX(100%)' }}>
                                     <div className="settings-menu-header"><button onClick={() => setSettingsView('main')}><ChevronLeftIcon className="w-5 h-5 ml-2"/></button> الجودة</div>
-                                    {availableQualities.length > 0 ? (
-                                        [...availableQualities].reverse().map(q => 
-                                            <button key={q} onClick={() => handleQualityChange(q)} className={`settings-menu-item ${currentQuality === q ? 'active' : ''}`}>
-                                                {currentQuality === q && <CheckIcon className="w-4 h-4"/>}
-                                                <span>{qualityLabelMap[q] || q}</span>
-                                            </button>
-                                        )
-                                    ) : (
-                                        <div className="settings-menu-item" style={{justifyContent: 'center'}}>تلقائي</div>
-                                    )}
-                                     <button onClick={() => handleQualityChange('auto')} className={`settings-menu-item ${!availableQualities.includes(currentQuality) ? 'active' : ''}`}>
-                                        {!availableQualities.includes(currentQuality) && <CheckIcon className="w-4 h-4"/>}
-                                        <span>تلقائي</span>
-                                    </button>
+                                    {(availableQualities || []).map(q => (
+                                        <button key={q} onClick={() => handleQualityChange(q)} className={`settings-menu-item ${currentQuality === q ? 'active' : ''}`}>
+                                            {currentQuality === q && <CheckIcon className="w-4 h-4"/>}
+                                            <span>{qualityLabelMap[q] || q}</span>
+                                        </button>
+                                    ))}
                                 </div>
                             </div>
                         </div>
