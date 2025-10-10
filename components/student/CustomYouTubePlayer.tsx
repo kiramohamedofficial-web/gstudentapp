@@ -5,15 +5,15 @@ import Loader from '../common/Loader';
 import {
   PlayIcon,
   PauseIcon,
-  SpeakerphoneIcon,
   VolumeOffIcon,
   ArrowsExpandIcon,
   ChevronDoubleLeftIcon,
   ChevronDoubleRightIcon,
   CogIcon,
   XCircleIcon,
-  VideoCameraIcon,
   CheckIcon,
+  ChevronLeftIcon,
+  SpeakerphoneIcon,
 } from '../common/Icons';
 
 // A single promise to ensure the YouTube API is loaded only once.
@@ -52,62 +52,64 @@ interface CustomYouTubePlayerProps {
 }
 
 const PLAYER_CONTAINER_ID = 'youtube-player-container';
-const speedOptions = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
-
+const speedOptions = [0.5, 0.75, 1, 1.25, 1.5, 2];
+const qualityLabels: { [key: string]: string } = {
+    'hd2160': '4K', 'hd1440': '1440p', 'hd1080': '1080p', 'hd720': '720p',
+    'large': '480p', 'medium': '360p', 'small': '240p', 'tiny': '144p', 'auto': 'تلقائي'
+};
 
 const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson, playlist, onLessonComplete }) => {
     const playerRef = useRef<any>(null);
     const playerWrapperRef = useRef<HTMLDivElement>(null);
-    const settingsMenuRef = useRef<HTMLDivElement>(null);
+    const playlistRef = useRef<HTMLDivElement>(null);
+    const activeItemRef = useRef<HTMLDivElement>(null);
+    const controlsTimeoutRef = useRef<number | null>(null);
     
-    const [isPlayerReady, setIsPlayerReady] = useState(false);
     const [currentLesson, setCurrentLesson] = useState<Lesson>(initialLesson);
+    const [isPlayerReady, setIsPlayerReady] = useState(false);
     const [playerState, setPlayerState] = useState<number>(-1);
-    const [isMuted, setIsMuted] = useState(false);
-    const [volume, setVolume] = useState(100);
-    const [playbackRate, setPlaybackRate] = useState(1);
+    const [playerError, setPlayerError] = useState<string | null>(null);
+
     const [duration, setDuration] = useState(0);
     const [currentTime, setCurrentTime] = useState(0);
-    const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
-    const [isFullscreen, setIsFullscreen] = useState(false);
-    const [playerError, setPlayerError] = useState<string | null>(null);
-    const [isMouseInPlayer, setIsMouseInPlayer] = useState(true);
-    
-    const { addToast } = useToast();
-    const progressIntervalRef = useRef<number | null>(null);
-    const controlsTimeoutRef = useRef<number | null>(null);
+    const [buffered, setBuffered] = useState(0);
+    const [volume, setVolume] = useState(100);
+    const [isMuted, setIsMuted] = useState(false);
+    const [playbackRate, setPlaybackRate] = useState(1);
+    const [availableQualities, setAvailableQualities] = useState<string[]>([]);
+    const [currentQuality, setCurrentQuality] = useState<string>('auto');
 
+    const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
+    const [settingsView, setSettingsView] = useState<'main' | 'quality' | 'speed'>('main');
+    const [isVolumeSliderVisible, setVolumeSliderVisible] = useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [areControlsVisible, setAreControlsVisible] = useState(true);
+
+    const { addToast } = useToast();
     const onLessonCompleteRef = useRef(onLessonComplete);
     useEffect(() => { onLessonCompleteRef.current = onLessonComplete; }, [onLessonComplete]);
-    
-    const currentPlaylistIndex = playlist.findIndex(l => l.id === currentLesson.id);
+
     const isPlaying = playerState === window.YT?.PlayerState?.PLAYING;
-    const isPaused = playerState === window.YT?.PlayerState?.PAUSED || playerState === window.YT?.PlayerState?.ENDED || playerState === -1;
+    const isBuffering = playerState === window.YT?.PlayerState?.BUFFERING;
+    const isPaused = !isPlaying && !isBuffering;
+
+    const currentPlaylistIndex = playlist.findIndex(l => l.id === currentLesson.id);
 
     const playVideoByIndex = useCallback((index: number) => {
         if (index >= 0 && index < playlist.length) {
             setCurrentLesson(playlist[index]);
-            setPlayerError(null); // Clear previous errors
+            setPlayerError(null);
         }
     }, [playlist]);
-    
-    useEffect(() => {
-        // Handle changes to the initial lesson prop
-        setCurrentLesson(initialLesson);
-    }, [initialLesson]);
 
     const playNextVideo = useCallback(() => {
         const nextIndex = currentPlaylistIndex + 1;
-        if (nextIndex < playlist.length) {
-          playVideoByIndex(nextIndex);
-        }
+        if (nextIndex < playlist.length) playVideoByIndex(nextIndex);
     }, [currentPlaylistIndex, playlist.length, playVideoByIndex]);
-    
+
     const playPreviousVideo = useCallback(() => {
         const prevIndex = currentPlaylistIndex - 1;
-        if (prevIndex >= 0) {
-          playVideoByIndex(prevIndex);
-        }
+        if (prevIndex >= 0) playVideoByIndex(prevIndex);
     }, [currentPlaylistIndex, playVideoByIndex]);
     
     const reloadCurrentVideo = useCallback(() => {
@@ -117,35 +119,33 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
         }
     }, [currentLesson.content]);
 
-    // Effect for player initialization and cleanup
+    // Player Initialization
     useEffect(() => {
         let isMounted = true;
-        
         const initPlayer = async () => {
             try {
                 await loadYouTubeApi();
                 if (!isMounted || !document.getElementById(PLAYER_CONTAINER_ID) || playerRef.current) return;
 
                 playerRef.current = new window.YT.Player(PLAYER_CONTAINER_ID, {
-                    height: '100%',
-                    width: '100%',
-                    videoId: currentLesson.content, // Load initial video
-                    playerVars: { 
-                        'playsinline': 1, 'controls': 0, 'modestbranding': 1, 'rel': 0,
-                        'iv_load_policy': 3, 'enablejsapi': 1, 'origin': window.location.origin,
-                    },
+                    videoId: initialLesson.content,
+                    playerVars: { 'playsinline': 1, 'controls': 0, 'modestbranding': 1, 'rel': 0, 'iv_load_policy': 3, 'enablejsapi': 1, 'origin': window.location.origin },
                     events: {
-                        'onReady': () => { if(isMounted) setIsPlayerReady(true); },
+                        'onReady': (event: any) => {
+                            if (!isMounted) return;
+                            setIsPlayerReady(true);
+                            const qualities = event.target.getAvailableQualityLevels();
+                            if (qualities?.length > 0) setAvailableQualities(['auto', ...qualities]);
+                            event.target.setPlaybackRate(playbackRate);
+                        },
                         'onStateChange': (event: any) => { if (isMounted) setPlayerState(event.data); },
                         'onError': (event: any) => {
-                            console.error('YouTube Player Error:', event.data);
                             if (!isMounted) return;
-                            let errorMessage = `حدث خطأ في تحميل الفيديو (كود: ${event.data}).`;
-                            if (event.data === 101 || event.data === 150) {
-                                errorMessage = "هذا الفيديو محمي ولا يمكن تشغيله هنا. حاول تشغيل فيديو آخر.";
-                            }
-                            setPlayerError(errorMessage);
-                        }
+                            let msg = `حدث خطأ في تحميل الفيديو (كود: ${event.data}).`;
+                            if (event.data === 101 || event.data === 150) msg = "هذا الفيديو محمي ولا يمكن تشغيله هنا.";
+                            setPlayerError(msg);
+                        },
+                        'onPlaybackQualityChange': (event: any) => { if (isMounted) setCurrentQuality(event.data); }
                     }
                 });
             } catch (error) {
@@ -153,253 +153,200 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
                 if (isMounted) addToast('فشل تحميل مشغل الفيديو.', ToastType.ERROR);
             }
         };
-
         initPlayer();
-
         return () => {
             isMounted = false;
-            progressIntervalRef.current && clearInterval(progressIntervalRef.current);
-            controlsTimeoutRef.current && clearTimeout(controlsTimeoutRef.current);
-            if (playerRef.current && typeof playerRef.current.destroy === 'function') {
-                playerRef.current.destroy();
-            }
+            if (playerRef.current?.destroy) playerRef.current.destroy();
             playerRef.current = null;
         };
-    }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-    // Effect for loading new videos when currentLesson changes
+    }, [initialLesson.content, playbackRate, addToast]);
+    
+    // Video Change
     useEffect(() => {
         if (isPlayerReady && playerRef.current && playerRef.current.getVideoData()?.video_id !== currentLesson.content) {
             reloadCurrentVideo();
         }
     }, [isPlayerReady, currentLesson.content, reloadCurrentVideo]);
 
-    // Effect for handling player state changes (playing, paused, ended)
+    // State Updates & Intervals
     useEffect(() => {
         const player = playerRef.current;
         if (!isPlayerReady || !player) return;
 
+        const updateProgress = () => {
+            setCurrentTime(player.getCurrentTime() || 0);
+            const loaded = player.getVideoLoadedFraction() || 0;
+            setDuration(player.getDuration() || 0);
+            setBuffered(loaded * (player.getDuration() || 0));
+        };
+        
+        if (isPlaying) {
+            const progressInterval = setInterval(updateProgress, 250);
+            return () => clearInterval(progressInterval);
+        }
         if (playerState === window.YT?.PlayerState?.ENDED) {
             onLessonCompleteRef.current(currentLesson.id);
             playNextVideo();
         }
-        
-        if (playerState === window.YT?.PlayerState?.PLAYING) {
-            setDuration(player.getDuration() || 0);
-            setVolume(player.getVolume() || 100);
-            setIsMuted(player.isMuted() || false);
+    }, [isPlayerReady, isPlaying, playerState, playNextVideo, currentLesson.id]);
 
-            progressIntervalRef.current = window.setInterval(() => {
-                setCurrentTime(player.getCurrentTime() || 0);
-            }, 500);
-        } else {
-            if (progressIntervalRef.current) {
-                clearInterval(progressIntervalRef.current);
-                progressIntervalRef.current = null;
-            }
-        }
-
-        return () => {
-            if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-        };
-    }, [isPlayerReady, playerState, playNextVideo, currentLesson.id]);
-    
-    // Effect for handling fullscreen changes and outside clicks for settings menu
+    // Fullscreen and Controls Visibility
     useEffect(() => {
         const onFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
-        const handleClickOutside = (event: MouseEvent) => {
-            if (settingsMenuRef.current && !settingsMenuRef.current.contains(event.target as Node)) {
-                setIsSettingsMenuOpen(false);
-            }
-        };
         document.addEventListener('fullscreenchange', onFullscreenChange);
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('fullscreenchange', onFullscreenChange);
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
+        return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
     }, []);
 
-    // --- Control Handlers ---
-    const handlePlayPause = () => playerRef.current && (isPlaying ? playerRef.current.pauseVideo() : playerRef.current.playVideo());
+    const hideControls = useCallback(() => {
+        if (isPlaying) setAreControlsVisible(false);
+    }, [isPlaying]);
+
+    const handleMouseMove = useCallback(() => {
+        setAreControlsVisible(true);
+        if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+        controlsTimeoutRef.current = window.setTimeout(hideControls, 3000);
+    }, [hideControls]);
+
+    useEffect(() => {
+        if (isPaused) {
+            if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+            setAreControlsVisible(true);
+        } else {
+            handleMouseMove(); // Start timer on play
+        }
+    }, [isPaused, handleMouseMove]);
+    
+     // Scroll playlist to active item
+    useEffect(() => {
+        if (activeItemRef.current) {
+            activeItemRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }, [currentLesson]);
+
+    // Player Actions
+    const handlePlayPause = () => isPlaying ? playerRef.current?.pauseVideo() : playerRef.current?.playVideo();
     const handleToggleMute = () => {
         if (!playerRef.current) return;
-        playerRef.current.isMuted() ? playerRef.current.unMute() : playerRef.current.mute();
-        setIsMuted(playerRef.current.isMuted());
+        const muted = playerRef.current.isMuted();
+        muted ? playerRef.current.unMute() : playerRef.current.mute();
+        setIsMuted(!muted);
     };
     const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newVolume = parseInt(e.target.value, 10);
         setVolume(newVolume);
-        playerRef.current?.setVolume(newVolume);
-    };
-    const handleSpeedChange = (speed: number) => {
-        setPlaybackRate(speed);
-        playerRef.current?.setPlaybackRate(speed);
-        setIsSettingsMenuOpen(false);
+        if (playerRef.current) playerRef.current.setVolume(newVolume);
+        if (newVolume > 0 && isMuted) handleToggleMute();
     };
     const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
-        if (!playerRef.current || !duration) return;
         const rect = e.currentTarget.getBoundingClientRect();
         const percent = (e.clientX - rect.left) / rect.width;
-        playerRef.current.seekTo(duration * percent, true);
+        playerRef.current?.seekTo(duration * percent, true);
+    };
+    const handleSpeedChange = (speed: number) => {
+        playerRef.current?.setPlaybackRate(speed);
+        setPlaybackRate(speed);
+        setSettingsView('main');
+    };
+    const handleQualityChange = (quality: string) => {
+        playerRef.current?.setPlaybackQuality(quality);
+        setCurrentQuality(quality);
+        setSettingsView('main');
     };
     const handleFullscreen = () => {
-        const elem = playerWrapperRef.current;
-        if (!elem) return;
-        if (!document.fullscreenElement) {
-            elem.requestFullscreen().catch((err) => addToast(`خطأ في تفعيل وضع ملء الشاشة: ${err.message}`, ToastType.ERROR));
-        } else {
-            document.exitFullscreen();
-        }
+        if (!document.fullscreenElement) playerWrapperRef.current?.requestFullscreen();
+        else document.exitFullscreen();
     };
-    
-    // --- UI State Handlers ---
-    const handleMouseMove = () => {
-        setIsMouseInPlayer(true);
-        if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-        if (isPlaying) {
-            controlsTimeoutRef.current = window.setTimeout(() => setIsMouseInPlayer(false), 3000);
-        }
-    };
-    const handleMouseLeave = () => {
-        if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-        if (isPlaying) setIsMouseInPlayer(false);
-    };
-
-    const showControls = isPaused || isMouseInPlayer || isSettingsMenuOpen;
     const formatTime = (seconds: number) => {
         if (isNaN(seconds) || seconds < 0) return '0:00';
-        const mins = Math.floor(seconds / 60);
-        const secs = Math.floor(seconds % 60);
-        return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+        const date = new Date(seconds * 1000);
+        return date.toISOString().substr(date.getUTCHours() > 0 ? 11 : 14, 5);
     };
 
     return (
         <div className="flex flex-col lg:flex-row gap-6">
-            <div 
-                className={`lg:flex-[2] min-w-0 ${isFullscreen ? 'fixed inset-0 z-[100] bg-black flex items-center justify-center' : 'relative'}`} 
-                ref={playerWrapperRef}
-                onMouseMove={handleMouseMove}
-                onMouseLeave={handleMouseLeave}
-                onContextMenu={(e) => e.preventDefault()}
-            >
-                <div 
-                  className={`${isFullscreen ? 'w-full h-full' : 'relative w-full shadow-2xl'} bg-black rounded-lg overflow-hidden transition-all duration-300`} 
-                  style={!isFullscreen ? { aspectRatio: '16/9' } : {}}
-                >
-                    {playerError && (
-                         <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 z-30 p-4 text-center">
-                            <XCircleIcon className="w-16 h-16 text-red-500 mb-4" />
-                            <h3 className="text-xl font-bold text-white mb-2">حدث خطأ في الفيديو</h3>
-                            <p className="text-white/80">{playerError}</p>
-                            <button onClick={reloadCurrentVideo} className="mt-6 px-4 py-2 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors">إعادة المحاولة</button>
-                         </div>
-                    )}
-                    {!isPlayerReady && !playerError && (
-                         <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 z-30 p-4 text-center">
-                            <Loader />
-                            <p className="mt-4 text-white">جاري تحميل الفيديو...</p>
-                        </div>
-                    )}
+            <div ref={playerWrapperRef} onMouseMove={handleMouseMove} onMouseLeave={hideControls}
+                 className={`lg:flex-[2] min-w-0 relative bg-black rounded-lg overflow-hidden shadow-2xl ${isFullscreen ? 'fixed inset-0 z-[100]' : 'aspect-video'}`}>
+                
+                <div id={PLAYER_CONTAINER_ID} className="w-full h-full" />
+                
+                {(isBuffering || !isPlayerReady) && !playerError && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-20"><Loader /></div>
+                )}
+                
+                {playerError && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 z-30 p-4 text-center">
+                        <XCircleIcon className="w-16 h-16 text-red-500 mb-4" />
+                        <h3 className="text-xl font-bold text-white mb-2">حدث خطأ في الفيديو</h3>
+                        <p className="text-white/80">{playerError}</p>
+                        <button onClick={reloadCurrentVideo} className="mt-6 px-4 py-2 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors">إعادة المحاولة</button>
+                    </div>
+                )}
 
-                    <div id={PLAYER_CONTAINER_ID} className="w-full h-full" />
-                    
-                     <div className={`video-player-overlay ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-                        <div className="video-player-top-bar">
-                           <h3 className="text-lg font-bold flex items-center truncate">
-                                <VideoCameraIcon className="w-5 h-5 ml-2 flex-shrink-0"/> 
-                                <span className="truncate">{currentLesson.title}</span>
-                            </h3>
+                <div className={`video-player-overlay ${!areControlsVisible && 'hidden'}`}>
+                    <div className="video-player-gradient-bottom"/>
+                    <div className="video-player-controls-bar">
+                        <div className="custom-player-progress-container" onClick={handleSeek}>
+                            <div className="custom-player-buffered-bar" style={{ width: `${(buffered / duration) * 100}%` }} />
+                            <div className="custom-player-progress-bar" style={{ width: `${(currentTime / duration) * 100}%` }} />
                         </div>
-
-                        <div 
-                            className="absolute inset-0 z-20 cursor-pointer flex items-center justify-center group"
-                            onClick={handlePlayPause}
-                            aria-label={isPlaying ? "إيقاف مؤقت" : "تشغيل"}
-                        >
-                            <div className={`w-20 h-20 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center transition-all duration-300 ease-in-out ${isPaused ? 'opacity-100 scale-100' : 'opacity-0 scale-125 group-hover:opacity-100 group-hover:scale-100'} pointer-events-none`}>
-                                {isPlaying ? <PauseIcon className="w-10 h-10 text-white" /> : <PlayIcon className="w-10 h-10 text-white ml-1" />}
-                            </div>
-                        </div>
-                    
-                        <div className="video-player-controls-bar">
-                             <div className="custom-player-progress-container" onClick={handleSeek}>
-                                <div className="custom-player-progress-bar" style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}></div>
-                            </div>
-                            
-                            <div className="flex flex-wrap items-center justify-between gap-4 mt-2">
-                                <div className="flex items-center gap-1 md:gap-2">
-                                    <button onClick={playPreviousVideo} className="custom-player-btn" disabled={!isPlayerReady || currentPlaylistIndex <= 0}><ChevronDoubleLeftIcon className="w-6 h-6"/></button>
-                                    <button onClick={handlePlayPause} className="custom-player-btn" disabled={!isPlayerReady}>
-                                        {isPlaying ? <PauseIcon className="w-8 h-8"/> : <PlayIcon className="w-8 h-8"/>}
+                        <div className="flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-1 md:gap-2">
+                                <button onClick={playPreviousVideo} className="custom-player-btn" disabled={currentPlaylistIndex <= 0}><ChevronDoubleLeftIcon className="w-6 h-6"/></button>
+                                <button onClick={handlePlayPause} className="custom-player-btn">{isPlaying ? <PauseIcon className="w-8 h-8"/> : <PlayIcon className="w-8 h-8"/>}</button>
+                                <button onClick={playNextVideo} className="custom-player-btn" disabled={currentPlaylistIndex >= playlist.length - 1}><ChevronDoubleRightIcon className="w-6 h-6"/></button>
+                                <div className="relative">
+                                    <button onClick={() => setVolumeSliderVisible(p => !p)} className="custom-player-btn">
+                                        {isMuted || volume === 0 ? <VolumeOffIcon className="w-6 h-6"/> : <SpeakerphoneIcon className="w-6 h-6"/>}
                                     </button>
-                                    <button onClick={playNextVideo} className="custom-player-btn" disabled={!isPlayerReady || currentPlaylistIndex >= playlist.length - 1}><ChevronDoubleRightIcon className="w-6 h-6"/></button>
-                                    
-                                    <div className="volume-controls-container">
-                                        <button onClick={handleToggleMute} className="custom-player-btn" disabled={!isPlayerReady}>
-                                            {isMuted || volume === 0 ? <VolumeOffIcon className="w-6 h-6"/> : <SpeakerphoneIcon className="w-6 h-6"/>}
-                                        </button>
-                                         <div className="volume-slider-wrapper">
-                                            <input type="range" min="0" max="100" value={isMuted ? 0 : volume} className="custom-player-slider" onChange={handleVolumeChange} disabled={!isPlayerReady}/>
-                                         </div>
-                                    </div>
-                                    
-                                    <div className="text-sm font-mono tracking-tighter text-white/90">
-                                        {formatTime(currentTime)} / {formatTime(duration)}
-                                    </div>
+                                    {isVolumeSliderVisible && (
+                                        <div className="volume-slider-container fade-in">
+                                            <input type="range" min="0" max="100" value={isMuted ? 0 : volume} className="vertical-slider" onChange={handleVolumeChange}/>
+                                        </div>
+                                    )}
                                 </div>
-                                <div className="flex items-center gap-1 md:gap-2">
-                                     <div className="relative" ref={settingsMenuRef}>
-                                        <button onClick={() => setIsSettingsMenuOpen(!isSettingsMenuOpen)} className="custom-player-btn" disabled={!isPlayerReady}>
-                                            <CogIcon className="w-6 h-6"/>
-                                        </button>
-                                        {isSettingsMenuOpen && (
-                                            <div className="settings-menu fade-in">
-                                                <div className="settings-menu-header">سرعة التشغيل</div>
-                                                {speedOptions.map(speed => (
-                                                    <button key={speed} onClick={() => handleSpeedChange(speed)} className={`settings-menu-item ${playbackRate === speed ? 'active' : ''}`}>
-                                                        {playbackRate === speed && <CheckIcon className="w-4 h-4 text-white" />}
-                                                        <span>{speed === 1 ? 'عادي' : `${speed}x`}</span>
-                                                    </button>
-                                                ))}
+                                <div className="text-sm font-mono tracking-tighter text-white/90 hidden md:block">{formatTime(currentTime)} / {formatTime(duration)}</div>
+                            </div>
+                            <div className="flex items-center gap-1 md:gap-2">
+                                <div className="text-sm font-mono tracking-tighter text-white/90 md:hidden">{formatTime(currentTime)}</div>
+                                <div className="relative">
+                                    <button onClick={() => setIsSettingsMenuOpen(p => !p)} className="custom-player-btn"><CogIcon className="w-6 h-6"/></button>
+                                    {isSettingsMenuOpen && (
+                                        <div className="settings-menu" onMouseLeave={() => {setIsSettingsMenuOpen(false); setSettingsView('main');}}>
+                                            <div className="relative w-full h-full overflow-hidden">
+                                                <div className="settings-menu-view" style={{ transform: settingsView === 'main' ? 'translateX(0)' : 'translateX(-100%)' }}>
+                                                    <button onClick={() => setSettingsView('quality')} className="settings-menu-item" disabled={availableQualities.length <= 1}><span>الجودة</span> <span className="value">{qualityLabels[currentQuality] || currentQuality} &rsaquo;</span></button>
+                                                    <button onClick={() => setSettingsView('speed')} className="settings-menu-item"><span>السرعة</span> <span className="value">{playbackRate === 1 ? 'عادي' : `${playbackRate}x`} &rsaquo;</span></button>
+                                                </div>
+                                                <div className="settings-menu-view absolute top-0 left-0 w-full" style={{ transform: settingsView === 'quality' ? 'translateX(0)' : 'translateX(100%)' }}>
+                                                    <div className="settings-menu-header"><button onClick={() => setSettingsView('main')}><ChevronLeftIcon className="w-5 h-5 ml-2"/></button> الجودة</div>
+                                                    {availableQualities.map(q => <button key={q} onClick={() => handleQualityChange(q)} className={`settings-menu-item ${currentQuality === q ? 'active' : ''}`}>{currentQuality === q && <CheckIcon className="w-4 h-4"/>}<span>{qualityLabels[q] || q}</span></button>)}
+                                                </div>
+                                                <div className="settings-menu-view absolute top-0 left-0 w-full" style={{ transform: settingsView === 'speed' ? 'translateX(0)' : 'translateX(100%)' }}>
+                                                    <div className="settings-menu-header"><button onClick={() => setSettingsView('main')}><ChevronLeftIcon className="w-5 h-5 ml-2"/></button> السرعة</div>
+                                                    {speedOptions.map(s => <button key={s} onClick={() => handleSpeedChange(s)} className={`settings-menu-item ${playbackRate === s ? 'active' : ''}`}>{playbackRate === s && <CheckIcon className="w-4 h-4"/>}<span>{s === 1 ? 'عادي' : `${s}x`}</span></button>)}
+                                                </div>
                                             </div>
-                                        )}
-                                    </div>
-                                    <button onClick={handleFullscreen} className="custom-player-btn" disabled={!isPlayerReady}>
-                                        <ArrowsExpandIcon className="w-6 h-6"/>
-                                    </button>
+                                        </div>
+                                    )}
                                 </div>
+                                <button onClick={handleFullscreen} className="custom-player-btn"><ArrowsExpandIcon className="w-6 h-6"/></button>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-
             {!isFullscreen && (
-                <div className="youtube-playlist-container lg:flex-[1] bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg shadow-lg h-96 lg:h-auto lg:max-h-[75vh] flex flex-col">
-                    <h3 className="text-lg font-bold p-4 border-b border-[var(--border-primary)] text-[var(--text-primary)]">الدروس في هذه الوحدة</h3>
-                    <div className="overflow-y-auto flex-grow">
+                <div className="lg:flex-[1] bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg shadow-lg h-96 lg:h-auto lg:max-h-[calc(100vh - 200px)] flex flex-col">
+                    <h3 className="text-lg font-bold p-4 border-b border-[var(--border-primary)] text-[var(--text-primary)] flex-shrink-0">الدروس في هذه الوحدة</h3>
+                    <div ref={playlistRef} className="overflow-y-auto flex-grow">
                         {playlist.map((item, index) => (
-                            <div 
-                                key={item.id} 
-                                onClick={() => isPlayerReady && playVideoByIndex(index)}
-                                className={`relative flex items-center p-3 border-b border-[var(--border-primary)] transition-all duration-200 ${isPlayerReady ? 'cursor-pointer hover:bg-[var(--bg-tertiary)]' : 'opacity-70'} ${item.id === currentLesson.id ? 'bg-[var(--bg-secondary)] border-r-4 border-[var(--accent-primary)]' : ''}`}
-                            >
-                                 {item.id === currentLesson.id && isPlaying && (
-                                    <div className="absolute top-2 left-2 flex items-center text-xs px-2 py-0.5 rounded-full bg-red-600 text-white font-bold z-10">
-                                      <PlayIcon className="w-3 h-3 ml-1" />
-                                      <span>تشغيل الآن</span>
-                                    </div>
-                                  )}
-                                 <div className="w-24 h-14 bg-black rounded flex-shrink-0 ml-3">
-                                    <img src={`https://img.youtube.com/vi/${item.content}/mqdefault.jpg`} alt={item.title} className="w-full h-full object-cover" loading="lazy" decoding="async"/>
-                                </div>
+                            <div ref={item.id === currentLesson.id ? activeItemRef : null} key={item.id} onClick={() => playVideoByIndex(index)}
+                                className={`flex items-center p-3 border-b border-[var(--border-primary)] transition-all duration-200 cursor-pointer hover:bg-[var(--bg-tertiary)] ${item.id === currentLesson.id ? 'bg-[var(--bg-secondary)] border-r-4 border-[var(--accent-primary)]' : ''}`}>
+                                <span className="font-mono text-sm text-[var(--text-secondary)] ml-3">{index + 1}</span>
                                 <div className="flex-1 min-w-0">
-                                    <p className={`font-semibold text-sm truncate ${item.id === currentLesson.id ? 'text-[var(--accent-primary)]' : 'text-[var(--text-primary)]'}`}>
-                                        {item.title}
-                                    </p>
-                                    <p className="text-xs text-[var(--text-secondary)]">{item.type}</p>
+                                    <p className={`font-semibold text-sm truncate ${item.id === currentLesson.id ? 'text-[var(--accent-primary)]' : 'text-[var(--text-primary)]'}`}>{item.title}</p>
                                 </div>
+                                {item.id === currentLesson.id && isPlaying && <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse mr-auto flex-shrink-0"/>}
                             </div>
                         ))}
                     </div>
