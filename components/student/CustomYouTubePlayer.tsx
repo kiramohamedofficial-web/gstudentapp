@@ -182,13 +182,26 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
         
         if (isPlaying) {
             const progressInterval = setInterval(updateProgress, 250);
+
+            // Refresh available qualities when video starts playing
+            const qualities = player.getAvailableQualityLevels();
+            if (qualities && qualities.length > 0) {
+                const newQualities = ['auto', ...qualities];
+                // Deep comparison to prevent needless re-renders
+                if (JSON.stringify(newQualities.sort()) !== JSON.stringify(availableQualities.sort())) {
+                    setAvailableQualities(newQualities);
+                }
+            } else if (availableQualities.length > 1) { // if no qualities are returned but we have some in state
+                setAvailableQualities(['auto']);
+            }
+
             return () => clearInterval(progressInterval);
         }
         if (playerState === window.YT?.PlayerState?.ENDED) {
             onLessonCompleteRef.current(currentLesson.id);
             playNextVideo();
         }
-    }, [isPlayerReady, isPlaying, playerState, playNextVideo, currentLesson.id]);
+    }, [isPlayerReady, isPlaying, playerState, playNextVideo, currentLesson.id, availableQualities]);
 
     // Fullscreen and Controls Visibility
     useEffect(() => {
