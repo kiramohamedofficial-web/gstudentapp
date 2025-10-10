@@ -19,9 +19,9 @@ const parseYouTubeVideoId = (url: string): string | null => {
 // Confirmation Modal Component
 const ConfirmationModal: React.FC<{ isOpen: boolean; onClose: () => void; onConfirm: () => void; title: string; message: string; }> = ({ isOpen, onClose, onConfirm, title, message }) => (
     <Modal isOpen={isOpen} onClose={onClose} title={title}>
-        <p className="text-slate-300 mb-6">{message}</p>
+        <p className="text-[var(--text-secondary)] mb-6">{message}</p>
         <div className="flex justify-end space-x-3 space-x-reverse">
-            <button onClick={onClose} className="px-4 py-2 rounded-md bg-slate-600 hover:bg-slate-700 transition-colors">إلغاء</button>
+            <button onClick={onClose} className="px-4 py-2 rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] transition-colors">إلغاء</button>
             <button onClick={onConfirm} className="px-4 py-2 rounded-md bg-red-600 hover:bg-red-700 transition-colors text-white">تأكيد الحذف</button>
         </div>
     </Modal>
@@ -44,17 +44,17 @@ const UnitEditModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (t
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={unit ? 'تعديل الوحدة' : 'إضافة وحدة جديدة'}>
             <form onSubmit={handleSubmit}>
-                <label htmlFor="unitTitle" className="block text-sm font-medium text-slate-300 mb-2">عنوان الوحدة</label>
+                <label htmlFor="unitTitle" className="block text-sm font-medium text-[var(--text-secondary)] mb-2">عنوان الوحدة</label>
                 <input
                     id="unitTitle"
                     type="text"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    className="w-full p-2 rounded-md bg-slate-700 border border-slate-600 focus:ring-cyan-500 focus:border-cyan-500"
+                    className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)] focus:ring-purple-500 focus:border-purple-500"
                     required
                 />
                 <div className="flex justify-end mt-6">
-                    <button type="submit" className="px-5 py-2 text-sm font-medium text-white bg-cyan-600 rounded-md hover:bg-cyan-700">حفظ</button>
+                    <button type="submit" className="px-5 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700">حفظ</button>
                 </div>
             </form>
         </Modal>
@@ -159,40 +159,40 @@ const LessonEditModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={lesson ? 'تعديل الدرس' : 'إضافة درس جديد'}>
             <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto p-1">
-                <input type="text" placeholder="عنوان الدرس" value={data.title} onChange={(e) => handleChange('title', e.target.value)} className="w-full p-2 rounded-md bg-slate-700 border border-slate-600" required />
-                <select value={data.type} onChange={(e) => handleChange('type', e.target.value as LessonType)} className="w-full p-2 rounded-md bg-slate-700 border border-slate-600" disabled={!!prefill?.type}>
+                <input type="text" placeholder="عنوان الدرس" value={data.title} onChange={(e) => handleChange('title', e.target.value)} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)]" required />
+                <select value={data.type} onChange={(e) => handleChange('type', e.target.value as LessonType)} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)]" disabled={!!prefill?.type}>
                     {Object.values(LessonType).map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
 
-                {data.type === LessonType.EXPLANATION && <input type="text" placeholder="الصق رابط يوتيوب أو أدخل معرف الفيديو" value={data.content} onChange={(e) => handleChange('content', e.target.value)} className="w-full p-2 rounded-md bg-slate-700 border border-slate-600" />}
-                {data.type === LessonType.SUMMARY && <textarea placeholder="اكتب الملخص هنا (يدعم HTML)" value={data.content} onChange={(e) => handleChange('content', e.target.value)} className="w-full p-2 rounded-md bg-slate-700 border border-slate-600" rows={5} required />}
+                {data.type === LessonType.EXPLANATION && <input type="text" placeholder="الصق رابط يوتيوب أو أدخل معرف الفيديو" value={data.content} onChange={(e) => handleChange('content', e.target.value)} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)]" />}
+                {data.type === LessonType.SUMMARY && <textarea placeholder="اكتب الملخص هنا (يدعم HTML)" value={data.content} onChange={(e) => handleChange('content', e.target.value)} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)]" rows={5} required />}
                 
                 {(data.type === LessonType.HOMEWORK || data.type === LessonType.EXAM) && (
-                    <div className="space-y-4 pt-4 border-t border-slate-600">
+                    <div className="space-y-4 pt-4 border-t border-[var(--border-primary)]">
                         <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-2">صورة الامتحان (1 ميجا بحد أقصى)</label>
-                            <input type="file" onChange={handleImageUpload} accept="image/*" className="w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-cyan-50 file:text-cyan-700 hover:file:bg-cyan-100"/>
-                            {data.imageUrl && <img src={data.imageUrl} alt="Preview" className="mt-4 rounded-lg border border-slate-600 max-h-60 w-auto" />}
+                            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">صورة الامتحان (1 ميجا بحد أقصى)</label>
+                            <input type="file" onChange={handleImageUpload} accept="image/*" className="w-full text-sm text-[var(--text-secondary)] file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"/>
+                            {data.imageUrl && <img src={data.imageUrl} alt="Preview" className="mt-4 rounded-lg border border-[var(--border-primary)] max-h-60 w-auto" />}
                         </div>
                          <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-2">الإجابات الصحيحة (افصل بينها بفاصلة ,)</label>
-                            <input type="text" value={(data.correctAnswers || []).join(',')} onChange={handleCorrectAnswersChange} className="w-full p-2 rounded-md bg-slate-700 border border-slate-600" placeholder="الإجابة 1, الإجابة 2" />
+                            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">الإجابات الصحيحة (افصل بينها بفاصلة ,)</label>
+                            <input type="text" value={(data.correctAnswers || []).join(',')} onChange={handleCorrectAnswersChange} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)]" placeholder="الإجابة 1, الإجابة 2" />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                              <div>
-                                <label className="text-sm text-slate-300">الوقت المحدد (بالدقائق)</label>
-                                <input type="number" placeholder="0 لترك الوقت مفتوح" value={data.timeLimit} onChange={(e) => handleChange('timeLimit', e.target.value)} className="w-full mt-1 p-2 rounded-md bg-slate-700 border border-slate-600" />
+                                <label className="text-sm text-[var(--text-secondary)]">الوقت المحدد (بالدقائق)</label>
+                                <input type="number" placeholder="0 لترك الوقت مفتوح" value={data.timeLimit} onChange={(e) => handleChange('timeLimit', e.target.value)} className="w-full mt-1 p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)]" />
                             </div>
                             <div>
-                                <label className="text-sm text-slate-300">درجة النجاح (%)</label>
-                                <input type="number" placeholder="مثال: 50" value={data.passingScore} onChange={(e) => handleChange('passingScore', e.target.value)} min="0" max="100" className="w-full mt-1 p-2 rounded-md bg-slate-700 border border-slate-600" />
+                                <label className="text-sm text-[var(--text-secondary)]">درجة النجاح (%)</label>
+                                <input type="number" placeholder="مثال: 50" value={data.passingScore} onChange={(e) => handleChange('passingScore', e.target.value)} min="0" max="100" className="w-full mt-1 p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)]" />
                             </div>
                         </div>
                     </div>
                 )}
 
                 {error && <p className="text-sm text-red-400">{error}</p>}
-                <div className="flex justify-end pt-4"><button type="submit" className="px-5 py-2 font-medium text-white bg-cyan-600 rounded-md hover:bg-cyan-700">حفظ الدرس</button></div>
+                <div className="flex justify-end pt-4"><button type="submit" className="px-5 py-2 font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700">حفظ الدرس</button></div>
             </form>
         </Modal>
     );
@@ -230,11 +230,11 @@ const DropdownMenu: React.FC<{ onEdit: () => void; onDelete: () => void }> = ({ 
 
     return (
         <div className="relative" ref={menuRef} onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => setIsOpen(p => !p)} className="p-1 rounded-full hover:bg-white/10"><DotsVerticalIcon className="w-5 h-5"/></button>
+            <button onClick={() => setIsOpen(p => !p)} className="p-1 rounded-full hover:bg-black/10"><DotsVerticalIcon className="w-5 h-5"/></button>
             {isOpen && (
-                <div className="absolute left-0 mt-2 w-36 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-md shadow-lg z-20 text-sm">
+                <div className="absolute left-0 mt-2 w-36 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-md shadow-lg z-20 text-sm">
                     <button onClick={() => handleAction(onEdit)} className="w-full text-right px-3 py-2 hover:bg-[var(--bg-tertiary)] flex items-center"><PencilIcon className="w-4 h-4 ml-2"/> تعديل</button>
-                    <button onClick={() => handleAction(onDelete)} className="w-full text-right px-3 py-2 hover:bg-[var(--bg-tertiary)] flex items-center text-red-400"><TrashIcon className="w-4 h-4 ml-2"/> حذف</button>
+                    <button onClick={() => handleAction(onDelete)} className="w-full text-right px-3 py-2 hover:bg-[var(--bg-tertiary)] flex items-center text-red-500"><TrashIcon className="w-4 h-4 ml-2"/> حذف</button>
                 </div>
             )}
         </div>
@@ -256,8 +256,8 @@ const UnitAccordion: React.FC<{ unit: Unit; grade: Grade; semester: Semester; op
     }, [unit.lessons]);
 
     return (
-        <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-primary)] overflow-hidden transition-all duration-300">
-            <button onClick={() => setIsExpanded(!isExpanded)} className="w-full flex justify-between items-center p-4 text-right hover:bg-[var(--bg-secondary)]/50 transition-colors">
+        <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-primary)] overflow-hidden transition-all duration-300">
+            <button onClick={() => setIsExpanded(!isExpanded)} className="w-full flex justify-between items-center p-4 text-right hover:bg-[var(--bg-tertiary)]/50 transition-colors">
                 <div className="flex items-center">
                     <span className="ml-4 px-2 py-1 text-xs font-mono rounded-md bg-[var(--bg-tertiary)] text-[var(--text-secondary)]">{groupedLessons.length} دروس</span>
                     <h3 className="font-bold text-lg text-[var(--text-primary)]">{unit.title}</h3>
@@ -273,14 +273,14 @@ const UnitAccordion: React.FC<{ unit: Unit; grade: Grade; semester: Semester; op
             {isExpanded && (
                 <div className="p-4 border-t border-[var(--border-primary)] space-y-3 fade-in">
                     {groupedLessons.map(group => (
-                        <div key={group.baseTitle} className="bg-[var(--bg-secondary)] rounded-lg p-3 flex justify-between items-center">
+                        <div key={group.baseTitle} className="bg-[var(--bg-tertiary)] rounded-lg p-3 flex justify-between items-center">
                             <div>
                                 <p className="font-semibold text-md text-[var(--text-primary)]">{group.baseTitle}</p>
                                 <div className="flex items-center flex-wrap gap-2 mt-2">
                                     {Object.entries(group.parts).map(([type, lesson]) => {
                                         if(!lesson) return null;
                                         const details = lessonTypeDetails[type as LessonType];
-                                        return <span key={type} title={details.label} className="flex items-center text-xs px-2 py-1 rounded-full bg-black/20 text-[var(--text-secondary)]"><details.icon className="w-4 h-4 ml-1"/> {details.label}</span>
+                                        return <span key={type} title={details.label} className="flex items-center text-xs px-2 py-1 rounded-full bg-black/10 text-[var(--text-secondary)]"><details.icon className="w-4 h-4 ml-1"/> {details.label}</span>
                                     })}
                                 </div>
                             </div>
@@ -428,7 +428,7 @@ const ContentManagementView: React.FC = () => {
                         {units.map(unit => (
                             <UnitAccordion key={unit.id} unit={unit} grade={selectedGrade!} semester={selectedSemester} openModal={openModal} />
                         ))}
-                        <button onClick={() => openModal('add-unit', { grade: selectedGrade, semester: selectedSemester })} className="w-full text-center p-3 rounded-xl bg-transparent hover:bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors border-2 border-dashed border-[var(--border-primary)] hover:border-[var(--accent-primary)]">
+                        <button onClick={() => openModal('add-unit', { grade: selectedGrade, semester: selectedSemester })} className="w-full text-center p-3 rounded-xl bg-transparent hover:bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors border-2 border-dashed border-[var(--border-primary)] hover:border-[var(--accent-primary)]">
                             <PlusIcon className="w-6 h-6 inline-block mr-2"/> إضافة وحدة جديدة
                         </button>
                     </div>

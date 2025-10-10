@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Lesson, ToastType } from '../../types';
 import { useToast } from '../../useToast';
-import CosmicLoader from '../common/Loader';
+import Loader from '../common/Loader';
 import {
   PlayIcon,
   PauseIcon,
@@ -58,6 +58,8 @@ const speedOptions = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
 const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson, playlist, onLessonComplete }) => {
     const playerRef = useRef<any>(null);
     const playerWrapperRef = useRef<HTMLDivElement>(null);
+    const settingsMenuRef = useRef<HTMLDivElement>(null);
+    
     const [isPlayerReady, setIsPlayerReady] = useState(false);
     const [currentLesson, setCurrentLesson] = useState<Lesson>(initialLesson);
     const [playerState, setPlayerState] = useState<number>(-1);
@@ -82,34 +84,40 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
     const isPlaying = playerState === window.YT?.PlayerState?.PLAYING;
     const isPaused = playerState === window.YT?.PlayerState?.PAUSED || playerState === window.YT?.PlayerState?.ENDED || playerState === -1;
 
-    useEffect(() => {
-        setCurrentLesson(initialLesson);
-    }, [initialLesson]);
-
     const playVideoByIndex = useCallback((index: number) => {
         if (index >= 0 && index < playlist.length) {
             setCurrentLesson(playlist[index]);
+            setPlayerError(null); // Clear previous errors
         }
     }, [playlist]);
+    
+    useEffect(() => {
+        // Handle changes to the initial lesson prop
+        setCurrentLesson(initialLesson);
+    }, [initialLesson]);
 
     const playNextVideo = useCallback(() => {
-        let nextIndex = currentPlaylistIndex + 1;
-        if (nextIndex >= playlist.length) {
-          // Do nothing, just stop at the end. Or loop: nextIndex = 0;
-          return;
+        const nextIndex = currentPlaylistIndex + 1;
+        if (nextIndex < playlist.length) {
+          playVideoByIndex(nextIndex);
         }
-        playVideoByIndex(nextIndex);
     }, [currentPlaylistIndex, playlist.length, playVideoByIndex]);
     
     const playPreviousVideo = useCallback(() => {
-        let prevIndex = currentPlaylistIndex - 1;
-        if (prevIndex < 0) {
-          // Do nothing. Or go to end: prevIndex = playlist.length - 1;
-          return;
+        const prevIndex = currentPlaylistIndex - 1;
+        if (prevIndex >= 0) {
+          playVideoByIndex(prevIndex);
         }
-        playVideoByIndex(prevIndex);
     }, [currentPlaylistIndex, playVideoByIndex]);
+    
+    const reloadCurrentVideo = useCallback(() => {
+        if (playerRef.current && currentLesson.content) {
+            setPlayerError(null);
+            playerRef.current.loadVideoById(currentLesson.content);
+        }
+    }, [currentLesson.content]);
 
+    // Effect for player initialization and cleanup
     useEffect(() => {
         let isMounted = true;
         
@@ -121,29 +129,20 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
                 playerRef.current = new window.YT.Player(PLAYER_CONTAINER_ID, {
                     height: '100%',
                     width: '100%',
+                    videoId: currentLesson.content, // Load initial video
                     playerVars: { 
-                        'playsinline': 1, 
-                        'controls': 0, 
-                        'modestbranding': 1, 
-                        'rel': 0,
-                        'iv_load_policy': 3,
-                        'enablejsapi': 1,
-                        'origin': window.location.origin,
+                        'playsinline': 1, 'controls': 0, 'modestbranding': 1, 'rel': 0,
+                        'iv_load_policy': 3, 'enablejsapi': 1, 'origin': window.location.origin,
                     },
                     events: {
-                        'onReady': () => {
-                           if(isMounted) setIsPlayerReady(true);
-                        },
-                        'onStateChange': (event: any) => {
-                            if (!isMounted) return;
-                            setPlayerState(event.data);
-                        },
+                        'onReady': () => { if(isMounted) setIsPlayerReady(true); },
+                        'onStateChange': (event: any) => { if (isMounted) setPlayerState(event.data); },
                         'onError': (event: any) => {
                             console.error('YouTube Player Error:', event.data);
                             if (!isMounted) return;
                             let errorMessage = `حدث خطأ في تحميل الفيديو (كود: ${event.data}).`;
                             if (event.data === 101 || event.data === 150) {
-                                errorMessage = "هذا الفيديو محمي من قبل المالك ولا يمكن تشغيله هنا. حاول تشغيل فيديو آخر من القائمة.";
+                                errorMessage = "هذا الفيديو محمي ولا يمكن تشغيله هنا. حاول تشغيل فيديو آخر.";
                             }
                             setPlayerError(errorMessage);
                         }
@@ -166,22 +165,19 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
             }
             playerRef.current = null;
         };
-    }, []);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+    // Effect for loading new videos when currentLesson changes
     useEffect(() => {
-        if (isPlayerReady && playerRef.current && currentLesson.content) {
-            setPlayerError(null);
-            playerRef.current.loadVideoById(currentLesson.content);
+        if (isPlayerReady && playerRef.current && playerRef.current.getVideoData()?.video_id !== currentLesson.content) {
+            reloadCurrentVideo();
         }
-    }, [isPlayerReady, currentLesson.content]);
+    }, [isPlayerReady, currentLesson.content, reloadCurrentVideo]);
 
+    // Effect for handling player state changes (playing, paused, ended)
     useEffect(() => {
         const player = playerRef.current;
         if (!isPlayerReady || !player) return;
-
-        if (playerState === window.YT?.PlayerState?.CUED) {
-            player.playVideo();
-        }
 
         if (playerState === window.YT?.PlayerState?.ENDED) {
             onLessonCompleteRef.current(currentLesson.id);
@@ -204,21 +200,28 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
         }
 
         return () => {
-            if (progressIntervalRef.current) {
-                clearInterval(progressIntervalRef.current);
-            }
+            if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
         };
     }, [isPlayerReady, playerState, playNextVideo, currentLesson.id]);
-
+    
+    // Effect for handling fullscreen changes and outside clicks for settings menu
     useEffect(() => {
-        const onFullscreenChange = () => {
-            setIsFullscreen(!!document.fullscreenElement);
+        const onFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
+        const handleClickOutside = (event: MouseEvent) => {
+            if (settingsMenuRef.current && !settingsMenuRef.current.contains(event.target as Node)) {
+                setIsSettingsMenuOpen(false);
+            }
         };
         document.addEventListener('fullscreenchange', onFullscreenChange);
-        return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('fullscreenchange', onFullscreenChange);
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
     }, []);
 
-    const handlePlayPause = () => playerRef.current && (playerState === window.YT?.PlayerState?.PLAYING ? playerRef.current.pauseVideo() : playerRef.current.playVideo());
+    // --- Control Handlers ---
+    const handlePlayPause = () => playerRef.current && (isPlaying ? playerRef.current.pauseVideo() : playerRef.current.playVideo());
     const handleToggleMute = () => {
         if (!playerRef.current) return;
         playerRef.current.isMuted() ? playerRef.current.unMute() : playerRef.current.mute();
@@ -243,16 +246,14 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
     const handleFullscreen = () => {
         const elem = playerWrapperRef.current;
         if (!elem) return;
-
         if (!document.fullscreenElement) {
-            elem.requestFullscreen().catch((err) => {
-                addToast(`خطأ في تفعيل وضع ملء الشاشة: ${err.message}`, ToastType.ERROR);
-            });
+            elem.requestFullscreen().catch((err) => addToast(`خطأ في تفعيل وضع ملء الشاشة: ${err.message}`, ToastType.ERROR));
         } else {
             document.exitFullscreen();
         }
     };
     
+    // --- UI State Handlers ---
     const handleMouseMove = () => {
         setIsMouseInPlayer(true);
         if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
@@ -260,14 +261,12 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
             controlsTimeoutRef.current = window.setTimeout(() => setIsMouseInPlayer(false), 3000);
         }
     };
-
     const handleMouseLeave = () => {
         if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
         if (isPlaying) setIsMouseInPlayer(false);
     };
 
     const showControls = isPaused || isMouseInPlayer || isSettingsMenuOpen;
-    
     const formatTime = (seconds: number) => {
         if (isNaN(seconds) || seconds < 0) return '0:00';
         const mins = Math.floor(seconds / 60);
@@ -288,21 +287,21 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
                   className={`${isFullscreen ? 'w-full h-full' : 'relative w-full shadow-2xl'} bg-black rounded-lg overflow-hidden transition-all duration-300`} 
                   style={!isFullscreen ? { aspectRatio: '16/9' } : {}}
                 >
-                    {(!isPlayerReady || playerError) && (
+                    {playerError && (
+                         <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 z-30 p-4 text-center">
+                            <XCircleIcon className="w-16 h-16 text-red-500 mb-4" />
+                            <h3 className="text-xl font-bold text-white mb-2">حدث خطأ في الفيديو</h3>
+                            <p className="text-white/80">{playerError}</p>
+                            <button onClick={reloadCurrentVideo} className="mt-6 px-4 py-2 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors">إعادة المحاولة</button>
+                         </div>
+                    )}
+                    {!isPlayerReady && !playerError && (
                          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 z-30 p-4 text-center">
-                            {playerError ? (
-                                <>
-                                    <XCircleIcon className="w-12 h-12 text-red-500 mb-4" />
-                                    <p className="text-white">{playerError}</p>
-                                </>
-                            ) : (
-                                <>
-                                    <CosmicLoader />
-                                    <p className="mt-4 text-white">جاري تحميل الفيديو...</p>
-                                </>
-                            )}
+                            <Loader />
+                            <p className="mt-4 text-white">جاري تحميل الفيديو...</p>
                         </div>
                     )}
+
                     <div id={PLAYER_CONTAINER_ID} className="w-full h-full" />
                     
                      <div className={`video-player-overlay ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
@@ -318,17 +317,8 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
                             onClick={handlePlayPause}
                             aria-label={isPlaying ? "إيقاف مؤقت" : "تشغيل"}
                         >
-                            <div className={`
-                                w-20 h-20 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center
-                                transition-all duration-300 ease-in-out
-                                ${isPaused ? 'opacity-100 scale-100' : 'opacity-0 scale-125 group-hover:opacity-100 group-hover:scale-100'}
-                                pointer-events-none
-                            `}>
-                                {isPlaying ? (
-                                    <PauseIcon className="w-10 h-10 text-white" />
-                                ) : (
-                                    <PlayIcon className="w-10 h-10 text-white ml-1" />
-                                )}
+                            <div className={`w-20 h-20 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center transition-all duration-300 ease-in-out ${isPaused ? 'opacity-100 scale-100' : 'opacity-0 scale-125 group-hover:opacity-100 group-hover:scale-100'} pointer-events-none`}>
+                                {isPlaying ? <PauseIcon className="w-10 h-10 text-white" /> : <PlayIcon className="w-10 h-10 text-white ml-1" />}
                             </div>
                         </div>
                     
@@ -338,7 +328,7 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
                             </div>
                             
                             <div className="flex flex-wrap items-center justify-between gap-4 mt-2">
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1 md:gap-2">
                                     <button onClick={playPreviousVideo} className="custom-player-btn" disabled={!isPlayerReady || currentPlaylistIndex <= 0}><ChevronDoubleLeftIcon className="w-6 h-6"/></button>
                                     <button onClick={handlePlayPause} className="custom-player-btn" disabled={!isPlayerReady}>
                                         {isPlaying ? <PauseIcon className="w-8 h-8"/> : <PlayIcon className="w-8 h-8"/>}
@@ -350,7 +340,7 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
                                             {isMuted || volume === 0 ? <VolumeOffIcon className="w-6 h-6"/> : <SpeakerphoneIcon className="w-6 h-6"/>}
                                         </button>
                                          <div className="volume-slider-wrapper">
-                                            <input type="range" min="0" max="100" value={volume} className="custom-player-slider" onChange={handleVolumeChange} disabled={!isPlayerReady}/>
+                                            <input type="range" min="0" max="100" value={isMuted ? 0 : volume} className="custom-player-slider" onChange={handleVolumeChange} disabled={!isPlayerReady}/>
                                          </div>
                                     </div>
                                     
@@ -358,8 +348,8 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
                                         {formatTime(currentTime)} / {formatTime(duration)}
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                     <div className="relative">
+                                <div className="flex items-center gap-1 md:gap-2">
+                                     <div className="relative" ref={settingsMenuRef}>
                                         <button onClick={() => setIsSettingsMenuOpen(!isSettingsMenuOpen)} className="custom-player-btn" disabled={!isPlayerReady}>
                                             <CogIcon className="w-6 h-6"/>
                                         </button>
@@ -386,17 +376,23 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
             </div>
 
             {!isFullscreen && (
-                <div className="youtube-playlist-container lg:flex-[1] bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg shadow-lg lg:max-h-[75vh] flex flex-col">
+                <div className="youtube-playlist-container lg:flex-[1] bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg shadow-lg h-96 lg:h-auto lg:max-h-[75vh] flex flex-col">
                     <h3 className="text-lg font-bold p-4 border-b border-[var(--border-primary)] text-[var(--text-primary)]">الدروس في هذه الوحدة</h3>
                     <div className="overflow-y-auto flex-grow">
                         {playlist.map((item, index) => (
                             <div 
                                 key={item.id} 
                                 onClick={() => isPlayerReady && playVideoByIndex(index)}
-                                className={`flex items-center p-3 border-b border-[var(--border-primary)] transition-all duration-200 ${isPlayerReady ? 'cursor-pointer hover:bg-[var(--bg-tertiary)]' : 'opacity-70'} ${item.id === currentLesson.id ? 'bg-[var(--bg-secondary)] border-r-4 border-[var(--accent-primary)]' : ''}`}
+                                className={`relative flex items-center p-3 border-b border-[var(--border-primary)] transition-all duration-200 ${isPlayerReady ? 'cursor-pointer hover:bg-[var(--bg-tertiary)]' : 'opacity-70'} ${item.id === currentLesson.id ? 'bg-[var(--bg-secondary)] border-r-4 border-[var(--accent-primary)]' : ''}`}
                             >
-                                 <div className="w-16 h-9 bg-black rounded flex-shrink-0 ml-3">
-                                    <img src={`https://img.youtube.com/vi/${item.content}/default.jpg`} alt={item.title} className="w-full h-full object-cover" loading="lazy" decoding="async"/>
+                                 {item.id === currentLesson.id && isPlaying && (
+                                    <div className="absolute top-2 left-2 flex items-center text-xs px-2 py-0.5 rounded-full bg-red-600 text-white font-bold z-10">
+                                      <PlayIcon className="w-3 h-3 ml-1" />
+                                      <span>تشغيل الآن</span>
+                                    </div>
+                                  )}
+                                 <div className="w-24 h-14 bg-black rounded flex-shrink-0 ml-3">
+                                    <img src={`https://img.youtube.com/vi/${item.content}/mqdefault.jpg`} alt={item.title} className="w-full h-full object-cover" loading="lazy" decoding="async"/>
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <p className={`font-semibold text-sm truncate ${item.id === currentLesson.id ? 'text-[var(--accent-primary)]' : 'text-[var(--text-primary)]'}`}>
