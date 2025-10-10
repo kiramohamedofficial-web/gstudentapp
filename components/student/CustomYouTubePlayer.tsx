@@ -310,29 +310,30 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
                                 <div className="text-sm font-mono tracking-tighter text-white/90 md:hidden">{formatTime(currentTime)}</div>
                                 <div className="relative">
                                     <button onClick={() => setIsSettingsMenuOpen(p => !p)} className="custom-player-btn"><CogIcon className="w-6 h-6"/></button>
-                                    {isSettingsMenuOpen && (
-                                        <div className="settings-menu" onMouseLeave={() => {setIsSettingsMenuOpen(false); setSettingsView('main');}}>
-                                            <div className="relative w-full h-full overflow-hidden">
-                                                <div className="settings-menu-view" style={{ transform: settingsView === 'main' ? 'translateX(0)' : 'translateX(-100%)' }}>
-                                                    <button onClick={() => setSettingsView('quality')} className="settings-menu-item" disabled={availableQualities.length <= 1}><span>الجودة</span> <span className="value">{qualityLabels[currentQuality] || currentQuality} &rsaquo;</span></button>
-                                                    <button onClick={() => setSettingsView('speed')} className="settings-menu-item"><span>السرعة</span> <span className="value">{playbackRate === 1 ? 'عادي' : `${playbackRate}x`} &rsaquo;</span></button>
-                                                </div>
-                                                <div className="settings-menu-view absolute top-0 left-0 w-full" style={{ transform: settingsView === 'quality' ? 'translateX(0)' : 'translateX(100%)' }}>
-                                                    <div className="settings-menu-header"><button onClick={() => setSettingsView('main')}><ChevronLeftIcon className="w-5 h-5 ml-2"/></button> الجودة</div>
-                                                    {availableQualities.map(q => <button key={q} onClick={() => handleQualityChange(q)} className={`settings-menu-item ${currentQuality === q ? 'active' : ''}`}>{currentQuality === q && <CheckIcon className="w-4 h-4"/>}<span>{qualityLabels[q] || q}</span></button>)}
-                                                </div>
-                                                <div className="settings-menu-view absolute top-0 left-0 w-full" style={{ transform: settingsView === 'speed' ? 'translateX(0)' : 'translateX(100%)' }}>
-                                                    <div className="settings-menu-header"><button onClick={() => setSettingsView('main')}><ChevronLeftIcon className="w-5 h-5 ml-2"/></button> السرعة</div>
-                                                    {speedOptions.map(s => <button key={s} onClick={() => handleSpeedChange(s)} className={`settings-menu-item ${playbackRate === s ? 'active' : ''}`}>{playbackRate === s && <CheckIcon className="w-4 h-4"/>}<span>{s === 1 ? 'عادي' : `${s}x`}</span></button>)}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
                                 </div>
                                 <button onClick={handleFullscreen} className="custom-player-btn"><ArrowsExpandIcon className="w-6 h-6"/></button>
                             </div>
                         </div>
                     </div>
+
+                    {isSettingsMenuOpen && (
+                        <div className="settings-menu" onMouseLeave={() => {setIsSettingsMenuOpen(false); setSettingsView('main');}}>
+                            <div className="relative w-full h-full overflow-hidden">
+                                <div className="settings-menu-view" style={{ transform: settingsView === 'main' ? 'translateX(0)' : 'translateX(-100%)' }}>
+                                    <button onClick={() => setSettingsView('quality')} className="settings-menu-item" disabled={availableQualities.length <= 1}><span>الجودة</span> <span className="value">{qualityLabels[currentQuality] || currentQuality} &rsaquo;</span></button>
+                                    <button onClick={() => setSettingsView('speed')} className="settings-menu-item"><span>السرعة</span> <span className="value">{playbackRate === 1 ? 'عادي' : `${playbackRate}x`} &rsaquo;</span></button>
+                                </div>
+                                <div className="settings-menu-view absolute top-0 left-0 w-full" style={{ transform: settingsView === 'quality' ? 'translateX(0)' : 'translateX(100%)' }}>
+                                    <div className="settings-menu-header"><button onClick={() => setSettingsView('main')}><ChevronLeftIcon className="w-5 h-5 ml-2"/></button> الجودة</div>
+                                    {availableQualities.map(q => <button key={q} onClick={() => handleQualityChange(q)} className={`settings-menu-item ${currentQuality === q ? 'active' : ''}`}>{currentQuality === q && <CheckIcon className="w-4 h-4"/>}<span>{qualityLabels[q] || q}</span></button>)}
+                                </div>
+                                <div className="settings-menu-view absolute top-0 left-0 w-full" style={{ transform: settingsView === 'speed' ? 'translateX(0)' : 'translateX(100%)' }}>
+                                    <div className="settings-menu-header"><button onClick={() => setSettingsView('main')}><ChevronLeftIcon className="w-5 h-5 ml-2"/></button> السرعة</div>
+                                    {speedOptions.map(s => <button key={s} onClick={() => handleSpeedChange(s)} className={`settings-menu-item ${playbackRate === s ? 'active' : ''}`}>{playbackRate === s && <CheckIcon className="w-4 h-4"/>}<span>{s === 1 ? 'عادي' : `${s}x`}</span></button>)}
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
             {!isFullscreen && (

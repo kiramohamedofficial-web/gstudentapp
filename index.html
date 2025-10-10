@@ -72,6 +72,10 @@
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
   }
+  @keyframes fade-in-up {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
   .fade-in {
     animation: fade-in 0.5s ease-out forwards;
     opacity: 0;
@@ -267,8 +271,8 @@
 }
 .settings-menu {
     position: absolute;
-    bottom: calc(100% + 0.75rem);
-    right: 0;
+    bottom: 3.75rem; /* 60px, places it above the controls */
+    right: 1rem; /* 16px, aligns with player padding */
     width: 12rem; /* 192px */
     background-color: rgba(28, 28, 30, 0.9);
     backdrop-filter: blur(10px);
@@ -278,6 +282,7 @@
     color: white;
     z-index: 30;
     overflow: hidden;
+    animation: fade-in-up 0.2s ease-out;
 }
 .settings-menu-view {
     transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
