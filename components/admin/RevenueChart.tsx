@@ -60,8 +60,8 @@ const RevenueChart: React.FC = () => {
         {/* Gradient for area fill */}
         <defs>
           <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--accent-primary)" stopOpacity="0.4" />
-            <stop offset="100%" stopColor="var(--accent-primary)" stopOpacity="0" />
+            <stop offset="0%" stopColor="#a855f7" stopOpacity="0.4" />
+            <stop offset="100%" stopColor="#a855f7" stopOpacity="0" />
           </linearGradient>
         </defs>
 
@@ -72,9 +72,8 @@ const RevenueChart: React.FC = () => {
         <path
           d={linePath}
           fill="none"
-          stroke="var(--accent-primary)"
+          stroke="#a855f7"
           strokeWidth="3"
-          className="chart-line"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
@@ -86,11 +85,9 @@ const RevenueChart: React.FC = () => {
             cx={getX(i)}
             cy={getY(d.revenue)}
             r="5"
-            fill="var(--bg-primary)"
-            stroke="var(--accent-primary)"
+            fill="var(--bg-secondary)"
+            stroke="#a855f7"
             strokeWidth="2"
-            className="chart-point"
-            style={{ animationDelay: `${i * 100}ms` }}
           />
         ))}
       </svg>

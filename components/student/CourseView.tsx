@@ -1,7 +1,8 @@
 
-import React, { useState, useMemo } from 'react';
-import { Grade, Unit, Lesson, LessonType, ToastType } from '../../types';
-import { setLessonCompleted } from '../../services/storageService';
+
+import React, { useState, useMemo, useEffect } from 'react';
+import { Grade, Unit, Lesson, LessonType, ToastType, User } from '../../types';
+import { getUserProgress, setLessonCompleted } from '../../services/storageService';
 import { useToast } from '../../useToast';
 import LessonView from './LessonView';
 import { BookOpenIcon, PencilIcon, CheckCircleIcon, VideoCameraIcon, DocumentTextIcon, ArrowRightIcon } from '../common/Icons';
@@ -21,10 +22,11 @@ interface GroupedLesson {
 interface CourseViewProps {
   grade: Grade;
   unit: Unit;
+  user: User;
   onBack: () => void;
 }
 
-const LessonPartCard: React.FC<{ lesson: Lesson; onSelect: (lesson: Lesson) => void; }> = ({ lesson, onSelect }) => {
+const LessonPartCard: React.FC<{ lesson: Lesson; onSelect: (lesson: Lesson) => void; isCompleted: boolean; }> = ({ lesson, onSelect, isCompleted }) => {
     const typeInfo: Record<LessonType, { icon: React.FC<{className?: string}>; label: string }> = {
         [LessonType.EXPLANATION]: { icon: VideoCameraIcon, label: 'شرح الدرس' },
         [LessonType.HOMEWORK]: { icon: PencilIcon, label: 'الواجب' },
@@ -37,41 +39,41 @@ const LessonPartCard: React.FC<{ lesson: Lesson; onSelect: (lesson: Lesson) => v
     return (
         <button 
             onClick={() => onSelect(lesson)}
-            className="bg-[var(--bg-secondary)] p-4 rounded-lg text-right w-full flex items-center space-x-3 space-x-reverse transition-all duration-300 transform hover:scale-105 hover:bg-[var(--bg-tertiary)] group"
+            className="bg-[var(--bg-tertiary)] p-4 rounded-lg text-right w-full flex items-center space-x-3 space-x-reverse transition-all duration-300 transform hover:scale-105 hover:bg-[var(--border-primary)] group"
         >
-            <div className={`p-2 rounded-md bg-gradient-to-br from-white/5 to-white/10 ${lesson.isCompleted ? 'text-green-400' : 'text-[var(--accent-primary)]'}`}>
+            <div className={`p-2 rounded-md ${isCompleted ? 'text-green-500 bg-green-500/10' : 'text-[var(--accent-primary)] bg-blue-500/10'}`}>
                 <Icon className="w-6 h-6" />
             </div>
             <div className="flex-grow">
                 <p className="font-semibold text-sm text-[var(--text-primary)]">{label}</p>
-                <p className="text-xs text-[var(--text-secondary)]">{lesson.isCompleted ? 'مكتمل' : 'ابدأ الآن'}</p>
+                <p className="text-xs text-[var(--text-secondary)]">{isCompleted ? 'مكتمل' : 'ابدأ الآن'}</p>
             </div>
-            {lesson.isCompleted && (
-                <CheckCircleIcon className="w-5 h-5 text-green-400 flex-shrink-0" />
+            {isCompleted && (
+                <CheckCircleIcon className="w-5 h-5 text-green-500 flex-shrink-0" />
             )}
         </button>
     );
 };
 
 
-const GroupedLessonCard: React.FC<{ groupedLesson: GroupedLesson; onSelect: (lesson: Lesson) => void; index: number }> = ({ groupedLesson, onSelect, index }) => {
+const GroupedLessonCard: React.FC<{ groupedLesson: GroupedLesson; onSelect: (lesson: Lesson) => void; index: number; userProgress: Record<string, boolean>; }> = ({ groupedLesson, onSelect, index, userProgress }) => {
     return (
         <div
-            className="bg-[var(--bg-primary)] rounded-xl shadow-lg border border-[var(--border-primary)] p-5 flex flex-col transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl hover:border-[var(--accent-primary)] group fade-in"
+            className="bg-[var(--bg-secondary)] rounded-xl shadow-md border border-[var(--border-primary)] p-5 flex flex-col transition-all duration-300 transform hover:-translate-y-1 hover:shadow-lg hover:border-[var(--accent-primary)] group fade-in"
             style={{ animationDelay: `${index * 75}ms`}}
         >
             {/* Header */}
             <div className="flex justify-between items-start mb-4">
                 <div>
                     <h3 className="font-bold text-lg text-[var(--text-primary)] flex items-center">
-                        <span className="ml-3 flex items-center justify-center w-8 h-8 rounded-full bg-[var(--bg-secondary)] text-[var(--accent-primary)] font-mono text-sm">
+                        <span className="ml-3 flex items-center justify-center w-8 h-8 rounded-full bg-[var(--bg-tertiary)] text-[var(--accent-primary)] font-mono text-sm">
                            {String(index + 1).padStart(2, '0')}
                         </span>
                         {groupedLesson.baseTitle}
                     </h3>
                 </div>
                 {groupedLesson.isCompleted && (
-                    <div className="flex items-center space-x-1 space-x-reverse px-2 py-1 text-xs font-semibold text-green-400 bg-green-500/10 rounded-full">
+                    <div className="flex items-center space-x-1 space-x-reverse px-2 py-1 text-xs font-semibold text-green-500 bg-green-500/10 rounded-full">
                         <CheckCircleIcon className="w-4 h-4" />
                         <span>مكتمل</span>
                     </div>
@@ -84,31 +86,35 @@ const GroupedLessonCard: React.FC<{ groupedLesson: GroupedLesson; onSelect: (les
                     <span className="font-semibold">التقدم</span>
                     <span>{groupedLesson.completedCount} / {groupedLesson.totalParts} مكتمل</span>
                 </div>
-                <div className="w-full bg-[var(--bg-secondary)] rounded-full h-2 overflow-hidden">
-                    <div className="bg-gradient-to-r from-blue-500 to-cyan-400 h-full rounded-full transition-all duration-500" style={{width: `${groupedLesson.progress}%`}}></div>
+                <div className="w-full bg-[var(--bg-tertiary)] rounded-full h-2 overflow-hidden">
+                    <div className="bg-[var(--accent-primary)] h-full rounded-full transition-all duration-500" style={{width: `${groupedLesson.progress}%`}}></div>
                 </div>
             </div>
 
             {/* Lesson Parts */}
             <div className="space-y-3">
-                {groupedLesson.explanation && <LessonPartCard lesson={groupedLesson.explanation} onSelect={onSelect} />}
-                {groupedLesson.homework && <LessonPartCard lesson={groupedLesson.homework} onSelect={onSelect} />}
-                {groupedLesson.exam && <LessonPartCard lesson={groupedLesson.exam} onSelect={onSelect} />}
-                {groupedLesson.summary && <LessonPartCard lesson={groupedLesson.summary} onSelect={onSelect} />}
+                {groupedLesson.explanation && <LessonPartCard lesson={groupedLesson.explanation} onSelect={onSelect} isCompleted={!!userProgress[groupedLesson.explanation.id]} />}
+                {groupedLesson.homework && <LessonPartCard lesson={groupedLesson.homework} onSelect={onSelect} isCompleted={!!userProgress[groupedLesson.homework.id]} />}
+                {groupedLesson.exam && <LessonPartCard lesson={groupedLesson.exam} onSelect={onSelect} isCompleted={!!userProgress[groupedLesson.exam.id]} />}
+                {groupedLesson.summary && <LessonPartCard lesson={groupedLesson.summary} onSelect={onSelect} isCompleted={!!userProgress[groupedLesson.summary.id]} />}
             </div>
         </div>
     );
 };
 
-const CourseView: React.FC<CourseViewProps> = ({ grade, unit, onBack }) => {
-  const [currentUnit, setCurrentUnit] = useState<Unit>(unit);
+const CourseView: React.FC<CourseViewProps> = ({ grade, unit, user, onBack }) => {
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
+  const [userProgress, setUserProgress] = useState<Record<string, boolean>>({});
   const { addToast } = useToast();
+
+  useEffect(() => {
+      setUserProgress(getUserProgress(user.id));
+  }, [user.id]);
 
   const groupedLessons = useMemo((): GroupedLesson[] => {
     const lessonGroups: Record<string, Partial<Record<LessonType, Lesson>>> = {};
 
-    currentUnit.lessons.forEach(lesson => {
+    unit.lessons.forEach(lesson => {
         const baseTitle = lesson.title.replace(/^(شرح|واجب|امتحان|ملخص)\s/, '').trim();
         
         if (!lessonGroups[baseTitle]) {
@@ -119,7 +125,7 @@ const CourseView: React.FC<CourseViewProps> = ({ grade, unit, onBack }) => {
 
     return Object.entries(lessonGroups).map(([baseTitle, parts]) => {
         const lessonParts = Object.values(parts).filter(p => p) as Lesson[];
-        const completedCount = lessonParts.filter(p => p.isCompleted).length;
+        const completedCount = lessonParts.filter(p => !!userProgress[p.id]).length;
         const totalParts = lessonParts.length;
         
         return {
@@ -134,21 +140,13 @@ const CourseView: React.FC<CourseViewProps> = ({ grade, unit, onBack }) => {
             totalParts,
         };
     });
-  }, [currentUnit.lessons]);
+  }, [unit.lessons, userProgress]);
 
 
   const handleLessonComplete = (lessonId: string) => {
-    const lessonExists = currentUnit.lessons.some(l => l.id === lessonId && !l.isCompleted);
-      
-    if (lessonExists) {
-      setLessonCompleted(grade.id, lessonId, true);
-      
-      setCurrentUnit(prevUnit => {
-        const newLessons = prevUnit.lessons.map(l => 
-          l.id === lessonId ? { ...l, isCompleted: true } : l
-        );
-        return { ...prevUnit, lessons: newLessons };
-      });
+    if (!userProgress[lessonId]) {
+      setLessonCompleted(user.id, lessonId, true);
+      setUserProgress(prev => ({ ...prev, [lessonId]: true }));
       addToast('أحسنت! لقد أكملت هذا الجزء بنجاح.', ToastType.SUCCESS);
     }
   };
@@ -158,6 +156,7 @@ const CourseView: React.FC<CourseViewProps> = ({ grade, unit, onBack }) => {
         lesson={activeLesson} 
         onBack={() => setActiveLesson(null)} 
         grade={grade}
+        user={user}
         onLessonComplete={handleLessonComplete}
     />;
   }
@@ -180,11 +179,12 @@ const CourseView: React.FC<CourseViewProps> = ({ grade, unit, onBack }) => {
               groupedLesson={groupedLesson}
               onSelect={setActiveLesson}
               index={index}
+              userProgress={userProgress}
             />
           ))}
         </div>
       ) : (
-        <div className="text-center p-12 bg-[var(--bg-primary)] rounded-xl border border-[var(--border-primary)]">
+        <div className="text-center p-12 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-primary)]">
             <p className="text-[var(--text-secondary)]">لم يتم إضافة دروس لهذه المادة بعد.</p>
         </div>
       )}

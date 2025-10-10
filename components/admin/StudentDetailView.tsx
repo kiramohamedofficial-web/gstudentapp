@@ -1,7 +1,8 @@
 
+
 import React, { useMemo } from 'react';
-import { User, Grade, Subscription, Lesson, LessonType } from '../../types';
-import { getGradeById, getSubscriptionByUserId } from '../../services/storageService';
+import { User, Grade, Subscription, Lesson, LessonType, QuizAttempt } from '../../types';
+import { getGradeById, getSubscriptionByUserId, getQuizAttemptsByUserId, getAllGrades, getUserProgress } from '../../services/storageService';
 import { ArrowRightIcon, CheckCircleIcon, ClockIcon } from '../common/Icons';
 
 interface GroupedLesson {
@@ -17,17 +18,36 @@ interface StudentDetailViewProps {
 const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) => {
   const grade = useMemo(() => getGradeById(user.grade), [user.grade]);
   const subscription = useMemo(() => getSubscriptionByUserId(user.id), [user.id]);
+  const quizAttempts = useMemo(() => getQuizAttemptsByUserId(user.id), [user.id]);
+  const userProgress = useMemo(() => getUserProgress(user.id), [user.id]);
+  
+  // Create a map of all lessons for quick lookup
+  const lessonMap = useMemo(() => {
+    const map = new Map<string, { title: string, gradeName: string }>();
+    const allGrades = getAllGrades();
+    allGrades.forEach(g => {
+        g.semesters.forEach(s => {
+            s.units.forEach(u => {
+                u.lessons.forEach(l => {
+                    map.set(l.id, { title: l.title, gradeName: g.name });
+                });
+            });
+        });
+    });
+    return map;
+  }, []);
+
 
   const { totalLessons, completedLessons, progress } = useMemo(() => {
     if (!grade) return { totalLessons: 0, completedLessons: 0, progress: 0 };
     
     const allLessons = grade.semesters.flatMap(s => s.units.flatMap(u => u.lessons));
     const total = allLessons.length;
-    const completed = allLessons.filter(l => l.isCompleted).length;
+    const completed = allLessons.filter(l => !!userProgress[l.id]).length;
     const prog = total > 0 ? Math.round((completed / total) * 100) : 0;
     
     return { totalLessons: total, completedLessons: completed, progress: prog };
-  }, [grade]);
+  }, [grade, userProgress]);
 
   if (!grade) {
     return <div>Could not load student data.</div>;
@@ -60,29 +80,29 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Column - Profile & Progress */}
         <div className="lg:col-span-1 space-y-8">
-          <div className="bg-[var(--bg-primary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)]">
+          <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-md border border-[var(--border-primary)]">
             <div className="flex flex-col items-center text-center">
               <div className="h-24 w-24 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-4xl mb-4">
                 {user.name.charAt(0)}
               </div>
               <h1 className="text-2xl font-bold text-[var(--text-primary)]">{user.name}</h1>
               <p className="text-[var(--text-secondary)]">{grade.name}</p>
-              <span className={`mt-2 px-3 py-1 text-xs font-semibold rounded-full ${subscription?.status === 'Active' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+              <span className={`mt-2 px-3 py-1 text-xs font-semibold rounded-full ${subscription?.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                 {subscription?.status === 'Active' ? `اشتراك نشط` : 'اشتراك غير نشط'}
               </span>
             </div>
           </div>
 
-          <div className="bg-[var(--bg-primary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)]">
+          <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-md border border-[var(--border-primary)]">
             <h2 className="text-lg font-bold text-[var(--text-primary)] mb-4">تقدم الطالب الإجمالي</h2>
             <div>
                 <div className="flex justify-between items-center mb-2 text-sm text-[var(--text-secondary)]">
                     <span>التقدم</span>
                     <span className="font-bold text-[var(--text-primary)]">{progress}%</span>
                 </div>
-                <div className="w-full bg-[var(--bg-secondary)] rounded-full h-3">
+                <div className="w-full bg-[var(--bg-tertiary)] rounded-full h-3">
                     <div 
-                        className="bg-[var(--accent-gradient)] h-3 rounded-full transition-all duration-500" 
+                        className="bg-purple-500 h-3 rounded-full transition-all duration-500" 
                         style={{ width: `${progress}%` }}
                     ></div>
                 </div>
@@ -91,20 +111,53 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
                 </p>
             </div>
           </div>
+          
+           {/* Quiz Attempts Section */}
+            <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-md border border-[var(--border-primary)]">
+                <h2 className="text-lg font-bold text-[var(--text-primary)] mb-4">سجل الاختبارات والواجبات</h2>
+                {quizAttempts.length > 0 ? (
+                    <div className="max-h-80 overflow-y-auto pr-2">
+                        <table className="w-full text-right text-sm">
+                            <thead className="sticky top-0 bg-[var(--bg-secondary)]">
+                                <tr>
+                                    <th className="pb-2 font-semibold text-[var(--text-secondary)]">الاختبار</th>
+                                    <th className="pb-2 font-semibold text-[var(--text-secondary)] text-center">الدرجة</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {quizAttempts.map(attempt => (
+                                    <tr key={attempt.id} className="border-t border-[var(--border-primary)]">
+                                        <td className="py-2">
+                                            <p className="font-semibold text-[var(--text-primary)] truncate">{lessonMap.get(attempt.lessonId)?.title || 'درس محذوف'}</p>
+                                            <p className="text-xs text-[var(--text-secondary)]">{new Date(attempt.submittedAt).toLocaleDateString('ar-EG')}</p>
+                                        </td>
+                                        <td className={`py-2 text-center font-bold ${attempt.isPass ? 'text-green-600' : 'text-red-600'}`}>
+                                            {attempt.score}%
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                ) : (
+                    <p className="text-center text-sm text-[var(--text-secondary)] py-4">لم يقم الطالب بأداء أي اختبارات بعد.</p>
+                )}
+            </div>
+
         </div>
 
         {/* Right Column - Course Breakdown */}
-        <div className="lg:col-span-2 bg-[var(--bg-primary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)]">
+        <div className="lg:col-span-2 bg-[var(--bg-secondary)] p-6 rounded-xl shadow-md border border-[var(--border-primary)]">
             <h2 className="text-lg font-bold text-[var(--text-primary)] mb-4">تفاصيل المنهج الدراسي</h2>
             <div className="space-y-6">
                 {grade.semesters.map(semester => (
                     <div key={semester.id}>
-                        <h3 className="text-md font-semibold text-[var(--text-secondary)] border-r-2 border-[var(--accent-primary)] pr-3 mb-3">{semester.title}</h3>
+                        <h3 className="text-md font-semibold text-[var(--text-secondary)] border-r-2 border-purple-400 pr-3 mb-3">{semester.title}</h3>
                         <div className="space-y-3">
                             {semester.units.map(unit => {
                                 const groupedLessons = groupLessons(unit.lessons);
                                 return (
-                                <div key={unit.id} className="bg-[var(--bg-secondary)] p-3 rounded-lg">
+                                <div key={unit.id} className="bg-[var(--bg-tertiary)] p-3 rounded-lg">
                                     <p className="font-bold text-md text-[var(--text-primary)] mb-2">{unit.title}</p>
                                     <div className="space-y-3 pr-2 border-r border-[var(--border-primary)]">
                                         {groupedLessons.map((group) => (
@@ -114,13 +167,13 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
                                                     {Object.values(group.parts).map((lesson) => lesson && (
                                                         <li key={lesson.id} className="flex items-center justify-between text-sm">
                                                             <span className="text-[var(--text-secondary)]">{lesson.type}</span>
-                                                            {lesson.isCompleted ? (
-                                                                <div className="flex items-center space-x-1 space-x-reverse text-green-400">
+                                                            {userProgress[lesson.id] ? (
+                                                                <div className="flex items-center space-x-1 space-x-reverse text-green-600">
                                                                     <CheckCircleIcon className="w-4 h-4" />
                                                                     <span>مكتمل</span>
                                                                 </div>
                                                             ) : (
-                                                                <div className="flex items-center space-x-1 space-x-reverse text-yellow-500">
+                                                                <div className="flex items-center space-x-1 space-x-reverse text-yellow-600">
                                                                     <ClockIcon className="w-4 h-4" />
                                                                     <span>قيد الانتظار</span>
                                                                 </div>

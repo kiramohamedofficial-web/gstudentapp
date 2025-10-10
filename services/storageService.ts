@@ -1,4 +1,3 @@
-
 import {
   User,
   Subscription,
@@ -10,17 +9,27 @@ import {
   Unit,
   AccessToken,
   SubscriptionRequest,
-  FeaturedTeacher,
   Course,
   Book,
+  StudentQuestion,
+  QuizAttempt,
+  PlatformSettings,
 } from '../types';
-import { DEMO_ADMIN_CODE, DEMO_ADMIN_USERNAME, DEMO_STUDENT_CODE, DEMO_STUDENT_USERNAME } from '../constants';
+import { DEMO_ADMIN_IDENTIFIER, DEMO_ADMIN_PASSWORD, DEMO_STUDENT_IDENTIFIER, DEMO_STUDENT_PASSWORD } from '../constants';
 
 // --- New Curriculum Data Generation ---
 
 const createPlaceholderLessons = (): Lesson[] => ([
-  { id: `l_exp_${Date.now()}_${Math.random()}`, title: 'شرح الدرس الأول', type: LessonType.EXPLANATION, content: 'dQw4w9WgXcQ', isCompleted: false },
-  { id: `l_hw_${Date.now()}_${Math.random()}`, title: 'واجب الدرس الأول', type: LessonType.HOMEWORK, content: '', questions: [], isCompleted: false },
+  { id: `l_exp_${Date.now()}_${Math.random()}`, title: 'شرح الدرس الأول', type: LessonType.EXPLANATION, content: 'dQw4w9WgXcQ' },
+  { 
+    id: `l_hw_${Date.now()}_${Math.random()}`, 
+    title: 'واجب الدرس الأول', 
+    type: LessonType.HOMEWORK, 
+    content: '', 
+    imageUrl: '', // To be filled by admin
+    correctAnswers: ['4', '15'], // Example for a hypothetical image with two questions
+    passingScore: 50 
+  },
 ]);
 
 const createUnitsFromSubjects = (subjects: string[], gradeId: number, semesterId: string): Unit[] => subjects.map((subject, i) => ({
@@ -29,28 +38,26 @@ const createUnitsFromSubjects = (subjects: string[], gradeId: number, semesterId
   lessons: createPlaceholderLessons()
 }));
 
-// --- Subject Lists ---
-const middle1_subjects = ['لغة عربية', 'لغة إنجليزية', 'رياضيات', 'علوم', 'دراسات اجتماعية', 'تربية دينية', 'كمبيوتر وتكنولوجيا معلومات', 'تربية فنية', 'تربية موسيقية', 'تربية رياضية'];
-const middle3_subjects = ['لغة عربية', 'لغة إنجليزية', 'رياضيات', 'علوم', 'دراسات اجتماعية', 'تربية دينية', 'كمبيوتر'];
-const sec1_subjects = ['لغة عربية', 'لغة إنجليزية', 'لغة ثانية', 'رياضيات', 'فيزياء', 'كيمياء', 'أحياء', 'تاريخ', 'جغرافيا', 'فلسفة ومنطق', 'تربية دينية', 'كمبيوتر', 'تربية وطنية'];
-const sec2_subjects = ['لغة عربية', 'لغة إنجليزية', 'لغة ثانية', 'رياضيات', 'فيزياء', 'كيمياء', 'أحياء', 'تاريخ', 'جغرافيا', 'فلسفة ومنطق', 'علم نفس', 'تربية دينية', 'تربية وطنية'];
-const sec3_subjects = ['لغة عربية', 'لغة إنجليزية', 'لغة ثانية', 'أحياء', 'كيمياء', 'فيزياء', 'جيولوجيا وعلوم البيئة', 'رياضيات تطبيقية', 'رياضيات بحتة', 'تاريخ', 'جغرافيا', 'علم نفس واجتماع', 'فلسفة ومنطق'];
+// --- Math Units Lists ---
+const middle_school_math_units = ['الجبر والإحصاء', 'الهندسة'];
+const sec_1_math_units = ['الجبر وحساب المثلثات', 'الهندسة التحليلية'];
+const sec_2_math_units = ['الرياضيات البحتة (علمي)', 'الرياضيات التطبيقية (علمي)', 'رياضيات (أدبي)'];
+const sec_3_math_units = ['التفاضل والتكامل', 'الجبر والهندسة الفراغية', 'الإستاتيكا', 'الديناميكا'];
+
 
 // Mock Data
 const users: User[] = [
-  { id: '1', name: DEMO_STUDENT_USERNAME, code: DEMO_STUDENT_CODE, grade: 10, role: Role.STUDENT, subscriptionId: 'sub1' },
-  { id: '2', name: 'طالبة متفوقة', code: '5678', grade: 11, role: Role.STUDENT, subscriptionId: 'sub2' },
-  { id: '3', name: 'طالب مجتهد', code: '9012', grade: 12, role: Role.STUDENT, subscriptionId: 'sub3' },
-  { id: '4', name: DEMO_ADMIN_USERNAME, code: DEMO_ADMIN_CODE, grade: 0, role: Role.ADMIN },
-  { id: '5', name: 'مالك المنصة', email: 'jytt0jewellery@gmail.com', code: 'Hshsh555&HehgeUDNYf744&&$$@Jg28848', grade: 0, role: Role.ADMIN },
-  { id: '6', name: 'محمد', email: 'mohammed.k221m@gmail.com', code: 'Hshsh555&HehgeUDNYf744&&$$@Jg28848', grade: 10, role: Role.STUDENT, subscriptionId: 'sub4' },
+  { id: '1', name: 'طالب تجريبي', email: DEMO_STUDENT_IDENTIFIER, phone: '+201000000001', password: DEMO_STUDENT_PASSWORD, guardianPhone: '+201100000001', grade: 10, role: Role.STUDENT, subscriptionId: 'sub1' },
+  { id: '2', name: 'طالبة متفوقة', email: 'student2@demo.com', phone: '+201000000002', password: '5678', guardianPhone: '+201100000002', grade: 11, role: Role.STUDENT, subscriptionId: 'sub2' },
+  { id: '3', name: 'طالب مجتهد', email: 'student3@demo.com', phone: '+201000000003', password: '9012', guardianPhone: '+201100000003', grade: 12, track: 'Scientific', role: Role.STUDENT, subscriptionId: 'sub3' },
+  { id: '4', name: 'مدير المنصة', email: DEMO_ADMIN_IDENTIFIER, phone: '+201200000001', password: DEMO_ADMIN_PASSWORD, guardianPhone: '', grade: 0, role: Role.ADMIN },
+  { id: '5', name: 'مالك المنصة', email: 'jytt0jewellery@gmail.com', phone: '+201200000002', password: 'Hshsh555&HehgeUDNYf744&&$$@Jg28848', guardianPhone: '', grade: 0, role: Role.ADMIN },
 ];
 
 const subscriptions: Subscription[] = [
   { id: 'sub1', userId: '1', plan: 'Monthly', startDate: '2024-07-01', endDate: '2024-08-01', status: 'Active' },
   { id: 'sub2', userId: '2', plan: 'Quarterly', startDate: '2024-06-01', endDate: '2024-09-01', status: 'Active' },
   { id: 'sub3', userId: '3', plan: 'Annual', startDate: '2023-09-01', endDate: '2024-09-01', status: 'Expired' },
-  { id: 'sub4', userId: '6', plan: 'Monthly', startDate: '2024-07-15', endDate: '2024-08-15', status: 'Active' },
 ];
 
 const grades: Grade[] = [
@@ -58,75 +65,90 @@ const grades: Grade[] = [
   {
     id: 7, name: 'الصف الأول الإعدادي', ordinal: '1st', level: 'Middle', levelAr: 'الإعدادي',
     semesters: [
-      { id: 'sem1_7', title: 'الفصل الدراسي الأول', units: createUnitsFromSubjects(middle1_subjects, 7, '1') },
-      { id: 'sem2_7', title: 'الفصل الدراسي الثاني', units: createUnitsFromSubjects(middle1_subjects, 7, '2') }
+      { id: 'sem1_7', title: 'الفصل الدراسي الأول', units: createUnitsFromSubjects(middle_school_math_units, 7, '1') },
+      { id: 'sem2_7', title: 'الفصل الدراسي الثاني', units: createUnitsFromSubjects(middle_school_math_units, 7, '2') }
     ],
   },
   {
     id: 8, name: 'الصف الثاني الإعدادي', ordinal: '2nd', level: 'Middle', levelAr: 'الإعدادي',
     semesters: [
-      { id: 'sem1_8', title: 'الفصل الدراسي الأول', units: createUnitsFromSubjects(middle1_subjects, 8, '1') },
-      { id: 'sem2_8', title: 'الفصل الدراسي الثاني', units: createUnitsFromSubjects(middle1_subjects, 8, '2') }
+      { id: 'sem1_8', title: 'الفصل الدراسي الأول', units: createUnitsFromSubjects(middle_school_math_units, 8, '1') },
+      { id: 'sem2_8', title: 'الفصل الدراسي الثاني', units: createUnitsFromSubjects(middle_school_math_units, 8, '2') }
     ],
   },
   {
     id: 9, name: 'الصف الثالث الإعدادي', ordinal: '3rd', level: 'Middle', levelAr: 'الإعدادي',
     semesters: [
-      { id: 'sem1_9', title: 'الفصل الدراسي الأول', units: createUnitsFromSubjects(middle3_subjects, 9, '1') },
-      { id: 'sem2_9', title: 'الفصل الدراسي الثاني', units: createUnitsFromSubjects(middle3_subjects, 9, '2') }
+      { id: 'sem1_9', title: 'الفصل الدراسي الأول', units: createUnitsFromSubjects(middle_school_math_units, 9, '1') },
+      { id: 'sem2_9', title: 'الفصل الدراسي الثاني', units: createUnitsFromSubjects(middle_school_math_units, 9, '2') }
     ],
   },
   // Secondary School
   {
     id: 10, name: 'الصف الأول الثانوي', ordinal: '1st', level: 'Secondary', levelAr: 'الثانوي',
     semesters: [
-      { id: 'sem1_10', title: 'الفصل الدراسي الأول', units: createUnitsFromSubjects(sec1_subjects, 10, '1') },
-      { id: 'sem2_10', title: 'الفصل الدراسي الثاني', units: createUnitsFromSubjects(sec1_subjects, 10, '2') }
+      { id: 'sem1_10', title: 'الفصل الدراسي الأول', units: createUnitsFromSubjects(sec_1_math_units, 10, '1') },
+      { id: 'sem2_10', title: 'الفصل الدراسي الثاني', units: createUnitsFromSubjects(sec_1_math_units, 10, '2') }
     ],
   },
   {
     id: 11, name: 'الصف الثاني الثانوي', ordinal: '2nd', level: 'Secondary', levelAr: 'الثانوي',
     semesters: [
-      { id: 'sem1_11', title: 'الفصل الدراسي الأول', units: createUnitsFromSubjects(sec2_subjects, 11, '1') },
-      { id: 'sem2_11', title: 'الفصل الدراسي الثاني', units: createUnitsFromSubjects(sec2_subjects, 11, '2') }
+      { id: 'sem1_11', title: 'الفصل الدراسي الأول', units: createUnitsFromSubjects(sec_2_math_units, 11, '1') },
+      { id: 'sem2_11', title: 'الفصل الدراسي الثاني', units: createUnitsFromSubjects(sec_2_math_units, 11, '2') }
     ],
   },
   {
     id: 12, name: 'الصف الثالث الثانوي', ordinal: '3rd', level: 'Secondary', levelAr: 'الثانوي',
     semesters: [
-      { id: 'sem1_12', title: 'الفصل الدراسي الأول', units: createUnitsFromSubjects(sec3_subjects, 12, '1') },
-      { id: 'sem2_12', title: 'الفصل الدراسي الثاني', units: createUnitsFromSubjects(sec3_subjects, 12, '2') }
+      { id: 'sem1_12', title: 'الفصل الدراسي الأول', units: createUnitsFromSubjects(sec_3_math_units, 12, '1') },
+      { id: 'sem2_12', title: 'الفصل الدراسي الثاني', units: createUnitsFromSubjects(sec_3_math_units, 12, '2') }
     ],
   },
 ];
 
 // --- New Home Screen Data ---
 
-const featuredTeachers: FeaturedTeacher[] = [
-    { id: 't1', name: 'كريم فكري', subject: 'اللغة الإنجليزية', imageUrl: 'https://i.ibb.co/bJCmnz5/teacher1.png' },
-    { id: 't2', name: 'حسين الجبلاوي', subject: 'اللغة الفرنسية', imageUrl: 'https://i.ibb.co/c2j3G55/teacher2.png' },
-    { id: 't3', name: 'ماجد المهندس', subject: 'الفيزياء', imageUrl: 'https://i.ibb.co/3Wf4QYf/teacher3.png' },
-    { id: 't4', name: 'إسماعيل السيد', subject: 'الأحياء', imageUrl: 'https://i.ibb.co/pwnLz3S/teacher4.png' },
-    { id: 't5', name: 'أحمد مدحي', subject: 'الكيمياء', imageUrl: 'https://i.ibb.co/z5pW7P6/teacher5.png' },
-];
-
 const featuredCourses: Course[] = [
-    { id: 'c1', title: 'UNIT 1 PART 1', subtitle: 'الحصة 3 - الصف الثالث الثانوي', coverImage: 'https://i.ibb.co/g7jCg0D/course1.png', fileCount: 1, videoCount: 2, quizCount: 1 },
-    { id: 'c2', title: 'Unit 1 part 3', subtitle: 'الحصة 3 - الصف الثالث الثانوي', coverImage: 'https://i.ibb.co/g7jCg0D/course1.png', fileCount: 2, videoCount: 1, quizCount: 1 },
-    { id: 'c3', title: 'Writing Skills 3', subtitle: 'الحصة 5 - الصف الأول الثانوي', coverImage: 'https://i.ibb.co/g7jCg0D/course1.png', fileCount: 0, videoCount: 2, quizCount: 0 },
-    { id: 'c4', title: 'حصة 5 (ت)', subtitle: 'الحصة 5 - الصف الأول الثانوي', coverImage: 'https://i.ibb.co/R9m4M58/course2.png', fileCount: 0, videoCount: 2, quizCount: 0 },
+    { id: 'c1', title: 'كورس التفاضل والتكامل', subtitle: 'لطلاب الصف الثالث الثانوي', coverImage: 'https://i.ibb.co/g7jCg0D/course1.png', fileCount: 10, videoCount: 25, quizCount: 8 },
+    { id: 'c2', title: 'كورس الجبر والهندسة', subtitle: 'لطلاب الصف الأول الإعدادي', coverImage: 'https://i.ibb.co/R9m4M58/course2.png', fileCount: 8, videoCount: 20, quizCount: 5 },
+    { id: 'c3', title: 'مراجعة ليلة الامتحان - هندسة', subtitle: 'لطلاب الصف الثالث الإعدادي', coverImage: 'https://i.ibb.co/g7jCg0D/course1.png', fileCount: 2, videoCount: 5, quizCount: 2 },
+    { id: 'c4', title: 'تأسيس الرياضيات', subtitle: 'لجميع المراحل', coverImage: 'https://i.ibb.co/R9m4M58/course2.png', fileCount: 5, videoCount: 15, quizCount: 3 },
 ];
 
 const featuredBooks: Book[] = [
-    { id: 'b1', title: 'كتاب الترم الأول - فرنساوي (3 ث)', teacherName: 'حسين الجبلاوي', teacherImage: 'https://i.ibb.co/c2j3G55/teacher2.png', price: 285, coverImage: 'https://i.ibb.co/q0V9bFN/book1.png' },
-    { id: 'b2', title: 'كتاب الترم الأول - فرنساوي (3 ث)', teacherName: 'حسين الجبلاوي', teacherImage: 'https://i.ibb.co/c2j3G55/teacher2.png', price: 285, coverImage: 'https://i.ibb.co/q0V9bFN/book1.png' },
-    { id: 'b3', title: 'كتاب الشرح والأسئلة', teacherName: 'كريم فكري', teacherImage: 'https://i.ibb.co/bJCmnz5/teacher1.png', price: 300, coverImage: 'https://i.ibb.co/yQxG4d8/book2.png' },
+    { id: 'b1', title: 'كتاب البروف في الجبر (3 ث)', teacherName: 'البروف وجدي الفخراني', teacherImage: 'https://i.ibb.co/bJCmnz5/teacher1.png', price: 250, coverImage: 'https://i.ibb.co/yQxG4d8/book2.png' },
+    { id: 'b2', title: 'كتاب البروف في الهندسة (1 إع)', teacherName: 'البروف وجدي الفخراني', teacherImage: 'https://i.ibb.co/bJCmnz5/teacher1.png', price: 150, coverImage: 'https://i.ibb.co/q0V9bFN/book1.png' },
+    { id: 'b3', title: 'ملزمة المراجعة النهائية', teacherName: 'البروف وجدي الفخراني', teacherImage: 'https://i.ibb.co/bJCmnz5/teacher1.png', price: 100, coverImage: 'https://i.ibb.co/yQxG4d8/book2.png' },
 ];
+
+const defaultPlatformSettings: PlatformSettings = {
+    platformName: 'البروف وجدي الفخراني',
+    heroTitle: 'أتقن الرياضيات مع البروف وجدي الفخراني',
+    heroSubtitle: 'شرح مبسط وتمارين مكثفة لجميع فروع الرياضيات، لمساعدتك على تحقيق أعلى الدرجات.',
+    heroButtonText: 'ابدأ رحلتك الآن',
+    featuresTitle: 'لماذا تختار منصة البروف؟',
+    featuresSubtitle: 'نوفر لك كل ما تحتاجه لتحقيق أعلى الدرجات في الرياضيات بأبسط الطرق.',
+    features: [
+        { title: "شرح تفصيلي ومبسط", description: "فيديوهات عالية الجودة تشرح كل جزء من المنهج بأسلوب سهل وممتع." },
+        { title: "واجبات وامتحانات دورية", description: "اختبر فهمك وتابع مستواك من خلال واجبات وامتحانات إلكترونية." },
+        { title: "وفر وقتك ومجهودك", description: "ذاكر من أي مكان وفي أي وقت يناسبك، وراجع الدروس أكثر من مرة." },
+        { title: "متابعة مستمرة وذكية", description: "نظام متكامل لمتابعة تقدمك الدراسي وتحديد نقاط القوة والضعف." },
+    ],
+    footerDescription: 'منصة متخصصة في مادة الرياضيات تهدف إلى تقديم أفضل المحتويات التعليمية لطلاب المرحلتين الإعدادية والثانوية.',
+    contactPhone: '+20 123 456 7890',
+    contactFacebookUrl: '#',
+    contactYoutubeUrl: '#',
+};
 
 
 const activityLogs: ActivityLog[] = [];
 const accessTokens: AccessToken[] = [];
 const subscriptionRequests: SubscriptionRequest[] = [];
+const studentQuestions: StudentQuestion[] = [];
+const quizAttempts: QuizAttempt[] = [];
+// New store for user-specific lesson progress
+const userProgress: Record<string, Record<string, boolean>> = {};
 
 const getData = <T>(key: string): T[] => {
   const data = localStorage.getItem(key);
@@ -151,23 +173,64 @@ export const initData = (): void => {
     setData('activityLogs', activityLogs);
     setData('accessTokens', accessTokens);
     setData('subscriptionRequests', subscriptionRequests);
-    setData('featuredTeachers', featuredTeachers);
     setData('featuredCourses', featuredCourses);
     setData('featuredBooks', featuredBooks);
+    setData('studentQuestions', studentQuestions);
+    setData('quizAttempts', quizAttempts);
+    setData('userProgress', userProgress);
+  }
+  if (!localStorage.getItem('platformSettings')) {
+      setData('platformSettings', defaultPlatformSettings);
   }
 };
 
-export const getUserByCredentials = (identifier: string, code: string): User | undefined => {
+export const getUserByCredentials = (identifier: string, password: string): User | undefined => {
   const allUsers = getData<User>('users');
   const identifierTrimmed = identifier.trim();
-  const codeTrimmed = code.trim();
+  const passwordTrimmed = password.trim();
+
+  // Normalize input phone number to international format for comparison
+  let phoneIdentifier: string | null = null;
+  if (/^01[0125]\d{8}$/.test(identifierTrimmed)) { // e.g., 01012345678
+      phoneIdentifier = `+20${identifierTrimmed.substring(1)}`;
+  } else if (/^\+201[0125]\d{8}$/.test(identifierTrimmed)) { // e.g., +201012345678
+      phoneIdentifier = identifierTrimmed;
+  } else if (/^1[0125]\d{8}$/.test(identifierTrimmed)) { // e.g., 1012345678
+      phoneIdentifier = `+20${identifierTrimmed}`;
+  }
   
-  // Allow login with either name or a case-insensitive email.
-  return allUsers.find(u => 
-    (u.name.trim() === identifierTrimmed || (u.email && u.email.trim().toLowerCase() === identifierTrimmed.toLowerCase())) && 
-    u.code.trim() === codeTrimmed
-  );
+  return allUsers.find(u => {
+    const isEmailMatch = u.email && u.email.trim().toLowerCase() === identifierTrimmed.toLowerCase();
+    
+    // This will compare the normalized input with what's stored.
+    // And also allows exact match for old data or other formats.
+    const isPhoneMatch = (phoneIdentifier && u.phone.trim() === phoneIdentifier) || u.phone.trim() === identifierTrimmed;
+
+    return (isEmailMatch || isPhoneMatch) && u.password.trim() === passwordTrimmed;
+  });
 };
+
+export const addUser = (userData: Omit<User, 'id' | 'role' | 'subscriptionId'>): { user: User | null; error: string | null } => {
+    const allUsers = getData<User>('users');
+    
+    // Check if email or phone already exists
+    if (allUsers.some(u => (u.email && userData.email && u.email.toLowerCase() === userData.email?.toLowerCase()) || u.phone === userData.phone)) {
+        return { user: null, error: 'البريد الإلكتروني أو رقم الهاتف مستخدم بالفعل.' };
+    }
+
+    const newUser: User = {
+        ...userData,
+        id: `user_${Date.now()}`,
+        role: Role.STUDENT,
+    };
+    
+    const updatedUsers = [...allUsers, newUser];
+    setData('users', updatedUsers);
+    addActivityLog('User Registered', `New user "${newUser.name}" created an account.`);
+    
+    return { user: newUser, error: null };
+};
+
 
 export const getSubscriptionByUserId = (userId: string): Subscription | undefined => {
   const allSubscriptions = getData<Subscription>('subscriptions');
@@ -184,7 +247,6 @@ export const getAllUsers = (): User[] => getData<User>('users');
 export const getAllSubscriptions = (): Subscription[] => getData<Subscription>('subscriptions');
 
 // Home Screen Data Accessors
-export const getFeaturedTeachers = (): FeaturedTeacher[] => getData<FeaturedTeacher>('featuredTeachers');
 export const getFeaturedCourses = (): Course[] => getData<Course>('featuredCourses');
 export const getFeaturedBooks = (): Book[] => getData<Book>('featuredBooks');
 
@@ -210,7 +272,7 @@ export const updateGrade = (updatedGrade: Grade): void => {
     }
 };
 
-export const addLessonToUnit = (gradeId: number, semesterId: string, unitId: string, lessonData: Omit<Lesson, 'id' | 'isCompleted'>): void => {
+export const addLessonToUnit = (gradeId: number, semesterId: string, unitId: string, lessonData: Omit<Lesson, 'id'>): void => {
     const grade = getGradeById(gradeId);
     if (!grade) {
         console.error(`Grade with id ${gradeId} not found.`);
@@ -232,7 +294,6 @@ export const addLessonToUnit = (gradeId: number, semesterId: string, unitId: str
     const newLesson: Lesson = {
         ...lessonData,
         id: `l${new Date().getTime()}`, // Simple unique ID
-        isCompleted: false,
     };
     
     unit.lessons.push(newLesson);
@@ -266,27 +327,25 @@ export const deleteLesson = (gradeId: number, semesterId: string, unitId: string
     updateGrade(grade);
 };
 
-export const setLessonCompleted = (gradeId: number, lessonId: string, completed: boolean): void => {
-    const grade = getGradeById(gradeId);
-    if (!grade) return;
-    
-    let lessonFound = false;
-    for (const semester of grade.semesters) {
-        for (const unit of semester.units) {
-            const lessonToUpdate = unit.lessons.find(l => l.id === lessonId);
-            if (lessonToUpdate) {
-                lessonToUpdate.isCompleted = completed;
-                lessonFound = true;
-                break;
-            }
-        }
-        if (lessonFound) break;
-    }
-
-    if (lessonFound) {
-        updateGrade(grade);
-    }
+// --- User Progress Functions (New) ---
+export const getUserProgress = (userId: string): Record<string, boolean> => {
+    const allProgress = getData<Record<string, Record<string, boolean>>>('userProgress')[0] || {};
+    return allProgress[userId] || {};
 };
+
+export const setLessonCompleted = (userId: string, lessonId: string, completed: boolean): void => {
+    const allProgress = getData<Record<string, Record<string, boolean>>>('userProgress')[0] || {};
+    if (!allProgress[userId]) {
+        allProgress[userId] = {};
+    }
+    if (completed) {
+        allProgress[userId][lessonId] = true;
+    } else {
+        delete allProgress[userId][lessonId];
+    }
+    setData('userProgress', allProgress);
+};
+
 
 export const addUnitToSemester = (gradeId: number, semesterId: string, unitTitle: string): void => {
     const grade = getGradeById(gradeId);
@@ -345,6 +404,10 @@ export const generateAccessToken = (gradeId: number, semesterId: string, unitId:
 export const getSubscriptionRequests = (): SubscriptionRequest[] => {
     const requests = getData<SubscriptionRequest>('subscriptionRequests');
     return requests.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+};
+
+export const getPendingSubscriptionRequestCount = (): number => {
+    return getSubscriptionRequests().filter(r => r.status === 'Pending').length;
 };
 
 export const getUserSubscriptionRequest = (userId: string): SubscriptionRequest | undefined => {
@@ -417,35 +480,6 @@ export const activateSubscription = (userId: string, plan: 'Monthly' | 'Quarterl
     }
 };
 
-// --- Featured Teacher Functions ---
-export const addFeaturedTeacher = (teacher: Omit<FeaturedTeacher, 'id'>): void => {
-    const teachers = getData<FeaturedTeacher>('featuredTeachers');
-    const newTeacher: FeaturedTeacher = {
-        ...teacher,
-        id: `t_${Date.now()}`
-    };
-    setData('featuredTeachers', [...teachers, newTeacher]);
-    addActivityLog('Home Mgmt', `Added teacher: ${newTeacher.name}`);
-};
-
-export const updateFeaturedTeacher = (updatedTeacher: FeaturedTeacher): void => {
-    const teachers = getData<FeaturedTeacher>('featuredTeachers');
-    const index = teachers.findIndex(t => t.id === updatedTeacher.id);
-    if (index !== -1) {
-        teachers[index] = updatedTeacher;
-        setData('featuredTeachers', teachers);
-        addActivityLog('Home Mgmt', `Updated teacher: ${updatedTeacher.name}`);
-    }
-};
-
-export const deleteFeaturedTeacher = (teacherId: string): void => {
-    let teachers = getData<FeaturedTeacher>('featuredTeachers');
-    const teacherName = teachers.find(t => t.id === teacherId)?.name || 'Unknown';
-    teachers = teachers.filter(t => t.id !== teacherId);
-    setData('featuredTeachers', teachers);
-    addActivityLog('Home Mgmt', `Deleted teacher: ${teacherName}`);
-};
-
 // --- Featured Course Functions ---
 export const addFeaturedCourse = (course: Omit<Course, 'id'>): void => {
     const courses = getData<Course>('featuredCourses');
@@ -503,4 +537,85 @@ export const deleteFeaturedBook = (bookId: string): void => {
     books = books.filter(b => b.id !== bookId);
     setData('featuredBooks', books);
     addActivityLog('Home Mgmt', `Deleted book: ${bookTitle}`);
+};
+
+// --- Student Question Functions ---
+export const getStudentQuestionsByUserId = (userId: string): StudentQuestion[] => {
+    const questions = getData<StudentQuestion>('studentQuestions');
+    return questions.filter(q => q.userId === userId).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+};
+
+export const getAllStudentQuestions = (): StudentQuestion[] => {
+    const questions = getData<StudentQuestion>('studentQuestions');
+    return questions.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+};
+
+export const getPendingStudentQuestionCount = (): number => {
+    return getAllStudentQuestions().filter(q => q.status === 'Pending').length;
+};
+
+export const addStudentQuestion = (userId: string, userName: string, questionText: string): void => {
+    const questions = getData<StudentQuestion>('studentQuestions');
+    const newQuestion: StudentQuestion = {
+        id: `q_${Date.now()}`,
+        userId,
+        userName,
+        questionText,
+        answerText: null,
+        status: 'Pending',
+        createdAt: new Date().toISOString(),
+        answeredAt: null,
+    };
+    setData('studentQuestions', [newQuestion, ...questions]);
+    addActivityLog('Question Asked', `User "${userName}" asked a question.`);
+};
+
+export const answerStudentQuestion = (questionId: string, answerText: string): void => {
+    const questions = getData<StudentQuestion>('studentQuestions');
+    const questionIndex = questions.findIndex(q => q.id === questionId);
+    if (questionIndex !== -1) {
+        questions[questionIndex] = {
+            ...questions[questionIndex],
+            answerText,
+            status: 'Answered',
+            answeredAt: new Date().toISOString(),
+        };
+        setData('studentQuestions', questions);
+        addActivityLog('Question Answered', `Admin answered a question from "${questions[questionIndex].userName}".`);
+    }
+};
+
+
+// --- Quiz Attempt Functions ---
+export const addQuizAttempt = (attemptData: Omit<QuizAttempt, 'id'>): void => {
+    const attempts = getData<QuizAttempt>('quizAttempts');
+    const newAttempt: QuizAttempt = {
+        ...attemptData,
+        id: `attempt_${Date.now()}`
+    };
+    // To keep the list manageable, we can replace previous attempts by the same user for the same lesson.
+    const otherAttempts = attempts.filter(a => !(a.userId === newAttempt.userId && a.lessonId === newAttempt.lessonId));
+    setData('quizAttempts', [...otherAttempts, newAttempt]);
+    addActivityLog('Quiz Submitted', `User ID ${attemptData.userId} submitted quiz for lesson ID ${attemptData.lessonId} with score ${attemptData.score}%.`);
+};
+
+export const getQuizAttemptsByUserId = (userId: string): QuizAttempt[] => {
+    const attempts = getData<QuizAttempt>('quizAttempts');
+    return attempts.filter(a => a.userId === userId).sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
+};
+
+export const getLatestQuizAttemptForLesson = (userId: string, lessonId: string): QuizAttempt | undefined => {
+    const userAttempts = getQuizAttemptsByUserId(userId);
+    return userAttempts.find(a => a.lessonId === lessonId);
+};
+
+// --- Platform Settings Functions ---
+export const getPlatformSettings = (): PlatformSettings => {
+    const data = localStorage.getItem('platformSettings');
+    return data ? JSON.parse(data) : defaultPlatformSettings;
+};
+
+export const updatePlatformSettings = (settings: PlatformSettings): void => {
+    setData('platformSettings', settings);
+    addActivityLog('Platform Settings', 'Updated welcome page and footer content.');
 };

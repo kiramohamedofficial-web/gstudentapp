@@ -12,6 +12,8 @@ import {
   ChevronDoubleRightIcon,
   CogIcon,
   XCircleIcon,
+  VideoCameraIcon,
+  CheckIcon,
 } from '../common/Icons';
 
 // A single promise to ensure the YouTube API is loaded only once.
@@ -50,6 +52,8 @@ interface CustomYouTubePlayerProps {
 }
 
 const PLAYER_CONTAINER_ID = 'youtube-player-container';
+const speedOptions = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
+
 
 const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson, playlist, onLessonComplete }) => {
     const playerRef = useRef<any>(null);
@@ -62,14 +66,10 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
     const [playbackRate, setPlaybackRate] = useState(1);
     const [duration, setDuration] = useState(0);
     const [currentTime, setCurrentTime] = useState(0);
-    const [isLooping, setIsLooping] = useState(false);
-    const [availableQualities, setAvailableQualities] = useState<string[]>([]);
-    const [currentQuality, setCurrentQuality] = useState<string>('auto');
     const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [playerError, setPlayerError] = useState<string | null>(null);
     const [isMouseInPlayer, setIsMouseInPlayer] = useState(true);
-    const [aspectRatio, setAspectRatio] = useState('16/9');
     
     const { addToast } = useToast();
     const progressIntervalRef = useRef<number | null>(null);
@@ -94,15 +94,21 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
 
     const playNextVideo = useCallback(() => {
         let nextIndex = currentPlaylistIndex + 1;
-        if (nextIndex >= playlist.length) nextIndex = 0;
+        if (nextIndex >= playlist.length) {
+          // Do nothing, just stop at the end. Or loop: nextIndex = 0;
+          return;
+        }
         playVideoByIndex(nextIndex);
     }, [currentPlaylistIndex, playlist.length, playVideoByIndex]);
     
     const playPreviousVideo = useCallback(() => {
         let prevIndex = currentPlaylistIndex - 1;
-        if (prevIndex < 0) prevIndex = playlist.length - 1;
+        if (prevIndex < 0) {
+          // Do nothing. Or go to end: prevIndex = playlist.length - 1;
+          return;
+        }
         playVideoByIndex(prevIndex);
-    }, [currentPlaylistIndex, playlist.length, playVideoByIndex]);
+    }, [currentPlaylistIndex, playVideoByIndex]);
 
     useEffect(() => {
         let isMounted = true;
@@ -131,17 +137,6 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
                         'onStateChange': (event: any) => {
                             if (!isMounted) return;
                             setPlayerState(event.data);
-                            
-                            if (event.data === window.YT?.PlayerState?.PLAYING) {
-                                const qualities = playerRef.current?.getAvailableQualityLevels();
-                                if (qualities && qualities.length > 0) {
-                                    setAvailableQualities(['auto', ...qualities.filter(q => q !== 'auto')]);
-                                }
-                                setCurrentQuality(playerRef.current?.getPlaybackQuality());
-                            }
-                        },
-                        'onPlaybackQualityChange': (event: any) => {
-                           if(isMounted) setCurrentQuality(event.data);
                         },
                         'onError': (event: any) => {
                             console.error('YouTube Player Error:', event.data);
@@ -190,11 +185,7 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
 
         if (playerState === window.YT?.PlayerState?.ENDED) {
             onLessonCompleteRef.current(currentLesson.id);
-            if (isLooping) {
-                player.playVideo();
-            } else {
-                playNextVideo();
-            }
+            playNextVideo();
         }
         
         if (playerState === window.YT?.PlayerState?.PLAYING) {
@@ -217,7 +208,7 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
                 clearInterval(progressIntervalRef.current);
             }
         };
-    }, [isPlayerReady, playerState, isLooping, playNextVideo, currentLesson.id]);
+    }, [isPlayerReady, playerState, playNextVideo, currentLesson.id]);
 
     useEffect(() => {
         const onFullscreenChange = () => {
@@ -261,17 +252,7 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
             document.exitFullscreen();
         }
     };
-     const handleQualityChange = (quality: string) => {
-        playerRef.current?.setPlaybackQuality(quality);
-        setCurrentQuality(quality);
-        setIsSettingsMenuOpen(false);
-    };
     
-    const handleAspectRatioChange = (newRatio: string) => {
-        setAspectRatio(newRatio);
-        setIsSettingsMenuOpen(false);
-    };
-
     const handleMouseMove = () => {
         setIsMouseInPlayer(true);
         if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
@@ -286,20 +267,7 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
     };
 
     const showControls = isPaused || isMouseInPlayer || isSettingsMenuOpen;
-    const aspectRatios = [
-        { value: '16/9', label: 'قياسي (شاشة)' },
-        { value: '21/9', label: 'سينمائي' },
-        { value: '4/3', label: 'كلاسيكي' },
-        { value: '9/16', label: 'هاتف (عمودي)' },
-    ];
-    const formatQualityLabel = (quality: string): string => {
-        const qualityMap: { [key: string]: string } = {
-            'hd2160': '4K', 'hd1440': '1440p', 'hd1080': '1080p',
-            'hd720': '720p', 'large': '480p', 'medium': '360p',
-            'small': '240p', 'tiny': '144p', 'auto': 'تلقائي'
-        };
-        return qualityMap[quality] || quality;
-    };
+    
     const formatTime = (seconds: number) => {
         if (isNaN(seconds) || seconds < 0) return '0:00';
         const mins = Math.floor(seconds / 60);
@@ -318,7 +286,7 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
             >
                 <div 
                   className={`${isFullscreen ? 'w-full h-full' : 'relative w-full shadow-2xl'} bg-black rounded-lg overflow-hidden transition-all duration-300`} 
-                  style={!isFullscreen ? { aspectRatio } : {}}
+                  style={!isFullscreen ? { aspectRatio: '16/9' } : {}}
                 >
                     {(!isPlayerReady || playerError) && (
                          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 z-30 p-4 text-center">
@@ -337,94 +305,77 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
                     )}
                     <div id={PLAYER_CONTAINER_ID} className="w-full h-full" />
                     
-                    <div
-                        className="absolute inset-0 z-20 cursor-pointer flex items-center justify-center group"
-                        onClick={handlePlayPause}
-                        aria-label={isPlaying ? "Pause video" : "Play video"}
-                    >
-                        <div className={`
-                            w-20 h-20 bg-black/60 backdrop-blur-sm rounded-full flex items-center justify-center
-                            transition-all duration-300 ease-in-out
-                            ${isPaused ? 'opacity-100 scale-100' : 'opacity-0 scale-125 group-hover:opacity-100 group-hover:scale-100'}
-                            pointer-events-none
-                        `}>
-                            {isPlaying ? (
-                                <PauseIcon className="w-10 h-10 text-white" />
-                            ) : (
-                                <PlayIcon className="w-10 h-10 text-white ml-1" />
-                            )}
+                     <div className={`video-player-overlay ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                        <div className="video-player-top-bar">
+                           <h3 className="text-lg font-bold flex items-center truncate">
+                                <VideoCameraIcon className="w-5 h-5 ml-2 flex-shrink-0"/> 
+                                <span className="truncate">{currentLesson.title}</span>
+                            </h3>
                         </div>
-                    </div>
+
+                        <div 
+                            className="absolute inset-0 z-20 cursor-pointer flex items-center justify-center group"
+                            onClick={handlePlayPause}
+                            aria-label={isPlaying ? "إيقاف مؤقت" : "تشغيل"}
+                        >
+                            <div className={`
+                                w-20 h-20 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center
+                                transition-all duration-300 ease-in-out
+                                ${isPaused ? 'opacity-100 scale-100' : 'opacity-0 scale-125 group-hover:opacity-100 group-hover:scale-100'}
+                                pointer-events-none
+                            `}>
+                                {isPlaying ? (
+                                    <PauseIcon className="w-10 h-10 text-white" />
+                                ) : (
+                                    <PlayIcon className="w-10 h-10 text-white ml-1" />
+                                )}
+                            </div>
+                        </div>
                     
-                    <div className={`absolute bottom-0 left-0 right-0 z-30 transition-all duration-300 ${showControls ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-full pointer-events-none'}`}>
-                        <div className={`px-4 pt-2 pb-3 bg-gradient-to-t from-black/80 to-transparent`}>
+                        <div className="video-player-controls-bar">
                              <div className="custom-player-progress-container" onClick={handleSeek}>
                                 <div className="custom-player-progress-bar" style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}></div>
                             </div>
-                            <div className="flex justify-between text-xs text-white/80 mt-1">
-                                <span>{formatTime(currentTime)}</span>
-                                <span>{formatTime(duration)}</span>
-                            </div>
                             
-                            <div className="flex flex-wrap items-center justify-between gap-2 mt-2">
+                            <div className="flex flex-wrap items-center justify-between gap-4 mt-2">
                                 <div className="flex items-center gap-2">
-                                    <button onClick={handlePlayPause} className="custom-player-btn p-2" disabled={!isPlayerReady}>
-                                        {isPlaying ? <PauseIcon className="w-6 h-6"/> : <PlayIcon className="w-6 h-6"/>}
+                                    <button onClick={playPreviousVideo} className="custom-player-btn" disabled={!isPlayerReady || currentPlaylistIndex <= 0}><ChevronDoubleLeftIcon className="w-6 h-6"/></button>
+                                    <button onClick={handlePlayPause} className="custom-player-btn" disabled={!isPlayerReady}>
+                                        {isPlaying ? <PauseIcon className="w-8 h-8"/> : <PlayIcon className="w-8 h-8"/>}
                                     </button>
-                                    <button onClick={handleToggleMute} className="custom-player-btn p-2" disabled={!isPlayerReady}>
-                                        {isMuted || volume === 0 ? <VolumeOffIcon className="w-6 h-6"/> : <SpeakerphoneIcon className="w-6 h-6"/>}
-                                    </button>
-                                     <div className="flex items-center gap-2 flex-grow min-w-[120px]">
-                                        <input type="range" min="0" max="100" value={volume} className="custom-player-slider" onChange={handleVolumeChange} disabled={!isPlayerReady}/>
-                                     </div>
+                                    <button onClick={playNextVideo} className="custom-player-btn" disabled={!isPlayerReady || currentPlaylistIndex >= playlist.length - 1}><ChevronDoubleRightIcon className="w-6 h-6"/></button>
+                                    
+                                    <div className="volume-controls-container">
+                                        <button onClick={handleToggleMute} className="custom-player-btn" disabled={!isPlayerReady}>
+                                            {isMuted || volume === 0 ? <VolumeOffIcon className="w-6 h-6"/> : <SpeakerphoneIcon className="w-6 h-6"/>}
+                                        </button>
+                                         <div className="volume-slider-wrapper">
+                                            <input type="range" min="0" max="100" value={volume} className="custom-player-slider" onChange={handleVolumeChange} disabled={!isPlayerReady}/>
+                                         </div>
+                                    </div>
+                                    
+                                    <div className="text-sm font-mono tracking-tighter text-white/90">
+                                        {formatTime(currentTime)} / {formatTime(duration)}
+                                    </div>
                                 </div>
                                 <div className="flex items-center gap-2">
                                      <div className="relative">
-                                        <button onClick={() => setIsSettingsMenuOpen(!isSettingsMenuOpen)} className="custom-player-btn p-2" disabled={!isPlayerReady}>
+                                        <button onClick={() => setIsSettingsMenuOpen(!isSettingsMenuOpen)} className="custom-player-btn" disabled={!isPlayerReady}>
                                             <CogIcon className="w-6 h-6"/>
                                         </button>
                                         {isSettingsMenuOpen && (
-                                            <div className="absolute bottom-full mb-2 right-0 w-48 bg-black/80 backdrop-blur-md text-white rounded-md shadow-lg border border-white/20 z-20 fade-in">
-                                                <div className="p-2">
-                                                    <h4 className="text-xs font-bold text-white/70 px-2 pb-1 border-b border-white/20">سرعة التشغيل</h4>
-                                                    <div className="grid grid-cols-2 gap-1 mt-1">
-                                                        {[0.5, 1, 1.5, 2].map(speed => (
-                                                            <button key={speed} onClick={() => handleSpeedChange(speed)} className={`text-sm rounded py-1 ${playbackRate === speed ? 'bg-[var(--accent-primary)] text-white' : 'hover:bg-white/10'}`}>
-                                                                {speed === 1 ? 'عادي' : `${speed}x`}
-                                                            </button>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                                <div className="p-2 border-t border-white/20">
-                                                    <h4 className="text-xs font-bold text-white/70 px-2 pb-1">أبعاد الفيديو</h4>
-                                                    <div className="mt-1 max-h-32 overflow-y-auto">
-                                                        {aspectRatios.map(ar => (
-                                                            <button 
-                                                                key={ar.value} 
-                                                                onClick={() => handleAspectRatioChange(ar.value)} 
-                                                                className={`block text-sm w-full text-right rounded px-2 py-1 ${aspectRatio === ar.value ? 'bg-[var(--accent-primary)] text-white' : 'hover:bg-white/10'}`}
-                                                            >
-                                                                {ar.label}
-                                                            </button>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                                {availableQualities.length > 1 && (
-                                                    <div className="p-2 border-t border-white/20">
-                                                        <h4 className="text-xs font-bold text-white/70 px-2 pb-1">الجودة</h4>
-                                                        <div className="mt-1 max-h-32 overflow-y-auto">
-                                                            {availableQualities.map(q => (
-                                                                <button key={q} onClick={() => handleQualityChange(q)} className={`block text-sm w-full text-right rounded px-2 py-1 ${currentQuality === q ? 'bg-[var(--accent-primary)] text-white' : 'hover:bg-white/10'}`}>
-                                                                    {formatQualityLabel(q)}
-                                                                </button>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                )}
+                                            <div className="settings-menu fade-in">
+                                                <div className="settings-menu-header">سرعة التشغيل</div>
+                                                {speedOptions.map(speed => (
+                                                    <button key={speed} onClick={() => handleSpeedChange(speed)} className={`settings-menu-item ${playbackRate === speed ? 'active' : ''}`}>
+                                                        {playbackRate === speed && <CheckIcon className="w-4 h-4 text-white" />}
+                                                        <span>{speed === 1 ? 'عادي' : `${speed}x`}</span>
+                                                    </button>
+                                                ))}
                                             </div>
                                         )}
                                     </div>
-                                    <button onClick={handleFullscreen} className="custom-player-btn p-2" disabled={!isPlayerReady}>
+                                    <button onClick={handleFullscreen} className="custom-player-btn" disabled={!isPlayerReady}>
                                         <ArrowsExpandIcon className="w-6 h-6"/>
                                     </button>
                                 </div>
@@ -445,7 +396,7 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
                                 className={`flex items-center p-3 border-b border-[var(--border-primary)] transition-all duration-200 ${isPlayerReady ? 'cursor-pointer hover:bg-[var(--bg-tertiary)]' : 'opacity-70'} ${item.id === currentLesson.id ? 'bg-[var(--bg-secondary)] border-r-4 border-[var(--accent-primary)]' : ''}`}
                             >
                                  <div className="w-16 h-9 bg-black rounded flex-shrink-0 ml-3">
-                                    <img src={`https://img.youtube.com/vi/${item.content}/default.jpg`} alt={item.title} className="w-full h-full object-cover"/>
+                                    <img src={`https://img.youtube.com/vi/${item.content}/default.jpg`} alt={item.title} className="w-full h-full object-cover" loading="lazy" decoding="async"/>
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <p className={`font-semibold text-sm truncate ${item.id === currentLesson.id ? 'text-[var(--accent-primary)]' : 'text-[var(--text-primary)]'}`}>
@@ -455,11 +406,6 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
                                 </div>
                             </div>
                         ))}
-                    </div>
-                    <div className="p-2 border-t border-[var(--border-primary)] flex justify-around">
-                         <button onClick={playPreviousVideo} disabled={!isPlayerReady || playlist.length <= 1} className="custom-player-btn text-white/80 p-2"><ChevronDoubleLeftIcon className="w-5 h-5"/></button>
-                         <button onClick={playNextVideo} disabled={!isPlayerReady || playlist.length <= 1} className="custom-player-btn text-white/80 p-2"><ChevronDoubleRightIcon className="w-5 h-5"/></button>
-                         <button onClick={() => setIsLooping(!isLooping)} className={`custom-player-btn text-xs px-3 text-white/80 ${isLooping ? 'active' : ''}`} disabled={!isPlayerReady}>تكرار</button>
                     </div>
                 </div>
             )}

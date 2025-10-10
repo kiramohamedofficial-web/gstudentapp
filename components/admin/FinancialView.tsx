@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo, useCallback } from 'react';
 import { SubscriptionRequest, ToastType } from '../../types';
 import { getSubscriptionRequests, updateSubscriptionRequest, activateSubscription } from '../../services/storageService';
@@ -30,9 +31,9 @@ const SubscriptionManagementView: React.FC = () => {
     const renderStatusBadge = (status: 'Pending' | 'Approved' | 'Rejected') => {
         const baseClasses = 'px-3 py-1 text-xs font-semibold rounded-full';
         const styles = {
-            Pending: 'bg-yellow-500/20 text-yellow-400',
-            Approved: 'bg-green-500/20 text-green-400',
-            Rejected: 'bg-red-500/20 text-red-400',
+            Pending: 'bg-yellow-100 text-yellow-800',
+            Approved: 'bg-green-100 text-green-800',
+            Rejected: 'bg-red-100 text-red-800',
         };
         return <span className={`${baseClasses} ${styles[status]}`}>{status}</span>;
     };
@@ -47,16 +48,16 @@ const SubscriptionManagementView: React.FC = () => {
                     <button
                         key={tab}
                         onClick={() => setActiveTab(tab)}
-                        className={`px-4 py-2 text-sm font-semibold transition-colors duration-200 ${activeTab === tab ? 'border-b-2 border-[var(--accent-primary)] text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+                        className={`px-4 py-2 text-sm font-semibold transition-colors duration-200 ${activeTab === tab ? 'border-b-2 border-purple-500 text-purple-600' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
                     >
                         {tab === 'Pending' ? 'طلبات قيد الانتظار' : (tab === 'Approved' ? 'المقبولة' : 'المرفوضة')}
                     </button>
                 ))}
             </div>
 
-            <div className="bg-[var(--bg-primary)] rounded-xl shadow-lg border border-[var(--border-primary)] overflow-x-auto">
+            <div className="bg-[var(--bg-secondary)] rounded-xl shadow-md border border-[var(--border-primary)] overflow-x-auto">
                 <table className="w-full text-right text-sm text-[var(--text-secondary)]">
-                    <thead className="bg-[var(--bg-secondary)]">
+                    <thead className="bg-[var(--bg-tertiary)]">
                         <tr>
                             <th className="px-6 py-4 font-bold text-[var(--text-primary)]">الطالب</th>
                             <th className="px-6 py-4 font-bold text-[var(--text-primary)]">الباقة المطلوبة</th>
@@ -67,7 +68,7 @@ const SubscriptionManagementView: React.FC = () => {
                     </thead>
                     <tbody className="divide-y divide-[var(--border-primary)]">
                         {filteredRequests.length > 0 ? filteredRequests.map(req => (
-                            <tr key={req.id} className="hover:bg-[var(--bg-secondary)] transition-colors">
+                            <tr key={req.id} className="hover:bg-[var(--bg-tertiary)] transition-colors">
                                 <td className="px-6 py-4 font-semibold text-[var(--text-primary)]">{req.userName}</td>
                                 <td className="px-6 py-4">{req.plan}</td>
                                 <td className="px-6 py-4 font-mono tracking-wider">{req.paymentFromNumber}</td>

@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Grade, Unit, Semester } from '../../types';
 import { TEACHERS_DATA } from './teacherData';
@@ -16,19 +15,19 @@ const TeacherCard: React.FC<{ unit: Unit; onClick: () => void; delay: number }> 
     return (
         <div
             onClick={onClick}
-            className="bg-[var(--bg-primary)] rounded-2xl shadow-lg border border-[var(--border-primary)] hover:border-[var(--accent-primary)]/50 transition-all duration-300 cursor-pointer flex overflow-hidden transform hover:-translate-y-1.5 fade-in group"
+            className="bg-[var(--bg-secondary)] rounded-2xl shadow-md border border-[var(--border-primary)] hover:border-[var(--accent-primary)] transition-all duration-300 cursor-pointer flex overflow-hidden transform hover:-translate-y-1.5 fade-in group"
             style={{ animationDelay: `${delay}ms` }}
         >
             <div className="flex-shrink-0 w-28 md:w-32 h-full">
-                <img src={teacherInfo.imageUrl} alt={teacherInfo.name} className="w-full h-full object-cover object-center" />
+                <img src={teacherInfo.imageUrl} alt={teacherInfo.name} className="w-full h-full object-cover object-center" loading="lazy" decoding="async" />
             </div>
             <div className="flex-grow p-4 md:p-5 flex flex-col justify-center text-right">
-                <h3 className="text-lg md:text-xl font-bold text-[var(--accent-primary)] group-hover:text-[var(--accent-secondary)] transition-colors flex items-center mb-1 justify-end">
+                <h3 className="text-lg md:text-xl font-bold text-[var(--accent-primary)] group-hover:text-blue-700 transition-colors flex items-center mb-1 justify-end">
                     {unit.title}
                     <span className="mr-2 text-2xl">{teacherInfo.icon}</span>
                 </h3>
                 <p className="text-md text-[var(--text-primary)]">{teacherInfo.name}</p>
-                 <p className="text-xs text-[var(--text-secondary)] mt-2">انقر لعرض محتوى المادة</p>
+                 <p className="text-xs text-[var(--text-secondary)] mt-2">انقر لعرض محتوى الوحدة</p>
             </div>
         </div>
     );
@@ -45,10 +44,10 @@ const SubjectSelectionScreen: React.FC<SubjectSelectionScreenProps> = ({ grade, 
         <div>
             <button onClick={onBack} className="flex items-center space-x-2 space-x-reverse mb-6 text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
                 <ArrowRightIcon className="w-4 h-4" />
-                <span>العودة إلى اختيار الصف</span>
+                <span>العودة إلى الرئيسية</span>
             </button>
 
-            <h1 className="text-3xl md:text-4xl font-bold mb-4 text-[var(--text-primary)]">المواد الدراسية - {grade.name}</h1>
+            <h1 className="text-3xl md:text-4xl font-bold mb-4 text-[var(--text-primary)]">اختر وحدة المنهج - {grade.name}</h1>
             
             <div className="flex items-center space-x-2 space-x-reverse border-b border-[var(--border-primary)] mb-8">
                 {grade.semesters.map(semester => (
@@ -57,7 +56,7 @@ const SubjectSelectionScreen: React.FC<SubjectSelectionScreenProps> = ({ grade, 
                         onClick={() => setActiveSemesterId(semester.id)}
                         className={`px-4 py-3 font-semibold transition-colors duration-200 text-sm md:text-base ${
                             activeSemesterId === semester.id
-                                ? 'border-b-2 border-[var(--accent-primary)] text-[var(--text-primary)]'
+                                ? 'border-b-2 border-[var(--accent-primary)] text-[var(--accent-primary)]'
                                 : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                         }`}
                     >
@@ -73,8 +72,8 @@ const SubjectSelectionScreen: React.FC<SubjectSelectionScreenProps> = ({ grade, 
                     ))}
                 </div>
             ) : (
-                 <div className="text-center p-12 bg-[var(--bg-primary)] rounded-xl border border-[var(--border-primary)]">
-                    <p className="text-[var(--text-secondary)]">لم يتم العثور على مواد دراسية.</p>
+                 <div className="text-center p-12 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-primary)]">
+                    <p className="text-[var(--text-secondary)]">لم يتم العثور على وحدات دراسية.</p>
                 </div>
             )}
         </div>
