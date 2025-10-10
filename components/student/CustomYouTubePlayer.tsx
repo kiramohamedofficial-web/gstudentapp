@@ -53,10 +53,18 @@ interface CustomYouTubePlayerProps {
 
 const PLAYER_CONTAINER_ID = 'youtube-player-container';
 const speedOptions = [0.5, 0.75, 1, 1.25, 1.5, 2];
-const qualityLabels: { [key: string]: string } = {
-    'hd2160': '4K', 'hd1440': '1440p', 'hd1080': '1080p', 'hd720': '720p',
-    'large': '480p', 'medium': '360p', 'small': '240p', 'tiny': '144p', 'auto': 'تلقائي'
+const qualityLabelMap: { [key: string]: string } = {
+    'hd2160': '2160p 4K',
+    'hd1440': '1440p HD',
+    'hd1080': '1080p HD',
+    'hd720': '720p HD',
+    'large': '480p',
+    'medium': '360p',
+    'small': '240p',
+    'tiny': '144p',
+    'auto': 'تلقائي',
 };
+
 
 const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson, playlist, onLessonComplete }) => {
     const playerRef = useRef<any>(null);
@@ -64,6 +72,7 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
     const playlistRef = useRef<HTMLDivElement>(null);
     const activeItemRef = useRef<HTMLDivElement>(null);
     const controlsTimeoutRef = useRef<number | null>(null);
+    const lessonLoadedRef = useRef<boolean>(false);
     
     const [currentLesson, setCurrentLesson] = useState<Lesson>(initialLesson);
     const [isPlayerReady, setIsPlayerReady] = useState(false);
@@ -75,12 +84,14 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
     const [buffered, setBuffered] = useState(0);
     const [volume, setVolume] = useState(100);
     const [isMuted, setIsMuted] = useState(false);
+    
     const [playbackRate, setPlaybackRate] = useState(1);
     const [availableQualities, setAvailableQualities] = useState<string[]>([]);
     const [currentQuality, setCurrentQuality] = useState<string>('auto');
 
+
     const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
-    const [settingsView, setSettingsView] = useState<'main' | 'quality' | 'speed'>('main');
+    const [settingsView, setSettingsView] = useState<'main' | 'speed' | 'quality'>('main');
     const [isVolumeSliderVisible, setVolumeSliderVisible] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [areControlsVisible, setAreControlsVisible] = useState(true);
@@ -134,18 +145,21 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
                         'onReady': (event: any) => {
                             if (!isMounted) return;
                             setIsPlayerReady(true);
-                            const qualities = event.target.getAvailableQualityLevels();
-                            if (qualities?.length > 0) setAvailableQualities(['auto', ...qualities]);
                             event.target.setPlaybackRate(playbackRate);
+                            const qualities = event.target.getAvailableQualityLevels();
+                            if (qualities && qualities.length > 0) {
+                                setAvailableQualities(qualities);
+                            }
+                            setCurrentQuality(event.target.getPlaybackQuality());
                         },
                         'onStateChange': (event: any) => { if (isMounted) setPlayerState(event.data); },
+                        'onPlaybackQualityChange': (event: any) => { if (isMounted) setCurrentQuality(event.data); },
                         'onError': (event: any) => {
                             if (!isMounted) return;
                             let msg = `حدث خطأ في تحميل الفيديو (كود: ${event.data}).`;
                             if (event.data === 101 || event.data === 150) msg = "هذا الفيديو محمي ولا يمكن تشغيله هنا.";
                             setPlayerError(msg);
                         },
-                        'onPlaybackQualityChange': (event: any) => { if (isMounted) setCurrentQuality(event.data); }
                     }
                 });
             } catch (error) {
@@ -163,6 +177,7 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
     
     // Video Change
     useEffect(() => {
+        lessonLoadedRef.current = false;
         if (isPlayerReady && playerRef.current && playerRef.current.getVideoData()?.video_id !== currentLesson.content) {
             reloadCurrentVideo();
         }
@@ -180,28 +195,25 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
             setBuffered(loaded * (player.getDuration() || 0));
         };
         
-        if (isPlaying) {
-            const progressInterval = setInterval(updateProgress, 250);
-
-            // Refresh available qualities when video starts playing
+        if (isPlaying && !lessonLoadedRef.current) {
+            lessonLoadedRef.current = true;
             const qualities = player.getAvailableQualityLevels();
             if (qualities && qualities.length > 0) {
-                const newQualities = ['auto', ...qualities];
-                // Deep comparison to prevent needless re-renders
-                if (JSON.stringify(newQualities.sort()) !== JSON.stringify(availableQualities.sort())) {
-                    setAvailableQualities(newQualities);
-                }
-            } else if (availableQualities.length > 1) { // if no qualities are returned but we have some in state
-                setAvailableQualities(['auto']);
+                setAvailableQualities(qualities);
             }
+            setCurrentQuality(player.getPlaybackQuality());
+        }
 
+        if (isPlaying) {
+            const progressInterval = setInterval(updateProgress, 250);
             return () => clearInterval(progressInterval);
         }
+
         if (playerState === window.YT?.PlayerState?.ENDED) {
             onLessonCompleteRef.current(currentLesson.id);
             playNextVideo();
         }
-    }, [isPlayerReady, isPlaying, playerState, playNextVideo, currentLesson.id, availableQualities]);
+    }, [isPlayerReady, isPlaying, playerState, playNextVideo, currentLesson.id]);
 
     // Fullscreen and Controls Visibility
     useEffect(() => {
@@ -262,7 +274,6 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
     };
     const handleQualityChange = (quality: string) => {
         playerRef.current?.setPlaybackQuality(quality);
-        setCurrentQuality(quality);
         setSettingsView('main');
     };
     const handleFullscreen = () => {
@@ -332,17 +343,39 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ initialLesson
                     {isSettingsMenuOpen && (
                         <div className="settings-menu" onMouseLeave={() => {setIsSettingsMenuOpen(false); setSettingsView('main');}}>
                             <div className="relative w-full h-full overflow-hidden">
+                                 {/* Main View */}
                                 <div className="settings-menu-view" style={{ transform: settingsView === 'main' ? 'translateX(0)' : 'translateX(-100%)' }}>
-                                    <button onClick={() => setSettingsView('quality')} className="settings-menu-item" disabled={availableQualities.length <= 1}><span>الجودة</span> <span className="value">{qualityLabels[currentQuality] || currentQuality} &rsaquo;</span></button>
-                                    <button onClick={() => setSettingsView('speed')} className="settings-menu-item"><span>السرعة</span> <span className="value">{playbackRate === 1 ? 'عادي' : `${playbackRate}x`} &rsaquo;</span></button>
+                                    <button onClick={() => setSettingsView('quality')} className="settings-menu-item">
+                                        <span>الجودة</span>
+                                        <span className="value">{qualityLabelMap[currentQuality] || currentQuality} &rsaquo;</span>
+                                    </button>
+                                    <button onClick={() => setSettingsView('speed')} className="settings-menu-item">
+                                        <span>السرعة</span>
+                                        <span className="value">{playbackRate === 1 ? 'عادي' : `${playbackRate}x`} &rsaquo;</span>
+                                    </button>
                                 </div>
-                                <div className="settings-menu-view absolute top-0 left-0 w-full" style={{ transform: settingsView === 'quality' ? 'translateX(0)' : 'translateX(100%)' }}>
-                                    <div className="settings-menu-header"><button onClick={() => setSettingsView('main')}><ChevronLeftIcon className="w-5 h-5 ml-2"/></button> الجودة</div>
-                                    {availableQualities.map(q => <button key={q} onClick={() => handleQualityChange(q)} className={`settings-menu-item ${currentQuality === q ? 'active' : ''}`}>{currentQuality === q && <CheckIcon className="w-4 h-4"/>}<span>{qualityLabels[q] || q}</span></button>)}
-                                </div>
+                                {/* Speed View */}
                                 <div className="settings-menu-view absolute top-0 left-0 w-full" style={{ transform: settingsView === 'speed' ? 'translateX(0)' : 'translateX(100%)' }}>
                                     <div className="settings-menu-header"><button onClick={() => setSettingsView('main')}><ChevronLeftIcon className="w-5 h-5 ml-2"/></button> السرعة</div>
                                     {speedOptions.map(s => <button key={s} onClick={() => handleSpeedChange(s)} className={`settings-menu-item ${playbackRate === s ? 'active' : ''}`}>{playbackRate === s && <CheckIcon className="w-4 h-4"/>}<span>{s === 1 ? 'عادي' : `${s}x`}</span></button>)}
+                                </div>
+                                {/* Quality View */}
+                                <div className="settings-menu-view absolute top-0 left-0 w-full" style={{ transform: settingsView === 'quality' ? 'translateX(0)' : 'translateX(100%)' }}>
+                                    <div className="settings-menu-header"><button onClick={() => setSettingsView('main')}><ChevronLeftIcon className="w-5 h-5 ml-2"/></button> الجودة</div>
+                                    {availableQualities.length > 0 ? (
+                                        [...availableQualities].reverse().map(q => 
+                                            <button key={q} onClick={() => handleQualityChange(q)} className={`settings-menu-item ${currentQuality === q ? 'active' : ''}`}>
+                                                {currentQuality === q && <CheckIcon className="w-4 h-4"/>}
+                                                <span>{qualityLabelMap[q] || q}</span>
+                                            </button>
+                                        )
+                                    ) : (
+                                        <div className="settings-menu-item" style={{justifyContent: 'center'}}>تلقائي</div>
+                                    )}
+                                     <button onClick={() => handleQualityChange('auto')} className={`settings-menu-item ${!availableQualities.includes(currentQuality) ? 'active' : ''}`}>
+                                        {!availableQualities.includes(currentQuality) && <CheckIcon className="w-4 h-4"/>}
+                                        <span>تلقائي</span>
+                                    </button>
                                 </div>
                             </div>
                         </div>
