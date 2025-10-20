@@ -52,6 +52,7 @@ const users: User[] = [
   { id: '3', name: 'طالب مجتهد', email: 'student3@demo.com', phone: '+201000000003', password: '9012', guardianPhone: '+201100000003', grade: 12, track: 'Scientific', role: Role.STUDENT, subscriptionId: 'sub3' },
   { id: '4', name: 'مدير المنصة', email: DEMO_ADMIN_IDENTIFIER, phone: '+201200000001', password: DEMO_ADMIN_PASSWORD, guardianPhone: '', grade: 0, role: Role.ADMIN },
   { id: '5', name: 'مالك المنصة', email: 'jytt0jewellery@gmail.com', phone: '+201200000002', password: 'Hshsh555&HehgeUDNYf744&&$$@Jg28848', guardianPhone: '', grade: 0, role: Role.ADMIN },
+  { id: '6', name: 'مالك جديد', email: 'new.owner@demo.com', phone: '+201200000003', password: 'NewOwnerPass123!', guardianPhone: '', grade: 0, role: Role.ADMIN },
 ];
 
 const subscriptions: Subscription[] = [
