@@ -51,6 +51,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
             return <CourseView grade={studentGrade!} unit={selectedUnit} user={user} onBack={() => setSelectedUnit(null)} />;
         }
         return <SubjectSelectionScreen 
+            user={user}
             grade={studentGrade!} 
             onSubjectSelect={handleSubjectSelect} 
             onBack={() => setActiveView('home')} 

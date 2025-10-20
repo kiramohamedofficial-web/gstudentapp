@@ -1,9 +1,13 @@
+import React, { useMemo, useState, useCallback } from 'react';
+import { User, Grade, Lesson, LessonType, QuizAttempt, ToastType } from '../../types';
+import { 
+    getGradeById, getSubscriptionByUserId, getQuizAttemptsByUserId, 
+    getAllGrades, getUserProgress, updateUser, deleteUser, createOrUpdateSubscription 
+} from '../../services/storageService';
+import { ArrowRightIcon, CheckCircleIcon, ClockIcon, PencilIcon, TrashIcon } from '../common/Icons';
+import Modal from '../common/Modal';
+import { useToast } from '../../useToast';
 
-
-import React, { useMemo } from 'react';
-import { User, Grade, Subscription, Lesson, LessonType, QuizAttempt } from '../../types';
-import { getGradeById, getSubscriptionByUserId, getQuizAttemptsByUserId, getAllGrades, getUserProgress } from '../../services/storageService';
-import { ArrowRightIcon, CheckCircleIcon, ClockIcon } from '../common/Icons';
 
 interface GroupedLesson {
     baseTitle: string;
@@ -16,15 +20,22 @@ interface StudentDetailViewProps {
 }
 
 const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) => {
-  const grade = useMemo(() => getGradeById(user.grade), [user.grade]);
-  const subscription = useMemo(() => getSubscriptionByUserId(user.id), [user.id]);
-  const quizAttempts = useMemo(() => getQuizAttemptsByUserId(user.id), [user.id]);
-  const userProgress = useMemo(() => getUserProgress(user.id), [user.id]);
+  const { addToast } = useToast();
+  const [dataVersion, setDataVersion] = useState(0);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [editFormData, setEditFormData] = useState<Partial<User>>({});
+
+  const refreshData = useCallback(() => setDataVersion(v => v + 1), []);
+
+  const grade = useMemo(() => getGradeById(user.grade), [user.grade, dataVersion]);
+  const subscription = useMemo(() => getSubscriptionByUserId(user.id), [user.id, dataVersion]);
+  const quizAttempts = useMemo(() => getQuizAttemptsByUserId(user.id), [user.id, dataVersion]);
+  const userProgress = useMemo(() => getUserProgress(user.id), [user.id, dataVersion]);
+  const allGrades = useMemo(() => getAllGrades(), []);
   
-  // Create a map of all lessons for quick lookup
   const lessonMap = useMemo(() => {
     const map = new Map<string, { title: string, gradeName: string }>();
-    const allGrades = getAllGrades();
     allGrades.forEach(g => {
         g.semesters.forEach(s => {
             s.units.forEach(u => {
@@ -35,7 +46,7 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
         });
     });
     return map;
-  }, []);
+  }, [allGrades]);
 
 
   const { totalLessons, completedLessons, progress } = useMemo(() => {
@@ -48,6 +59,37 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
     
     return { totalLessons: total, completedLessons: completed, progress: prog };
   }, [grade, userProgress]);
+
+  const handleOpenEditModal = () => {
+    setEditFormData({ ...user });
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdateUser = () => {
+    if (editFormData.id) {
+        if (!editFormData.name || !editFormData.phone || !editFormData.guardianPhone) {
+            addToast("الرجاء ملء جميع الحقول.", ToastType.ERROR);
+            return;
+        }
+        updateUser(editFormData as User);
+        addToast("تم تحديث بيانات الطالب بنجاح", ToastType.SUCCESS);
+        setIsEditModalOpen(false);
+        refreshData();
+    }
+  };
+  
+  const handleDeleteUser = () => {
+      deleteUser(user.id);
+      addToast(`تم حذف الطالب ${user.name} بنجاح`, ToastType.SUCCESS);
+      setIsDeleteModalOpen(false);
+      onBack(); // Go back to the list after deletion
+  }
+
+  const handleSubscriptionUpdate = (plan: any, status: any, endDate: any) => {
+    createOrUpdateSubscription(user.id, plan, status, endDate);
+    addToast("تم تحديث اشتراك الطالب", ToastType.SUCCESS);
+    refreshData();
+  };
 
   if (!grade) {
     return <div>Could not load student data.</div>;
@@ -87,11 +129,25 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
               </div>
               <h1 className="text-2xl font-bold text-[var(--text-primary)]">{user.name}</h1>
               <p className="text-[var(--text-secondary)]">{grade.name}</p>
-              <span className={`mt-2 px-3 py-1 text-xs font-semibold rounded-full ${subscription?.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                {subscription?.status === 'Active' ? `اشتراك نشط` : 'اشتراك غير نشط'}
-              </span>
+              <div className="mt-4 flex gap-2">
+                 <button onClick={handleOpenEditModal} className="px-3 py-1.5 text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 rounded-md transition-colors flex items-center"><PencilIcon className="w-4 h-4 ml-1"/> تعديل</button>
+                 <button onClick={() => setIsDeleteModalOpen(true)} className="px-3 py-1.5 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors flex items-center"><TrashIcon className="w-4 h-4 ml-1"/> حذف</button>
+              </div>
             </div>
           </div>
+
+           <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-md border border-[var(--border-primary)]">
+                <h2 className="text-lg font-bold text-[var(--text-primary)] mb-4">إدارة الاشتراك</h2>
+                <div className="space-y-3">
+                    <p className="text-sm">الحالة الحالية: 
+                        <span className={`font-bold ml-2 ${subscription?.status === 'Active' ? 'text-green-500' : 'text-red-500'}`}>
+                            {subscription ? (subscription.status === 'Active' ? 'نشط' : 'منتهي الصلاحية') : 'لا يوجد اشتراك'}
+                        </span>
+                    </p>
+                    <button onClick={() => handleSubscriptionUpdate(subscription?.plan || 'Monthly', 'Active', '')} className="w-full text-center text-sm p-2 rounded-md bg-green-600/20 text-green-400 hover:bg-green-600/40 transition-colors">تفعيل اشتراك جديد</button>
+                    <button onClick={() => handleSubscriptionUpdate(subscription?.plan || 'Monthly', 'Expired', new Date().toISOString())} className="w-full text-center text-sm p-2 rounded-md bg-red-600/20 text-red-400 hover:bg-red-600/40 transition-colors">إنهاء الاشتراك الحالي</button>
+                </div>
+            </div>
 
           <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-md border border-[var(--border-primary)]">
             <h2 className="text-lg font-bold text-[var(--text-primary)] mb-4">تقدم الطالب الإجمالي</h2>
@@ -194,6 +250,27 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
             </div>
         </div>
       </div>
+       <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="تعديل بيانات الطالب">
+            <div className="space-y-4">
+                <input type="text" placeholder="الاسم" value={editFormData.name || ''} onChange={e => setEditFormData({...editFormData, name: e.target.value})} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-primary)]" />
+                <input type="text" placeholder="رقم الهاتف" value={editFormData.phone || ''} onChange={e => setEditFormData({...editFormData, phone: e.target.value})} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-primary)]" />
+                <input type="text" placeholder="رقم ولي الأمر" value={editFormData.guardianPhone || ''} onChange={e => setEditFormData({...editFormData, guardianPhone: e.target.value})} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-primary)]" />
+                <select value={editFormData.grade || ''} onChange={e => setEditFormData({...editFormData, grade: Number(e.target.value)})} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-primary)]">
+                    {allGrades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                </select>
+                <input type="password" placeholder="كلمة مرور جديدة (اتركها فارغة لعدم التغيير)" onChange={e => setEditFormData({...editFormData, password: e.target.value})} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-primary)]" />
+                <div className="flex justify-end pt-4">
+                    <button onClick={handleUpdateUser} className="px-5 py-2 font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700">حفظ التغييرات</button>
+                </div>
+            </div>
+       </Modal>
+        <Modal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} title="تأكيد حذف الطالب">
+            <p className="text-[var(--text-secondary)] mb-6">هل أنت متأكد من رغبتك في حذف الطالب <span className="font-bold text-[var(--text-primary)]">{user.name}</span>؟ سيتم حذف جميع بياناته واشتراكاته بشكل دائم.</p>
+            <div className="flex justify-end space-x-3 space-x-reverse">
+                <button onClick={() => setIsDeleteModalOpen(false)} className="px-4 py-2 rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] transition-colors">إلغاء</button>
+                <button onClick={handleDeleteUser} className="px-4 py-2 rounded-md bg-red-600 hover:bg-red-700 transition-colors text-white">نعم، قم بالحذف</button>
+            </div>
+        </Modal>
     </div>
   );
 };

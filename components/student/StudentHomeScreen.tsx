@@ -72,11 +72,11 @@ const BookCard: React.FC<{ book: Book }> = ({ book }) => (
 
 // New Quick Access Card component
 const QuickAccessCard: React.FC<{ title: string, icon: React.FC<{className?: string}>, onClick: () => void, delay: number }> = ({ title, icon: Icon, onClick, delay }) => (
-    <button onClick={onClick} className="p-4 bg-[var(--bg-secondary)] rounded-xl shadow-md border border-[var(--border-primary)] flex flex-col items-center justify-center text-center group transition-all duration-300 transform hover:-translate-y-1 hover:shadow-lg hover:border-[var(--accent-primary)] fade-in" style={{animationDelay: `${delay}ms`}}>
-        <div className="p-3 mb-2 rounded-full bg-[var(--bg-tertiary)] group-hover:bg-blue-100 transition-colors">
-             <Icon className="w-7 h-7 text-[var(--text-secondary)] group-hover:text-[var(--accent-primary)] transition-colors"/>
+    <button onClick={onClick} className="p-4 bg-[var(--bg-secondary)] rounded-xl shadow-md border border-[var(--border-primary)] flex flex-col items-center justify-center text-center group transition-all duration-300 transform hover:-translate-y-1.5 hover:shadow-lg hover:border-[var(--accent-primary)] hover:bg-gray-700/50 fade-in" style={{animationDelay: `${delay}ms`}}>
+        <div className="p-4 mb-3 rounded-full bg-[var(--bg-tertiary)] group-hover:bg-[var(--accent-primary)]/20 transition-colors duration-300">
+             <Icon className="w-8 h-8 text-[var(--text-secondary)] group-hover:text-[var(--accent-primary)] transition-colors duration-300"/>
         </div>
-        <span className="font-semibold text-sm text-[var(--text-primary)]">{title}</span>
+        <span className="font-bold text-[var(--text-primary)]">{title}</span>
     </button>
 )
 

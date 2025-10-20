@@ -172,6 +172,11 @@ export const PlayIcon: React.FC<IconProps> = ({ className }) => (
         <path d="M8 5v14l11-7z" />
     </svg>
 );
+export const PlaySolidIcon: React.FC<IconProps> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="currentColor">
+        <path d="M8,5.14V19.14L19,12.14L8,5.14Z" />
+    </svg>
+);
 export const PlusIcon: React.FC<IconProps> = ({ className }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />

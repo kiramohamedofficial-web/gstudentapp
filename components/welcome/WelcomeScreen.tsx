@@ -67,7 +67,7 @@ const HeroSection: React.FC<{ onNavigateToRegister: () => void; settings: Platfo
             <div className="relative h-72 md:h-96 flex items-center justify-center fade-in fade-in-delay-2">
                 <div className="absolute inset-0 bg-gradient-to-br from-sky-500/20 to-yellow-400/20 rounded-full blur-3xl"></div>
                  <div className="hero-icon-container relative w-56 h-56 md:w-72 md:h-72 rounded-full border-4 border-white/10 shadow-2xl overflow-hidden animate-float">
-                    <img src="https://b.top4top.io/p_3568ksa1i0.jpg" alt={settings.platformName} className="w-full h-full object-cover" />
+                    <img src={settings.heroImageUrl} alt={settings.platformName} className="w-full h-full object-cover" />
                 </div>
             </div>
         </div>

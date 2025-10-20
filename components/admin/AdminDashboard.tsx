@@ -1,5 +1,3 @@
-
-
 import React, { useState, useMemo } from 'react';
 import { User, ActivityLog, Grade } from '../../types';
 import AdminLayout from '../layout/AdminLayout';
@@ -15,7 +13,7 @@ import {
     getPendingStudentQuestionCount,
     getUserProgress
 } from '../../services/storageService';
-import { ChartBarIcon, UsersIcon, CurrencyDollarIcon, BellIcon, SearchIcon, InformationCircleIcon } from '../common/Icons';
+import { ChartBarIcon, UsersIcon, BellIcon, SearchIcon, InformationCircleIcon, QuestionMarkCircleIcon } from '../common/Icons';
 import RevenueChart from './RevenueChart';
 import ContentManagementView from './ContentManagementView';
 import QrCodeGeneratorView from './QrCodeGeneratorView';
@@ -73,7 +71,8 @@ const StudentManagementView: React.FC<{ onViewDetails: (user: User) => void }> =
                 subscription: getSubscriptionByUserId(user.id),
             }))
             .filter(user => {
-                const searchMatch = user.name.toLowerCase().includes(searchQuery.toLowerCase());
+                const query = searchQuery.toLowerCase();
+                const searchMatch = user.name.toLowerCase().includes(query) || user.phone.includes(query);
                 const gradeMatch = gradeFilter ? user.grade.toString() === gradeFilter : true;
                 return searchMatch && gradeMatch;
             });
@@ -97,7 +96,7 @@ const StudentManagementView: React.FC<{ onViewDetails: (user: User) => void }> =
                     <div className="relative md:col-span-2">
                         <input
                             type="text"
-                            placeholder="ابحث عن طالب بالاسم..."
+                            placeholder="ابحث بالاسم أو رقم الهاتف..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg py-2.5 pr-10 pl-4 transition-colors focus:ring-2 focus:ring-purple-400"
@@ -176,15 +175,8 @@ const MainDashboard: React.FC<{ onNavigate: (view: AdminView) => void }> = ({ on
     const activityLogs = useMemo(() => getActivityLogs().slice(0, 5), []);
     const pendingRequestsCount = useMemo(() => getPendingSubscriptionRequestCount(), []);
     const pendingQuestionsCount = useMemo(() => getPendingStudentQuestionCount(), []);
-    const totalPending = pendingRequestsCount + pendingQuestionsCount;
     
     const activeSubscriptions = subscriptions.filter(s => s.status === 'Active').length;
-    const totalRevenue = subscriptions.reduce((total, sub) => {
-        if (sub.plan === 'Monthly') return total + 100;
-        if (sub.plan === 'Quarterly') return total + 250;
-        if (sub.plan === 'Annual') return total + 800;
-        return total;
-    }, 0);
 
     return (
         <div>
@@ -193,11 +185,13 @@ const MainDashboard: React.FC<{ onNavigate: (view: AdminView) => void }> = ({ on
                 <StatCard title="إجمالي الطلاب" value={users.length.toString()} icon={UsersIcon} delay={100} onClick={() => onNavigate('students')} />
                 <StatCard title="الاشتراكات النشطة" value={activeSubscriptions.toString()} icon={ChartBarIcon} delay={200} onClick={() => onNavigate('subscriptions')} />
                 <div className="relative">
-                     <StatCard title="بانتظار المراجعة" value={totalPending.toString()} icon={InformationCircleIcon} delay={300} onClick={() => onNavigate('subscriptions')} />
-                     {totalPending > 0 && <span className="absolute top-4 right-4 h-3 w-3 rounded-full bg-red-500 border-2 border-red-200 animate-ping"></span>}
-                     {totalPending > 0 && <span className="absolute top-4 right-4 h-3 w-3 rounded-full bg-red-500"></span>}
+                     <StatCard title="طلبات اشتراك" value={pendingRequestsCount.toString()} icon={InformationCircleIcon} delay={300} onClick={() => onNavigate('subscriptions')} />
+                     {pendingRequestsCount > 0 && <span className="absolute top-4 right-4 h-3 w-3 rounded-full bg-red-500"></span>}
                 </div>
-                <StatCard title="إجمالي الإيرادات" value={`${totalRevenue} ج.م`} icon={CurrencyDollarIcon} delay={400} />
+                <div className="relative">
+                    <StatCard title="أسئلة جديدة" value={pendingQuestionsCount.toString()} icon={QuestionMarkCircleIcon} delay={400} onClick={() => onNavigate('questionBank')} />
+                    {pendingQuestionsCount > 0 && <span className="absolute top-4 right-4 h-3 w-3 rounded-full bg-red-500"></span>}
+                </div>
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { User } from '../../types';
-import { CollectionIcon, QrcodeIcon, CreditCardIcon, HomeIcon, UserCircleIcon, MenuIcon, XIcon, TemplateIcon, QuestionMarkCircleIcon, CogIcon, LogoutIcon } from '../common/Icons';
+import { CollectionIcon, QrcodeIcon, CreditCardIcon, HomeIcon, MenuIcon, XIcon, TemplateIcon, QuestionMarkCircleIcon, CogIcon, LogoutIcon, UsersIcon } from '../common/Icons';
 
 type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'content' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings';
 
@@ -14,6 +14,7 @@ interface AdminLayoutProps {
 
 const navItems = [
     { id: 'dashboard', label: 'الرئيسية', icon: HomeIcon },
+    { id: 'students', label: 'إدارة الطلاب', icon: UsersIcon },
     { id: 'content', label: 'المحتوى', icon: CollectionIcon },
     { id: 'homeManagement', label: 'إدارة الرئيسية', icon: TemplateIcon },
     { id: 'subscriptions', label: 'الاشتراكات', icon: CreditCardIcon },

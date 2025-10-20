@@ -107,26 +107,13 @@ const grades: Grade[] = [
   },
 ];
 
-// --- New Home Screen Data ---
-
-const featuredCourses: Course[] = [
-    { id: 'c1', title: 'كورس التفاضل والتكامل', subtitle: 'لطلاب الصف الثالث الثانوي', coverImage: 'https://i.ibb.co/g7jCg0D/course1.png', fileCount: 10, videoCount: 25, quizCount: 8 },
-    { id: 'c2', title: 'كورس الجبر والهندسة', subtitle: 'لطلاب الصف الأول الإعدادي', coverImage: 'https://i.ibb.co/R9m4M58/course2.png', fileCount: 8, videoCount: 20, quizCount: 5 },
-    { id: 'c3', title: 'مراجعة ليلة الامتحان - هندسة', subtitle: 'لطلاب الصف الثالث الإعدادي', coverImage: 'https://i.ibb.co/g7jCg0D/course1.png', fileCount: 2, videoCount: 5, quizCount: 2 },
-    { id: 'c4', title: 'تأسيس الرياضيات', subtitle: 'لجميع المراحل', coverImage: 'https://i.ibb.co/R9m4M58/course2.png', fileCount: 5, videoCount: 15, quizCount: 3 },
-];
-
-const featuredBooks: Book[] = [
-    { id: 'b1', title: 'كتاب البروف في الجبر (3 ث)', teacherName: 'البروف وجدي الفخراني', teacherImage: 'https://i.ibb.co/bJCmnz5/teacher1.png', price: 250, coverImage: 'https://i.ibb.co/yQxG4d8/book2.png' },
-    { id: 'b2', title: 'كتاب البروف في الهندسة (1 إع)', teacherName: 'البروف وجدي الفخراني', teacherImage: 'https://i.ibb.co/bJCmnz5/teacher1.png', price: 150, coverImage: 'https://i.ibb.co/q0V9bFN/book1.png' },
-    { id: 'b3', title: 'ملزمة المراجعة النهائية', teacherName: 'البروف وجدي الفخراني', teacherImage: 'https://i.ibb.co/bJCmnz5/teacher1.png', price: 100, coverImage: 'https://i.ibb.co/yQxG4d8/book2.png' },
-];
-
 const defaultPlatformSettings: PlatformSettings = {
     platformName: 'البروف وجدي الفخراني',
     heroTitle: 'أتقن الرياضيات مع البروف وجدي الفخراني',
     heroSubtitle: 'شرح مبسط وتمارين مكثفة لجميع فروع الرياضيات، لمساعدتك على تحقيق أعلى الدرجات.',
     heroButtonText: 'ابدأ رحلتك الآن',
+    heroImageUrl: 'https://b.top4top.io/p_3568ksa1i0.jpg',
+    teacherImageUrl: 'https://i.ibb.co/bJCmnz5/teacher1.png',
     featuresTitle: 'لماذا تختار منصة البروف؟',
     featuresSubtitle: 'نوفر لك كل ما تحتاجه لتحقيق أعلى الدرجات في الرياضيات بأبسط الطرق.',
     features: [
@@ -140,6 +127,26 @@ const defaultPlatformSettings: PlatformSettings = {
     contactFacebookUrl: '#',
     contactYoutubeUrl: '#',
 };
+
+// --- New Home Screen Data ---
+
+const generateInitialData = () => {
+    const settings = getPlatformSettings(); // Get settings first
+    const featuredCourses: Course[] = [
+        { id: 'c1', title: 'كورس التفاضل والتكامل', subtitle: 'لطلاب الصف الثالث الثانوي', coverImage: 'https://i.ibb.co/g7jCg0D/course1.png', fileCount: 10, videoCount: 25, quizCount: 8 },
+        { id: 'c2', title: 'كورس الجبر والهندسة', subtitle: 'لطلاب الصف الأول الإعدادي', coverImage: 'https://i.ibb.co/R9m4M58/course2.png', fileCount: 8, videoCount: 20, quizCount: 5 },
+        { id: 'c3', title: 'مراجعة ليلة الامتحان - هندسة', subtitle: 'لطلاب الصف الثالث الإعدادي', coverImage: 'https://i.ibb.co/g7jCg0D/course1.png', fileCount: 2, videoCount: 5, quizCount: 2 },
+        { id: 'c4', title: 'تأسيس الرياضيات', subtitle: 'لجميع المراحل', coverImage: 'https://i.ibb.co/R9m4M58/course2.png', fileCount: 5, videoCount: 15, quizCount: 3 },
+    ];
+    
+    const featuredBooks: Book[] = [
+        { id: 'b1', title: 'كتاب البروف في الجبر (3 ث)', teacherName: 'البروف وجدي الفخراني', teacherImage: settings.teacherImageUrl || 'https://i.ibb.co/bJCmnz5/teacher1.png', price: 250, coverImage: 'https://i.ibb.co/yQxG4d8/book2.png' },
+        { id: 'b2', title: 'كتاب البروف في الهندسة (1 إع)', teacherName: 'البروف وجدي الفخراني', teacherImage: settings.teacherImageUrl || 'https://i.ibb.co/bJCmnz5/teacher1.png', price: 150, coverImage: 'https://i.ibb.co/q0V9bFN/book1.png' },
+        { id: 'b3', title: 'ملزمة المراجعة النهائية', teacherName: 'البروف وجدي الفخراني', teacherImage: settings.teacherImageUrl || 'https://i.ibb.co/bJCmnz5/teacher1.png', price: 100, coverImage: 'https://i.ibb.co/yQxG4d8/book2.png' },
+    ];
+
+    return { featuredCourses, featuredBooks };
+}
 
 
 const activityLogs: ActivityLog[] = [];
@@ -166,7 +173,11 @@ const setData = <T>(key: string, data: T): void => {
 
 // Data Access Functions
 export const initData = (): void => {
+  if (!localStorage.getItem('platformSettings')) {
+      setData('platformSettings', defaultPlatformSettings);
+  }
   if (!localStorage.getItem('users')) {
+    const { featuredCourses, featuredBooks } = generateInitialData();
     setData('users', users);
     setData('subscriptions', subscriptions);
     setData('grades', grades);
@@ -178,9 +189,6 @@ export const initData = (): void => {
     setData('studentQuestions', studentQuestions);
     setData('quizAttempts', quizAttempts);
     setData('userProgress', userProgress);
-  }
-  if (!localStorage.getItem('platformSettings')) {
-      setData('platformSettings', defaultPlatformSettings);
   }
 };
 
@@ -440,45 +448,46 @@ export const updateSubscriptionRequest = (updatedRequest: SubscriptionRequest): 
     }
 };
 
-export const activateSubscription = (userId: string, plan: 'Monthly' | 'Quarterly' | 'Annual'): void => {
+export const createOrUpdateSubscription = (userId: string, plan: 'Monthly' | 'Quarterly' | 'Annual', status: 'Active' | 'Expired', customEndDate?: string): void => {
     const allSubscriptions = getAllSubscriptions();
     const existingSubIndex = allSubscriptions.findIndex(s => s.userId === userId);
 
     const startDate = new Date();
-    let endDate = new Date(startDate);
+    let endDate: Date;
 
-    switch (plan) {
-        case 'Monthly':
-            endDate.setMonth(startDate.getMonth() + 1);
-            break;
-        case 'Quarterly':
-            endDate.setMonth(startDate.getMonth() + 3);
-            break;
-        case 'Annual':
-            endDate.setFullYear(startDate.getFullYear() + 1);
-            break;
+    if (customEndDate) {
+        endDate = new Date(customEndDate);
+    } else {
+        endDate = new Date(startDate);
+        switch (plan) {
+            case 'Monthly': endDate.setMonth(startDate.getMonth() + 1); break;
+            case 'Quarterly': endDate.setMonth(startDate.getMonth() + 3); break;
+            case 'Annual': endDate.setFullYear(startDate.getFullYear() + 1); break;
+        }
     }
     
-    const newSubscription: Subscription = {
-        id: `sub-${userId}-${Date.now()}`,
+    const newOrUpdatedSubscription: Subscription = {
+        id: existingSubIndex !== -1 ? allSubscriptions[existingSubIndex].id : `sub-${userId}-${Date.now()}`,
         userId,
         plan,
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString(),
-        status: 'Active',
+        status,
     };
     
     if (existingSubIndex !== -1) {
-        allSubscriptions[existingSubIndex] = newSubscription;
+        allSubscriptions[existingSubIndex] = newOrUpdatedSubscription;
     } else {
-        allSubscriptions.push(newSubscription);
+        allSubscriptions.push(newOrUpdatedSubscription);
     }
+    
     setData('subscriptions', allSubscriptions);
     const user = getData<User>('users').find(u => u.id === userId);
     if (user) {
-        addActivityLog('Subscription Activated', `Subscription for "${user.name}" has been activated.`);
+        addActivityLog('Subscription Update', `Subscription for "${user.name}" has been updated/created to ${status}.`);
     }
 };
+
 
 // --- Featured Course Functions ---
 export const addFeaturedCourse = (course: Omit<Course, 'id'>): void => {
@@ -612,10 +621,38 @@ export const getLatestQuizAttemptForLesson = (userId: string, lessonId: string):
 // --- Platform Settings Functions ---
 export const getPlatformSettings = (): PlatformSettings => {
     const data = localStorage.getItem('platformSettings');
-    return data ? JSON.parse(data) : defaultPlatformSettings;
+    const storedSettings = data ? JSON.parse(data) : {};
+    return { ...defaultPlatformSettings, ...storedSettings };
 };
 
 export const updatePlatformSettings = (settings: PlatformSettings): void => {
     setData('platformSettings', settings);
     addActivityLog('Platform Settings', 'Updated welcome page and footer content.');
+};
+
+// --- Admin User Management Functions ---
+export const updateUser = (updatedUser: User): void => {
+    const users = getAllUsers();
+    const index = users.findIndex(u => u.id === updatedUser.id);
+    if (index !== -1) {
+        users[index] = updatedUser;
+        setData('users', users);
+        addActivityLog('User Update', `User profile for "${updatedUser.name}" was updated.`);
+    }
+};
+
+export const deleteUser = (userId: string): void => {
+    let users = getAllUsers();
+    const userToDelete = users.find(u => u.id === userId);
+    if (userToDelete) {
+        users = users.filter(u => u.id !== userId);
+        setData('users', users);
+        // Also remove related data
+        let subscriptions = getAllSubscriptions().filter(s => s.userId !== userId);
+        setData('subscriptions', subscriptions);
+        let questions = getAllStudentQuestions().filter(q => q.userId !== userId);
+        setData('studentQuestions', questions);
+
+        addActivityLog('User Deletion', `User "${userToDelete.name}" and their data were deleted.`);
+    }
 };

@@ -29,29 +29,29 @@
   :root {
     --font-family-sans: 'Cairo', sans-serif;
 
-    /* New Light Theme Palette */
-    --bg-primary: #F9FAFB; /* gray-50 */
-    --bg-primary-rgb: 249, 250, 251;
-    --bg-secondary: #FFFFFF; /* white */
-    --bg-secondary-rgb: 255, 255, 255;
-    --bg-tertiary: #F3F4F6; /* gray-100 */
+    /* New Al-Kheta Inspired Dark Theme */
+    --bg-primary: #121212;
+    --bg-primary-rgb: 18, 18, 18;
+    --bg-secondary: #1E1E1E;
+    --bg-secondary-rgb: 30, 30, 30;
+    --bg-tertiary: #2C2C2C;
     
-    --border-primary: #E5E7EB; /* gray-200 */
-    --border-secondary: #D1D5DB; /* gray-300 */
+    --border-primary: #2C2C2C;
+    --border-secondary: #404040;
     
-    --text-primary: #111827; /* gray-900 */
-    --text-secondary: #6B7281; /* gray-500 */
-    --text-accent: #2563EB; /* blue-600 */
+    --text-primary: #FFFFFF;
+    --text-secondary: #A0A0A0;
+    --text-accent: #FFD700; /* Gold */
     
-    --accent-primary: #2563EB; /* blue-600 */
-    --accent-primary-rgb: 37, 99, 235;
-    --accent-secondary: #10B981; /* emerald-500 */
-    --accent-gradient: linear-gradient(to right, #3B82F6, #10B981); /* blue-500, emerald-500 */
+    --accent-primary: #FFC107; /* Amber-500 */
+    --accent-primary-rgb: 255, 193, 7;
+    --accent-secondary: #10B981; /* Emerald-500 */
+    --accent-gradient: linear-gradient(to right, #FFC107, #FF9800);
 
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-    --shadow-color: rgba(0, 0, 0, 0.1);
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.2);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4);
+    --shadow-color: rgba(0, 0, 0, 0.3);
 
     --radius-md: 0.5rem; /* 8px */
     --radius-lg: 0.75rem; /* 12px */
@@ -75,6 +75,18 @@
   @keyframes fade-in-up {
     from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes blob {
+    0% { transform: translate(0px, 0px) scale(1); }
+    33% { transform: translate(30px, -50px) scale(1.1); }
+    66% { transform: translate(-20px, 20px) scale(0.9); }
+    100% { transform: translate(0px, 0px) scale(1); }
+  }
+  .animate-blob {
+    animation: blob 7s infinite;
+  }
+  .animation-delay-4000 {
+    animation-delay: -4s;
   }
   .fade-in {
     animation: fade-in 0.5s ease-out forwards;
@@ -158,13 +170,13 @@
   }
   /* Specific override for admin theme accent */
   .nav-btn.admin.active {
-      color: #9333ea; /* purple-600 */
+      color: #C084FC; /* purple-400 */
   }
   .nav-btn.admin.active::before {
-      background-color: #9333ea; /* purple-600 */
+      background-color: #A855F7; /* purple-500 */
   }
 
-/* --- REVAMPED Custom YouTube Player Styles --- */
+/* --- PROFESSIONAL AI-STYLE YOUTUBE PLAYER --- */
 .video-player-overlay {
     position: absolute;
     inset: 0;
@@ -355,6 +367,54 @@ input[type="range"].vertical-slider::-webkit-slider-thumb {
     cursor: pointer;
     border-radius: 50%;
 }
+.central-controls-container {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr;
+    pointer-events: none;
+}
+.seek-overlay {
+    height: 100%;
+    pointer-events: auto;
+    position: relative;
+    overflow: hidden;
+}
+@keyframes seek-ripple {
+    from { transform: scale(0.5); opacity: 0.7; }
+    to { transform: scale(1.5); opacity: 0; }
+}
+.seek-animation {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    opacity: 0;
+    animation: seek-ripple 0.6s ease-out forwards;
+}
+.big-play-button {
+    background-color: rgba(0,0,0,0.5);
+    border: 2px solid rgba(255,255,255,0.8);
+    color: white;
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    pointer-events: auto;
+}
+.big-play-button:hover {
+    transform: scale(1.1);
+    background-color: rgba(0,0,0,0.7);
+}
+
 
   /* Responsive Adjustments */
   @media (max-width: 767px) { /* Mobile Styles */

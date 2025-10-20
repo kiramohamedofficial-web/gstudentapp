@@ -166,6 +166,8 @@ export interface PlatformSettings {
   heroTitle: string;
   heroSubtitle: string;
   heroButtonText: string;
+  heroImageUrl?: string;
+  teacherImageUrl?: string;
   featuresTitle: string;
   featuresSubtitle: string;
   features: PlatformFeature[];
