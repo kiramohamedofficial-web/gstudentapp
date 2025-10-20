@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { PlayIcon, PauseIcon, VolumeUpIcon, VolumeOffIcon, ArrowsExpandIcon } from '../common/Icons';
+import { PlayIcon, PauseIcon, VolumeUpIcon, VolumeOffIcon, ArrowsExpandIcon, CogIcon } from '../common/Icons';
 import Loader from '../common/Loader';
 
 // Global promise to load YouTube API script only once
@@ -47,6 +47,22 @@ const formatTime = (seconds: number): string => {
     return timeString.startsWith('0') ? timeString.substring(1) : timeString;
 };
 
+const qualityLabels: Record<string, string> = {
+  highres: 'High Res',
+  hd2880: '4K',
+  hd2160: '4K',
+  hd1440: '1440p HD',
+  hd1080: '1080p HD',
+  hd720: '720p HD',
+  large: '480p',
+  medium: '360p',
+  small: '240p',
+  tiny: '144p',
+  auto: 'تلقائي',
+};
+const getQualityLabel = (quality: string) => qualityLabels[quality] || quality.toUpperCase();
+
+
 interface CustomYouTubePlayerProps {
     videoId: string;
     onLessonComplete: (videoId: string) => void;
@@ -56,7 +72,7 @@ interface CustomYouTubePlayerProps {
 const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLessonComplete, onAutoPlayNext }) => {
     const playerRef = useRef<any>(null);
     const containerRef = useRef<HTMLDivElement>(null);
-    const progressRef = useRef<HTMLInputElement>(null);
+    const qualityMenuRef = useRef<HTMLDivElement>(null);
     const hideControlsTimeoutRef = useRef<number | null>(null);
 
     const [isReady, setIsReady] = useState(false);
@@ -66,6 +82,9 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
     const [volume, setVolume] = useState(1);
     const [isMuted, setIsMuted] = useState(false);
     const [showControls, setShowControls] = useState(true);
+    const [availableQualities, setAvailableQualities] = useState<string[]>([]);
+    const [currentQuality, setCurrentQuality] = useState<string>('auto');
+    const [isQualityMenuOpen, setQualityMenuOpen] = useState(false);
 
     const onLessonCompleteRef = useRef(onLessonComplete);
     useEffect(() => { onLessonCompleteRef.current = onLessonComplete; }, [onLessonComplete]);
@@ -79,12 +98,10 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
 
         loadYouTubeApi().then(() => {
             if (!containerRef.current) return;
-            const playerContainerId = `yt-player-${videoId}`;
-            if (!document.getElementById(playerContainerId)) {
-                const div = document.createElement('div');
-                div.id = playerContainerId;
-                containerRef.current.insertBefore(div, containerRef.current.firstChild);
-            }
+            const playerContainerId = `yt-player-${videoId}-${Math.random()}`;
+            const playerDiv = document.createElement('div');
+            playerDiv.id = playerContainerId;
+            containerRef.current?.insertBefore(playerDiv, containerRef.current.firstChild);
             
             playerInstance = new window.YT.Player(playerContainerId, {
                 videoId,
@@ -100,6 +117,8 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
                     onReady: (event: any) => {
                         setIsReady(true);
                         setDuration(event.target.getDuration());
+                        setAvailableQualities(['auto', ...event.target.getAvailableQualityLevels()]);
+                        setCurrentQuality(event.target.getPlaybackQuality());
                         event.target.playVideo();
                     },
                     onStateChange: (event: any) => {
@@ -110,6 +129,9 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
                             onAutoPlayNextRef.current();
                         }
                     },
+                    onPlaybackQualityChange: (event: any) => {
+                        setCurrentQuality(event.data);
+                    }
                 },
             });
             playerRef.current = playerInstance;
@@ -128,9 +150,24 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
     }, [videoId]);
 
     const hideControls = useCallback(() => {
-        if (hideControlsTimeoutRef.current) clearTimeout(hideControlsTimeoutRef.current);
-        hideControlsTimeoutRef.current = window.setTimeout(() => setShowControls(false), 3000);
-    }, []);
+        if (isPlaying) {
+            if (hideControlsTimeoutRef.current) clearTimeout(hideControlsTimeoutRef.current);
+            hideControlsTimeoutRef.current = window.setTimeout(() => setShowControls(false), 3000);
+        }
+    }, [isPlaying]);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (qualityMenuRef.current && !qualityMenuRef.current.contains(event.target as Node)) {
+                setQualityMenuOpen(false);
+            }
+        };
+        if (isQualityMenuOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [isQualityMenuOpen]);
+
 
     const handleMouseMove = () => {
         setShowControls(true);
@@ -164,15 +201,21 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
             containerRef.current?.requestFullscreen();
         }
     };
+    const handleSetQuality = (quality: string) => {
+        playerRef.current?.setPlaybackQuality(quality);
+        setCurrentQuality(quality);
+        setQualityMenuOpen(false);
+    }
     
     useEffect(() => {
         if (isPlaying) hideControls();
+        else if (hideControlsTimeoutRef.current) clearTimeout(hideControlsTimeoutRef.current);
     }, [isPlaying, hideControls]);
 
     const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
     
     return (
-        <div ref={containerRef} className="yt-player-container" onMouseMove={handleMouseMove} onMouseLeave={() => setShowControls(false)}>
+        <div ref={containerRef} className="yt-player-container" onMouseMove={handleMouseMove} onMouseLeave={hideControls}>
             {!isReady && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-20">
                     <Loader />
@@ -188,7 +231,6 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
             <div className={`yt-controls-overlay ${showControls || !isPlaying ? 'visible' : ''}`}>
                 <div className="yt-controls-bar">
                     <input
-                        ref={progressRef}
                         type="range"
                         className="yt-progress-bar"
                         min="0"
@@ -218,7 +260,26 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
                             </div>
                         </div>
                         <span className="yt-time-display">{formatTime(currentTime)} / {formatTime(duration)}</span>
-                        <div className="flex items-center">
+                        <div className="flex items-center gap-2">
+                             <div className="relative" ref={qualityMenuRef}>
+                                {isQualityMenuOpen && availableQualities.length > 0 && (
+                                    <div className="yt-quality-menu fade-in-up">
+                                        {availableQualities.map(q => (
+                                            <button 
+                                                key={q} 
+                                                className={`yt-quality-item ${currentQuality === q ? 'active' : ''}`}
+                                                onClick={() => handleSetQuality(q)}
+                                            >
+                                                {getQualityLabel(q)}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                                <button onClick={() => setQualityMenuOpen(p => !p)} className="yt-control-button text-sm">
+                                    <span className="font-semibold text-amber-300">{getQualityLabel(currentQuality)}</span>
+                                    <CogIcon className="w-5 h-5" />
+                                </button>
+                             </div>
                              <button onClick={handleFullscreen} className="yt-control-button">
                                 <ArrowsExpandIcon className="w-5 h-5" />
                             </button>

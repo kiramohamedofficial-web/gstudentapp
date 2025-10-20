@@ -272,6 +272,9 @@
       background: none; border: none;
       color: white; padding: 0.25rem;
       cursor: pointer; transition: transform 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
   }
   .yt-control-button:hover { transform: scale(1.15); }
   .yt-time-display {
@@ -303,6 +306,39 @@
   .yt-volume-slider::-moz-range-thumb {
       width: 14px; height: 14px;
       background: #fff; border-radius: 50%; cursor: pointer;
+  }
+  .yt-quality-menu {
+      position: absolute;
+      bottom: 100%;
+      right: 0;
+      background-color: rgba(var(--bg-secondary-rgb), 0.8);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border-secondary);
+      border-radius: var(--radius-md);
+      padding: 0.5rem;
+      margin-bottom: 0.5rem;
+      z-index: 20;
+      min-width: 120px;
+  }
+  .yt-quality-item {
+      background: none;
+      border: none;
+      color: white;
+      padding: 0.5rem 0.75rem;
+      width: 100%;
+      text-align: right;
+      cursor: pointer;
+      border-radius: var(--radius-md);
+      transition: background-color 0.2s ease;
+      font-size: 0.9rem;
+  }
+  .yt-quality-item:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+  }
+  .yt-quality-item.active {
+      background-color: var(--accent-primary);
+      color: black;
+      font-weight: bold;
   }
 
 
