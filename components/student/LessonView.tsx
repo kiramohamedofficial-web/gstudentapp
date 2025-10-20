@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Lesson, LessonType, Grade, User } from '../../types';
 import { getAIExplanation } from '../../services/geminiService';
 import Modal from '../common/Modal';
-import { SparklesIcon } from '../common/Icons';
+import { SparklesIcon, ChevronLeftIcon, ChevronRightIcon, DocumentTextIcon } from '../common/Icons';
 import { useToast } from '../../useToast';
-import CustomYouTubePlayer from './CustomYouTubePlayer';
 import QuizTaker from './QuizTaker';
+import CustomYouTubePlayer from './CustomYouTubePlayer';
 
 interface LessonViewProps {
   lesson: Lesson;
@@ -22,17 +22,45 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, grade, user, on
     const [displayedResponse, setDisplayedResponse] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
+    // Manage current lesson state for playlist navigation
+    const [currentLesson, setCurrentLesson] = useState(lesson);
+    
+    // Update current lesson if the initial lesson prop changes
+    useEffect(() => {
+        setCurrentLesson(lesson);
+    }, [lesson]);
+
     const subjectTitle = useMemo(() => {
         for (const semester of grade.semesters) {
             for (const unit of semester.units) {
-                if (unit.lessons.some(l => l.id === lesson.id)) {
+                if (unit.lessons.some(l => l.id === currentLesson.id)) {
                     return unit.title;
                 }
             }
         }
-        return lesson.title; // Fallback to lesson title
-    }, [grade, lesson]);
+        return currentLesson.title; // Fallback to lesson title
+    }, [grade, currentLesson]);
 
+    const playlist = useMemo(() => {
+        const unitWithLesson = grade.semesters
+            .flatMap(s => s.units)
+            .find(u => u.lessons.some(l => l.id === lesson.id));
+        return unitWithLesson?.lessons.filter(l => l.type === LessonType.EXPLANATION && l.content) || [];
+    }, [grade, lesson.id]);
+    
+    const currentPlaylistIndex = useMemo(() => playlist.findIndex(l => l.id === currentLesson.id), [playlist, currentLesson]);
+
+    const playNext = useCallback(() => {
+        if (currentPlaylistIndex < playlist.length - 1) {
+            setCurrentLesson(playlist[currentPlaylistIndex + 1]);
+        }
+    }, [currentPlaylistIndex, playlist]);
+
+    const playPrev = () => {
+        if (currentPlaylistIndex > 0) {
+            setCurrentLesson(playlist[currentPlaylistIndex - 1]);
+        }
+    };
 
     const handleAskAI = async () => {
         if (!aiQuestion.trim()) return;
@@ -54,29 +82,41 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, grade, user, on
     }, [aiResponse, displayedResponse]);
 
     const renderContent = () => {
-        switch (lesson.type) {
+        switch (currentLesson.type) {
             case LessonType.EXPLANATION:
-                const unitWithLesson = grade.semesters
-                    .flatMap(s => s.units)
-                    .find(u => u.lessons.some(l => l.id === lesson.id));
-                
-                if(!lesson.content) {
+                if(!currentLesson.content) {
                     return <div className="text-center p-8 bg-[var(--bg-secondary)] rounded-lg">المحتوى غير متوفر لهذا الدرس بعد.</div>
                 }
 
                 return (
-                    <CustomYouTubePlayer
-                        key={lesson.id}
-                        initialLesson={lesson}
-                        playlist={unitWithLesson?.lessons.filter(l => l.type === LessonType.EXPLANATION && l.content) || []}
-                        onLessonComplete={onLessonComplete}
-                    />
+                   <div className="max-w-4xl mx-auto">
+                        <CustomYouTubePlayer
+                            key={currentLesson.id}
+                            videoId={currentLesson.content}
+                            onLessonComplete={() => onLessonComplete(currentLesson.id)}
+                            onAutoPlayNext={playNext}
+                        />
+                         <div className="flex justify-between items-center mt-4 px-2">
+                            <button onClick={playPrev} disabled={currentPlaylistIndex <= 0} className="flex items-center space-x-2 space-x-reverse px-4 py-2 text-sm font-semibold rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                                <ChevronRightIcon className="w-5 h-5"/>
+                                <span>الدرس السابق</span>
+                            </button>
+                            <div className="text-center flex-1 min-w-0 px-4">
+                                <p className="font-bold text-lg text-[var(--text-primary)] truncate">{currentLesson.title}</p>
+                                <p className="text-sm text-[var(--text-secondary)]">{`${currentPlaylistIndex + 1} / ${playlist.length}`}</p>
+                            </div>
+                            <button onClick={playNext} disabled={currentPlaylistIndex >= playlist.length - 1} className="flex items-center space-x-2 space-x-reverse px-4 py-2 text-sm font-semibold rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                                <span>الدرس التالي</span>
+                                <ChevronLeftIcon className="w-5 h-5"/>
+                            </button>
+                        </div>
+                   </div>
                 );
             case LessonType.HOMEWORK:
             case LessonType.EXAM:
-                return <QuizTaker lesson={lesson} user={user} onComplete={onLessonComplete} />;
+                return <QuizTaker lesson={currentLesson} user={user} onComplete={onLessonComplete} />;
             case LessonType.SUMMARY:
-                return <div className="p-6 bg-[var(--bg-secondary)] rounded-lg prose" dangerouslySetInnerHTML={{ __html: lesson.content }} />;
+                return <div className="p-6 bg-[var(--bg-secondary)] rounded-lg prose" dangerouslySetInnerHTML={{ __html: currentLesson.content }} />;
             default:
                 return <p>المحتوى غير متوفر.</p>;
         }
@@ -88,7 +128,7 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, grade, user, on
                 &rarr; العودة إلى المنهج
             </button>
             <div className="flex flex-col md:flex-row justify-between md:items-center mb-4 gap-4">
-                <h1 className="text-3xl md:text-4xl font-bold">{lesson.title}</h1>
+                <h1 className="text-3xl md:text-4xl font-bold">{currentLesson.title}</h1>
                 <button
                     onClick={() => setHelpModalOpen(true)}
                     className="flex items-center justify-center w-full md:w-auto px-4 py-2 font-semibold text-white bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-300"
@@ -97,7 +137,7 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, grade, user, on
                     اسأل المساعد الذكي
                 </button>
             </div>
-            <p className="text-lg text-[var(--text-secondary)] mb-6">{lesson.type} - {subjectTitle}</p>
+            <p className="text-lg text-[var(--text-secondary)] mb-6">{currentLesson.type} - {subjectTitle}</p>
             
             {renderContent()}
             
