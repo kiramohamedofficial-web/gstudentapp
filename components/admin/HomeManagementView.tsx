@@ -1,5 +1,3 @@
-
-
 import React, { useState, useMemo, useCallback } from 'react';
 import { Course, Book, ToastType } from '../../types';
 import { 
@@ -14,18 +12,45 @@ const ConfirmationModal: React.FC<{ isOpen: boolean; onClose: () => void; onConf
     <Modal isOpen={isOpen} onClose={onClose} title={title}>
         <p className="text-[var(--text-secondary)] mb-6">{message}</p>
         <div className="flex justify-end space-x-3 space-x-reverse">
-            <button onClick={onClose} className="px-4 py-2 rounded-md bg-gray-200 hover:bg-gray-300 transition-colors">إلغاء</button>
+            <button onClick={onClose} className="px-4 py-2 rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] transition-colors">إلغاء</button>
             <button onClick={onConfirm} className="px-4 py-2 rounded-md bg-red-600 hover:bg-red-700 transition-colors text-white">تأكيد الحذف</button>
         </div>
     </Modal>
 );
 
-const FormInput: React.FC<{label: string, id: string, type?: string, value: string | number, onChange: (e: React.ChangeEvent<HTMLInputElement>) => void}> = ({label, id, type="text", value, onChange}) => (
+const FormInput: React.FC<{label: string, name: string, type?: string, value: string | number, onChange: (e: React.ChangeEvent<HTMLInputElement>) => void}> = ({label, name, type="text", value, onChange}) => (
      <div>
-        <label htmlFor={id} className="block text-sm font-medium text-gray-600 mb-1">{label}</label>
-        <input id={id} type={type} value={value} onChange={onChange} required className="w-full p-2 rounded-md bg-gray-100 border border-gray-300 focus:ring-purple-500 focus:border-purple-500" />
+        <label htmlFor={name} className="block text-sm font-medium text-[var(--text-secondary)] mb-1">{label}</label>
+        <input name={name} id={name} type={type} value={value} onChange={onChange} required className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)] focus:ring-purple-500 focus:border-purple-500" />
     </div>
-)
+);
+
+const ImageUploadInput: React.FC<{label: string, name: string, value: string, onChange: (name: string, value: string) => void}> = ({label, name, value, onChange}) => {
+    const { addToast } = useToast();
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            if (file.size > 2 * 1024 * 1024) { // 2MB Limit
+                addToast('حجم الصورة يجب ألا يتجاوز 2 ميجابايت.', ToastType.ERROR);
+                e.target.value = '';
+                return;
+            }
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                onChange(name, reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+    return (
+        <div>
+            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">{label}</label>
+            {value && <img src={value} alt="معاينة" className="w-auto h-24 object-cover rounded-md border border-[var(--border-primary)] mb-2" />}
+            <input type="file" accept="image/*" onChange={handleFileChange} className="w-full text-sm text-[var(--text-secondary)] file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"/>
+        </div>
+    );
+};
+
 
 const HomeManagementView: React.FC = () => {
     const [dataVersion, setDataVersion] = useState(0);
@@ -48,8 +73,11 @@ const HomeManagementView: React.FC = () => {
     };
 
     const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { id, value, type } = e.target;
-        setFormData((prev: any) => ({ ...prev, [id]: type === 'number' ? Number(value) : value }));
+        const { name, value, type } = e.target;
+        setFormData((prev: any) => ({ ...prev, [name]: type === 'number' ? Number(value) : value }));
+    };
+     const handleImageChange = (name: string, value: string) => {
+        setFormData((prev: any) => ({ ...prev, [name]: value }));
     };
 
     // Generic Handlers
@@ -120,7 +148,7 @@ const HomeManagementView: React.FC = () => {
             {/* Featured Books Section */}
             <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-md border border-[var(--border-primary)]">
                 <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold text-[var(--text-primary)]">الكتب المميزة</h2>
+                    <h2 className="text-xl font-bold text-[var(--text-primary)]">الكتب والملازم</h2>
                     <button onClick={() => openModal('add-book')} className="flex items-center text-sm px-3 py-2 bg-purple-600 hover:bg-purple-700 rounded-md text-white transition-colors">
                         <PlusIcon className="w-5 h-5 ml-1"/> إضافة كتاب
                     </button>
@@ -157,23 +185,23 @@ const HomeManagementView: React.FC = () => {
             {/* Modals */}
             <Modal isOpen={['add-course', 'edit-course'].includes(modalState.type || '')} onClose={closeModal} title={modalState.type === 'add-course' ? 'إضافة كورس جديد' : 'تعديل كورس'}>
                 <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="space-y-4">
-                    <FormInput label="العنوان" id="title" value={formData.title || ''} onChange={handleFormChange} />
-                    <FormInput label="العنوان الفرعي" id="subtitle" value={formData.subtitle || ''} onChange={handleFormChange} />
-                    <FormInput label="رابط صورة الغلاف" id="coverImage" value={formData.coverImage || ''} onChange={handleFormChange} />
-                    <FormInput label="عدد الملفات" id="fileCount" type="number" value={formData.fileCount ?? 0} onChange={handleFormChange} />
-                    <FormInput label="عدد الفيديوهات" id="videoCount" type="number" value={formData.videoCount ?? 0} onChange={handleFormChange} />
-                    <FormInput label="عدد الاختبارات" id="quizCount" type="number" value={formData.quizCount ?? 0} onChange={handleFormChange} />
+                    <FormInput label="العنوان" name="title" value={formData.title || ''} onChange={handleFormChange} />
+                    <FormInput label="العنوان الفرعي" name="subtitle" value={formData.subtitle || ''} onChange={handleFormChange} />
+                    <ImageUploadInput label="صورة الغلاف" name="coverImage" value={formData.coverImage || ''} onChange={handleImageChange} />
+                    <FormInput label="عدد الملفات" name="fileCount" type="number" value={formData.fileCount ?? 0} onChange={handleFormChange} />
+                    <FormInput label="عدد الفيديوهات" name="videoCount" type="number" value={formData.videoCount ?? 0} onChange={handleFormChange} />
+                    <FormInput label="عدد الاختبارات" name="quizCount" type="number" value={formData.quizCount ?? 0} onChange={handleFormChange} />
                     <div className="flex justify-end pt-4"><button type="submit" className="px-5 py-2 font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700">حفظ</button></div>
                 </form>
             </Modal>
             
             <Modal isOpen={['add-book', 'edit-book'].includes(modalState.type || '')} onClose={closeModal} title={modalState.type === 'add-book' ? 'إضافة كتاب جديد' : 'تعديل كتاب'}>
                 <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="space-y-4">
-                    <FormInput label="العنوان" id="title" value={formData.title || ''} onChange={handleFormChange} />
-                    <FormInput label="اسم المدرس" id="teacherName" value={formData.teacherName || ''} onChange={handleFormChange} />
-                    <FormInput label="رابط صورة المدرس" id="teacherImage" value={formData.teacherImage || ''} onChange={handleFormChange} />
-                    <FormInput label="رابط صورة الغلاف" id="coverImage" value={formData.coverImage || ''} onChange={handleFormChange} />
-                    <FormInput label="السعر" id="price" type="number" value={formData.price ?? 0} onChange={handleFormChange} />
+                    <FormInput label="العنوان" name="title" value={formData.title || ''} onChange={handleFormChange} />
+                    <FormInput label="اسم المدرس" name="teacherName" value={formData.teacherName || ''} onChange={handleFormChange} />
+                    <ImageUploadInput label="صورة المدرس" name="teacherImage" value={formData.teacherImage || ''} onChange={handleImageChange} />
+                    <ImageUploadInput label="صورة الغلاف" name="coverImage" value={formData.coverImage || ''} onChange={handleImageChange} />
+                    <FormInput label="السعر" name="price" type="number" value={formData.price ?? 0} onChange={handleFormChange} />
                     <div className="flex justify-end pt-4"><button type="submit" className="px-5 py-2 font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700">حفظ</button></div>
                 </form>
             </Modal>

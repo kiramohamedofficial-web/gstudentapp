@@ -31,11 +31,11 @@ const PhoneInput: React.FC<{ name: string; placeholder: string; value: string; o
 const normalizePhoneNumber = (phone: string): string => {
     const trimmed = phone.trim();
     if (trimmed.startsWith('0') && trimmed.length === 11) {
-        return trimmed.substring(1); // remove leading '0' to get 10 digits
+        return trimmed; // keep leading '0' for validation
     }
     // Handles cases where user might enter 10 digits directly
     if (trimmed.length === 10) {
-        return trimmed;
+        return `0${trimmed}`; // add leading '0'
     }
     return ''; // Return empty for invalid formats to fail regex
 };
@@ -69,7 +69,7 @@ const RegistrationScreen: React.FC<RegistrationScreenProps> = ({ onRegister, err
 
     const handleNext = () => {
         setFormError('');
-        const phoneRegex = /^(10|11|12|15)\d{8}$/; // This expects 10 digits
+        const phoneRegex = /^01[0125]\d{8}$/; // This expects 11 digits with leading 0
 
         if (!formData.name.trim() || !formData.phone.trim() || !formData.guardianPhone.trim() || !formData.password.trim()) {
             setFormError('يرجى ملء جميع الحقول المطلوبة.');
@@ -114,8 +114,8 @@ const RegistrationScreen: React.FC<RegistrationScreenProps> = ({ onRegister, err
 
         const registrationData: Omit<User, 'id' | 'role' | 'subscriptionId'> = {
             name: formData.name.trim(),
-            phone: `+20${normalizedStudentPhone}`,
-            guardianPhone: `+20${normalizedGuardianPhone}`,
+            phone: `+2${normalizedStudentPhone}`,
+            guardianPhone: `+2${normalizedGuardianPhone}`,
             password: formData.password,
             grade: parseInt(formData.grade, 10),
             track: formData.grade === '12' ? (formData.track as 'Scientific' | 'Literary') : undefined,

@@ -1,12 +1,73 @@
 import React, { useMemo, useState, useCallback } from 'react';
-import { User, Grade, Lesson, LessonType, QuizAttempt, ToastType } from '../../types';
+import { User, Grade, Lesson, LessonType, QuizAttempt, ToastType, Subscription } from '../../types';
 import { 
     getGradeById, getSubscriptionByUserId, getQuizAttemptsByUserId, 
     getAllGrades, getUserProgress, updateUser, deleteUser, createOrUpdateSubscription 
 } from '../../services/storageService';
-import { ArrowRightIcon, CheckCircleIcon, ClockIcon, PencilIcon, TrashIcon } from '../common/Icons';
+import { ArrowRightIcon, CheckCircleIcon, ClockIcon, PencilIcon, TrashIcon, CreditCardIcon } from '../common/Icons';
 import Modal from '../common/Modal';
 import { useToast } from '../../useToast';
+
+interface SubscriptionModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    subscription: Subscription | undefined;
+    onSave: (plan: 'Monthly' | 'Quarterly' | 'Annual', status: 'Active' | 'Expired', customEndDate?: string) => void;
+}
+
+const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose, subscription, onSave }) => {
+    const [plan, setPlan] = useState<'Monthly' | 'Quarterly' | 'Annual'>('Monthly');
+    const [status, setStatus] = useState<'Active' | 'Expired'>('Active');
+    const [endDate, setEndDate] = useState('');
+
+    React.useEffect(() => {
+        if (subscription) {
+            setPlan(subscription.plan);
+            setStatus(subscription.status);
+            setEndDate(subscription.endDate ? new Date(subscription.endDate).toISOString().split('T')[0] : '');
+        } else {
+            // Reset for new subscription
+            setPlan('Monthly');
+            setStatus('Active');
+            setEndDate('');
+        }
+    }, [subscription, isOpen]);
+
+    const handleSubmit = () => {
+        onSave(plan, status, endDate || undefined);
+        onClose();
+    };
+
+    return (
+        <Modal isOpen={isOpen} onClose={onClose} title="إدارة الاشتراك">
+            <div className="space-y-4">
+                <div>
+                    <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">الباقة</label>
+                    <select value={plan} onChange={(e) => setPlan(e.target.value as any)} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)]">
+                        <option value="Monthly">شهرية</option>
+                        <option value="Quarterly">ربع سنوية</option>
+                        <option value="Annual">سنوية</option>
+                    </select>
+                </div>
+                 <div>
+                    <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">الحالة</label>
+                    <select value={status} onChange={(e) => setStatus(e.target.value as any)} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)]">
+                        <option value="Active">نشط</option>
+                        <option value="Expired">منتهي الصلاحية</option>
+                    </select>
+                </div>
+                 <div>
+                    <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">تاريخ الانتهاء (اختياري)</label>
+                    <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)]" />
+                    <p className="text-xs text-[var(--text-secondary)] mt-1">اتركه فارغًا للحساب التلقائي عند التفعيل.</p>
+                </div>
+                 <div className="flex justify-end pt-4">
+                    <button onClick={handleSubmit} className="px-5 py-2 font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700">حفظ التغييرات</button>
+                </div>
+            </div>
+        </Modal>
+    );
+};
 
 
 interface GroupedLesson {
@@ -24,6 +85,7 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
   const [dataVersion, setDataVersion] = useState(0);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isSubModalOpen, setIsSubModalOpen] = useState(false);
   const [editFormData, setEditFormData] = useState<Partial<User>>({});
 
   const refreshData = useCallback(() => setDataVersion(v => v + 1), []);
@@ -71,7 +133,11 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
             addToast("الرجاء ملء جميع الحقول.", ToastType.ERROR);
             return;
         }
-        updateUser(editFormData as User);
+        const updatedUserData = { ...user, ...editFormData };
+        if (!editFormData.password) {
+            delete updatedUserData.password;
+        }
+        updateUser(updatedUserData as User);
         addToast("تم تحديث بيانات الطالب بنجاح", ToastType.SUCCESS);
         setIsEditModalOpen(false);
         refreshData();
@@ -144,8 +210,11 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
                             {subscription ? (subscription.status === 'Active' ? 'نشط' : 'منتهي الصلاحية') : 'لا يوجد اشتراك'}
                         </span>
                     </p>
-                    <button onClick={() => handleSubscriptionUpdate(subscription?.plan || 'Monthly', 'Active', '')} className="w-full text-center text-sm p-2 rounded-md bg-green-600/20 text-green-400 hover:bg-green-600/40 transition-colors">تفعيل اشتراك جديد</button>
-                    <button onClick={() => handleSubscriptionUpdate(subscription?.plan || 'Monthly', 'Expired', new Date().toISOString())} className="w-full text-center text-sm p-2 rounded-md bg-red-600/20 text-red-400 hover:bg-red-600/40 transition-colors">إنهاء الاشتراك الحالي</button>
+                    {subscription && <p className="text-xs text-[var(--text-secondary)]">ينتهي في: {new Date(subscription.endDate).toLocaleDateString('ar-EG')}</p>}
+                    <button onClick={() => setIsSubModalOpen(true)} className="w-full text-center text-sm p-2 rounded-md bg-purple-600/20 text-purple-400 hover:bg-purple-600/40 transition-colors flex items-center justify-center space-x-2 space-x-reverse">
+                        <CreditCardIcon className="w-5 h-5"/>
+                        <span>تعديل الاشتراك</span>
+                    </button>
                 </div>
             </div>
 
@@ -271,6 +340,12 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
                 <button onClick={handleDeleteUser} className="px-4 py-2 rounded-md bg-red-600 hover:bg-red-700 transition-colors text-white">نعم، قم بالحذف</button>
             </div>
         </Modal>
+        <SubscriptionModal 
+            isOpen={isSubModalOpen}
+            onClose={() => setIsSubModalOpen(false)}
+            subscription={subscription}
+            onSave={handleSubscriptionUpdate}
+        />
     </div>
   );
 };

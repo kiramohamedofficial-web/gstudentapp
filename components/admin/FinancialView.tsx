@@ -2,10 +2,59 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { SubscriptionRequest, ToastType, Subscription } from '../../types';
 import { getSubscriptionRequests, updateSubscriptionRequest, createOrUpdateSubscription, getAllSubscriptions, getAllUsers } from '../../services/storageService';
 import { useToast } from '../../useToast';
+import Modal from '../common/Modal';
+
+const ApprovalModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    request: SubscriptionRequest | null;
+    onConfirm: (request: SubscriptionRequest, plan: 'Monthly' | 'Quarterly' | 'Annual', customEndDate?: string) => void;
+}> = ({ isOpen, onClose, request, onConfirm }) => {
+    const [endDate, setEndDate] = useState('');
+    
+    if (!request) return null;
+
+    const calculateDefaultEndDate = (plan: 'Monthly' | 'Quarterly' | 'Annual') => {
+        const d = new Date();
+        switch (plan) {
+            case 'Monthly': d.setMonth(d.getMonth() + 1); break;
+            case 'Quarterly': d.setMonth(d.getMonth() + 3); break;
+            case 'Annual': d.setFullYear(d.getFullYear() + 1); break;
+        }
+        return d.toISOString().split('T')[0];
+    };
+
+    const handleSubmit = () => {
+        onConfirm(request, request.plan, endDate || undefined);
+    };
+
+    return (
+        <Modal isOpen={isOpen} onClose={onClose} title={`تفعيل اشتراك ${request.userName}`}>
+            <div className="space-y-4">
+                <p>أنت على وشك تفعيل باقة <span className="font-bold">{request.plan}</span> للطالب.</p>
+                <div>
+                    <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">تاريخ الانتهاء (اختياري)</label>
+                    <input
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        placeholder={calculateDefaultEndDate(request.plan)}
+                        className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)]"
+                    />
+                    <p className="text-xs text-[var(--text-secondary)] mt-1">اتركه فارغًا للاحتساب التلقائي (الافتراضي: {calculateDefaultEndDate(request.plan)})</p>
+                </div>
+                 <div className="flex justify-end pt-4">
+                    <button onClick={handleSubmit} className="px-5 py-2 font-medium text-white bg-green-600 rounded-md hover:bg-green-700">تأكيد التفعيل</button>
+                </div>
+            </div>
+        </Modal>
+    )
+}
 
 const SubscriptionManagementView: React.FC = () => {
     const [dataVersion, setDataVersion] = useState(0);
     const [activeTab, setActiveTab] = useState<'Pending' | 'Active' | 'Expired'>('Pending');
+    const [approvalRequest, setApprovalRequest] = useState<SubscriptionRequest | null>(null);
     const { addToast } = useToast();
 
     const allRequests = useMemo(() => getSubscriptionRequests(), [dataVersion]);
@@ -15,10 +64,11 @@ const SubscriptionManagementView: React.FC = () => {
 
     const refreshData = useCallback(() => setDataVersion(v => v + 1), []);
 
-    const handleApprove = (request: SubscriptionRequest) => {
-        createOrUpdateSubscription(request.userId, request.plan, 'Active');
+    const handleApproveConfirm = (request: SubscriptionRequest, plan: 'Monthly' | 'Quarterly' | 'Annual', customEndDate?: string) => {
+        createOrUpdateSubscription(request.userId, plan, 'Active', customEndDate);
         updateSubscriptionRequest({ ...request, status: 'Approved' });
         addToast(`تم تفعيل اشتراك ${request.userName} بنجاح.`, ToastType.SUCCESS);
+        setApprovalRequest(null);
         refreshData();
     };
 
@@ -32,17 +82,29 @@ const SubscriptionManagementView: React.FC = () => {
     const activeSubscriptions = useMemo(() => allSubscriptions.filter(s => s.status === 'Active'), [allSubscriptions]);
     const expiredSubscriptions = useMemo(() => allSubscriptions.filter(s => s.status === 'Expired'), [allSubscriptions]);
 
+    const tabLabels: Record<typeof activeTab, string> = {
+        Pending: 'طلبات قيد الانتظار',
+        Active: 'الاشتراكات النشطة',
+        Expired: 'الاشتراكات المنتهية',
+    }
+
+    const planLabels: Record<'Monthly' | 'Quarterly' | 'Annual', string> = {
+        Monthly: 'شهري',
+        Quarterly: 'ربع سنوي',
+        Annual: 'سنوي'
+    };
+
     const renderRequestsTable = () => (
         <tbody className="divide-y divide-[var(--border-primary)]">
             {filteredRequests.length > 0 ? filteredRequests.map(req => (
                 <tr key={req.id} className="hover:bg-[var(--bg-tertiary)] transition-colors">
                     <td className="px-6 py-4 font-semibold text-[var(--text-primary)]">{req.userName}</td>
-                    <td className="px-6 py-4">{req.plan}</td>
+                    <td className="px-6 py-4">{planLabels[req.plan]}</td>
                     <td className="px-6 py-4 font-mono tracking-wider">{req.paymentFromNumber}</td>
                     <td className="px-6 py-4">{new Date(req.createdAt).toLocaleDateString('ar-EG', { day: '2-digit', month: 'long', year: 'numeric' })}</td>
                     <td className="px-6 py-4">
                         <div className="flex justify-center items-center space-x-2 space-x-reverse">
-                            <button onClick={() => handleApprove(req)} className="px-3 py-1 text-xs font-bold text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors">تفعيل</button>
+                            <button onClick={() => setApprovalRequest(req)} className="px-3 py-1 text-xs font-bold text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors">تفعيل</button>
                             <button onClick={() => handleReject(req)} className="px-3 py-1 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors">رفض</button>
                         </div>
                     </td>
@@ -62,7 +124,7 @@ const SubscriptionManagementView: React.FC = () => {
             {subscriptions.length > 0 ? subscriptions.map(sub => (
                 <tr key={sub.id} className="hover:bg-[var(--bg-tertiary)] transition-colors">
                     <td className="px-6 py-4 font-semibold text-[var(--text-primary)]">{userMap.get(sub.userId) || 'طالب محذوف'}</td>
-                    <td className="px-6 py-4">{sub.plan}</td>
+                    <td className="px-6 py-4">{planLabels[sub.plan]}</td>
                     <td className="px-6 py-4">{new Date(sub.startDate).toLocaleDateString('ar-EG')}</td>
                     <td className="px-6 py-4">{new Date(sub.endDate).toLocaleDateString('ar-EG')}</td>
                 </tr>
@@ -88,7 +150,7 @@ const SubscriptionManagementView: React.FC = () => {
                         onClick={() => setActiveTab(tab)}
                         className={`px-4 py-2 text-sm font-semibold transition-colors duration-200 ${activeTab === tab ? 'border-b-2 border-purple-500 text-purple-600' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
                     >
-                        {tab === 'Pending' ? 'طلبات قيد الانتظار' : (tab === 'Active' ? 'الاشتراكات النشطة' : 'المنتهية')}
+                       {tabLabels[tab]}
                     </button>
                 ))}
             </div>
@@ -118,6 +180,12 @@ const SubscriptionManagementView: React.FC = () => {
                     {activeTab === 'Expired' && renderSubscriptionsTable(expiredSubscriptions)}
                 </table>
             </div>
+            <ApprovalModal
+                isOpen={!!approvalRequest}
+                onClose={() => setApprovalRequest(null)}
+                request={approvalRequest}
+                onConfirm={handleApproveConfirm}
+            />
         </div>
     );
 };

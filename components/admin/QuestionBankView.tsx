@@ -1,5 +1,3 @@
-
-
 import React, { useState, useMemo, useCallback } from 'react';
 import { StudentQuestion, ToastType } from '../../types';
 import { getAllStudentQuestions, answerStudentQuestion } from '../../services/storageService';
@@ -26,15 +24,15 @@ const AnswerModal: React.FC<{ isOpen: boolean; onClose: () => void; question: St
     return (
         <Modal isOpen={isOpen} onClose={onClose} title="الرد على سؤال الطالب">
             <div className="space-y-4">
-                <div className="p-3 bg-gray-100 rounded-md border border-gray-200">
-                    <p className="text-sm text-gray-500 mb-1">سؤال من: <span className="font-semibold text-gray-800">{question.userName}</span></p>
-                    <p className="text-gray-700 whitespace-pre-wrap">{question.questionText}</p>
+                <div className="p-3 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-md border border-[var(--border-primary)]">
+                    <p className="text-sm text-[var(--text-secondary)] mb-1">سؤال من: <span className="font-semibold text-[var(--text-primary)]">{question.userName}</span></p>
+                    <p className="whitespace-pre-wrap">{question.questionText}</p>
                 </div>
                 <textarea
                     value={answer}
                     onChange={(e) => setAnswer(e.target.value)}
                     placeholder="اكتب إجابتك هنا..."
-                    className="w-full p-2 rounded-md bg-gray-100 border border-gray-300 focus:ring-purple-500 focus:border-purple-500"
+                    className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)] focus:ring-purple-500 focus:border-purple-500"
                     rows={6}
                     required
                 />
@@ -59,6 +57,11 @@ const QuestionBankView: React.FC = () => {
     const refreshData = useCallback(() => setDataVersion(v => v + 1), []);
 
     const filteredQuestions = useMemo(() => allQuestions.filter(q => q.status === activeTab), [allQuestions, activeTab]);
+
+    const tabLabels: Record<typeof activeTab, string> = {
+        Pending: 'أسئلة جديدة',
+        Answered: 'أسئلة مجابة'
+    };
     
     const handleSaveAnswer = (questionId: string, answer: string) => {
         answerStudentQuestion(questionId, answer);
@@ -79,7 +82,7 @@ const QuestionBankView: React.FC = () => {
                         onClick={() => setActiveTab(tab)}
                         className={`px-4 py-2 text-sm font-semibold transition-colors duration-200 ${activeTab === tab ? 'border-b-2 border-purple-500 text-purple-600' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
                     >
-                        {tab === 'Pending' ? 'أسئلة جديدة' : 'أسئلة مجابة'}
+                       {tabLabels[tab]}
                     </button>
                 ))}
             </div>

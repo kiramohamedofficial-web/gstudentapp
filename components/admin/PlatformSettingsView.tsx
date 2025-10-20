@@ -60,7 +60,7 @@ const PlatformSettingsView: React.FC<PlatformSettingsViewProps> = ({ user }) => 
         { id: 'hero', label: 'الواجهة الرئيسية', icon: TemplateIcon },
         { id: 'branding', label: 'العلامة التجارية', icon: SparklesIcon },
         { id: 'features', label: 'قسم المميزات', icon: SparklesIcon },
-        { id: 'footer', label: 'الفوتر', icon: CogIcon },
+        { id: 'footer', label: 'التذييل', icon: CogIcon },
     ];
 
     useEffect(() => {
@@ -146,12 +146,12 @@ const PlatformSettingsView: React.FC<PlatformSettingsViewProps> = ({ user }) => 
                         <div className="space-y-6">
                             <div>
                                 <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">صورة الواجهة الرئيسية</label>
-                                {settings.heroImageUrl && <img src={settings.heroImageUrl} alt="Hero Preview" className="w-auto h-40 object-cover rounded-lg border border-[var(--border-primary)] mb-2" />}
+                                {settings.heroImageUrl && <img src={settings.heroImageUrl} alt="معاينة الواجهة" className="w-auto h-40 object-cover rounded-lg border border-[var(--border-primary)] mb-2" />}
                                 <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'heroImageUrl')} className="w-full text-sm text-[var(--text-secondary)] file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"/>
                             </div>
                              <div>
                                 <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">الصورة الافتراضية للمدرس</label>
-                                {settings.teacherImageUrl && <img src={settings.teacherImageUrl} alt="Teacher Preview" className="w-24 h-24 object-cover rounded-full border border-[var(--border-primary)] mb-2" />}
+                                {settings.teacherImageUrl && <img src={settings.teacherImageUrl} alt="معاينة المدرس" className="w-24 h-24 object-cover rounded-full border border-[var(--border-primary)] mb-2" />}
                                 <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'teacherImageUrl')} className="w-full text-sm text-[var(--text-secondary)] file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"/>
                             </div>
                         </div>
@@ -175,8 +175,8 @@ const PlatformSettingsView: React.FC<PlatformSettingsViewProps> = ({ user }) => 
                 );
             case 'footer':
                  return (
-                    <FormSection title="الفوتر (Footer)">
-                        <TextArea label="وصف المنصة في الفوتر" name="footerDescription" value={settings.footerDescription} onChange={handleInputChange} />
+                    <FormSection title="التذييل (Footer)">
+                        <TextArea label="وصف المنصة في التذييل" name="footerDescription" value={settings.footerDescription} onChange={handleInputChange} />
                         <TextInput label="رقم الهاتف للتواصل" name="contactPhone" value={settings.contactPhone} onChange={handleInputChange} />
                         <TextInput label="رابط صفحة الفيسبوك" name="contactFacebookUrl" value={settings.contactFacebookUrl} onChange={handleInputChange} />
                         <TextInput label="رابط قناة اليوتيوب" name="contactYoutubeUrl" value={settings.contactYoutubeUrl} onChange={handleInputChange} />

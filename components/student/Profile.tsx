@@ -1,5 +1,3 @@
-
-
 import React, { useMemo, useState } from 'react';
 import { User, ToastType } from '../../types';
 import { getGradeById, getSubscriptionByUserId, getUserProgress } from '../../services/storageService';
@@ -82,7 +80,7 @@ const Profile: React.FC<ProfileProps> = ({ user, onLogout }) => {
       e.preventDefault();
       // NOTE: This is a UI-only demonstration. In a real app, you would
       // call a service to update the user's code.
-      addToast("تم تغيير الكود بنجاح (محاكاة).", ToastType.SUCCESS);
+      addToast("تم تغيير كلمة المرور بنجاح (محاكاة).", ToastType.SUCCESS);
       setIsModalOpen(false);
   };
 
@@ -109,8 +107,8 @@ const Profile: React.FC<ProfileProps> = ({ user, onLogout }) => {
                     <div className="flex flex-col lg:flex-row items-center gap-8 w-full">
                         <CircularProgress progress={progress} />
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-                            <StatCard icon={CheckCircleIcon} title="الدروس المكتملة" value={completedLessons} delay={100}/>
-                            <StatCard icon={ClockIcon} title="الدروس المتبقية" value={totalLessons - completedLessons} delay={200}/>
+                            <StatCard icon={CheckCircleIcon} title="الدروس المكتملة" value={completedLessons.toString()} delay={100}/>
+                            <StatCard icon={ClockIcon} title="الدروس المتبقية" value={(totalLessons - completedLessons).toString()} delay={200}/>
                             <StatCard 
                             icon={CreditCardIcon} 
                             title="حالة الاشتراك" 
@@ -135,9 +133,9 @@ const Profile: React.FC<ProfileProps> = ({ user, onLogout }) => {
                 <div className="space-y-3">
                     <button onClick={() => setIsModalOpen(true)} className="w-full flex items-center justify-center p-3 rounded-lg text-[var(--text-secondary)] bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] hover:text-[var(--text-primary)] transition-colors duration-200 space-x-3 space-x-reverse">
                         <KeyIcon className="w-5 h-5" />
-                        <span>تغيير كود الدخول</span>
+                        <span>تغيير كلمة المرور</span>
                     </button>
-                    <button onClick={onLogout} className="w-full flex items-center justify-center p-3 rounded-lg text-red-600 bg-red-100 hover:bg-red-200 transition-colors duration-200 space-x-3 space-x-reverse">
+                    <button onClick={onLogout} className="w-full flex items-center justify-center p-3 rounded-lg text-red-500 bg-red-500/10 hover:bg-red-500/20 transition-colors duration-200 space-x-3 space-x-reverse">
                         <LogoutIcon className="w-5 h-5" />
                         <span>تسجيل الخروج</span>
                     </button>
@@ -146,19 +144,19 @@ const Profile: React.FC<ProfileProps> = ({ user, onLogout }) => {
         </div>
       </div>
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="تغيير كود الدخول">
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="تغيير كلمة المرور">
           <form onSubmit={handleChangeCode} className="space-y-4">
               <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-2">الكود الحالي</label>
-                  <input type="password" required className="w-full p-2 rounded-md bg-gray-100 border border-gray-300 focus:ring-blue-500 focus:border-blue-500" />
+                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">كلمة المرور الحالية</label>
+                  <input type="password" required className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)] focus:ring-blue-500 focus:border-blue-500" />
               </div>
               <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-2">الكود الجديد</label>
-                  <input type="password" required className="w-full p-2 rounded-md bg-gray-100 border border-gray-300 focus:ring-blue-500 focus:border-blue-500" />
+                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">كلمة المرور الجديدة</label>
+                  <input type="password" required className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)] focus:ring-blue-500 focus:border-blue-500" />
               </div>
               <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-2">تأكيد الكود الجديد</label>
-                  <input type="password" required className="w-full p-2 rounded-md bg-gray-100 border border-gray-300 focus:ring-blue-500 focus:border-blue-500" />
+                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">تأكيد كلمة المرور الجديدة</label>
+                  <input type="password" required className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)] focus:ring-blue-500 focus:border-blue-500" />
               </div>
               <div className="flex justify-end pt-4">
                   <button type="submit" className="px-5 py-2 font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700">
