@@ -1,9 +1,9 @@
 import React from 'react';
 
-const Loader: React.FC = () => {
+const CosmicLoader: React.FC = () => {
   return (
-    <div className="simple-loader"></div>
+    <div className="cosmic-loader"></div>
   );
 };
 
-export default Loader;
+export default CosmicLoader;

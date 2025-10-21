@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Lesson } from '../../types';
 import { getAllGrades, generateAccessToken } from '../../services/storageService';
@@ -112,7 +113,7 @@ const QrCodeGeneratorView: React.FC = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Left side - Configuration */}
-                <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)]">
+                <div className="bg-[var(--bg-primary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)]">
                     <h2 className="text-xl font-bold text-[var(--text-primary)] mb-6">1. حدد المحتوى</h2>
                     <div className="space-y-4">
                         <Select
@@ -163,13 +164,13 @@ const QrCodeGeneratorView: React.FC = () => {
                 </div>
                 
                 {/* Right side - Result */}
-                <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)] flex flex-col items-center justify-center min-h-[300px]">
+                <div className="bg-[var(--bg-primary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)] flex flex-col items-center justify-center min-h-[300px]">
                     {generatedToken ? (
                         <div className="text-center fade-in w-full">
                             <div id="qr-code-printable-area" className="flex flex-col items-center">
                                 <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-4">الرمز جاهز للمسح</h1>
                                 <img 
-                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(generatedToken)}&bgcolor=1E1E1E&color=FFFFFF&qzone=1`}
+                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(generatedToken)}&bgcolor=0D1117&color=c9d1d9&qzone=1`}
                                     alt="Generated QR Code"
                                     className="rounded-lg border-4 border-[var(--border-primary)]"
                                 />

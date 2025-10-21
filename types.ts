@@ -1,19 +1,24 @@
+
 export enum Role {
   STUDENT = 'student',
   ADMIN = 'admin',
 }
 
-export type StudentView = 'home' | 'grades' | 'subscription' | 'profile' | 'ask' | 'results';
+export enum Theme {
+  DARK = 'dark',
+  LIGHT = 'light',
+  GOLD = 'gold',
+  PINK = 'pink',
+}
+
+export type StudentView = 'home' | 'grades' | 'subscription' | 'profile';
 
 export interface User {
   id: string;
-  name: string; // Full name
+  name: string;
   email?: string;
-  phone: string;
-  password: string; // Replaces 'code'
-  guardianPhone: string;
+  code: string; // Used as password
   grade: number;
-  track?: 'Scientific' | 'Literary'; // For 3rd year secondary students
   role: Role;
   subscriptionId?: string;
 }
@@ -34,18 +39,20 @@ export enum LessonType {
   SUMMARY = 'Summary',
 }
 
+export interface Question {
+  id: string;
+  text: string;
+  options: string[];
+  correctAnswer: string;
+}
+
 export interface Lesson {
   id:string;
   title: string;
   type: LessonType;
   content: string; // YouTube video ID, summary text, etc.
-  
-  // Fields for image-based quizzes (Homework/Exam)
-  imageUrl?: string; 
-  correctAnswers?: string[];
-
-  timeLimit?: number; // in minutes, for exams
-  passingScore?: number; // percentage from 0 to 100
+  questions?: Question[];
+  isCompleted?: boolean; // Student-specific progress
 }
 
 export interface Unit {
@@ -133,52 +140,6 @@ export interface Book {
   price: number;
   coverImage: string;
 }
-
-export interface StudentQuestion {
-  id: string;
-  userId: string;
-  userName: string;
-  questionText: string;
-  answerText: string | null;
-  status: 'Pending' | 'Answered';
-  createdAt: string;
-  answeredAt: string | null;
-}
-
-export interface QuizAttempt {
-  id: string;
-  userId: string;
-  lessonId: string;
-  submittedAt: string;
-  score: number; // Percentage score
-  submittedAnswers?: string[]; // For image-based quizzes
-  timeTaken: number; // in seconds
-  isPass: boolean;
-}
-
-export interface PlatformFeature {
-    title: string;
-    description: string;
-}
-
-export interface PlatformSettings {
-  platformName: string;
-  heroTitle: string;
-  heroSubtitle: string;
-  heroButtonText: string;
-  heroImageUrl?: string;
-  teacherImageUrl?: string;
-  featuresTitle: string;
-  featuresSubtitle: string;
-  features: PlatformFeature[];
-  footerDescription: string;
-  contactPhone: string;
-  contactFacebookUrl: string;
-  contactYoutubeUrl: string;
-}
-
-// FIX: Export the 'Theme' type to be used for theme switching.
-export type Theme = 'dark' | 'light' | 'gold' | 'pink';
 
 
 declare global {

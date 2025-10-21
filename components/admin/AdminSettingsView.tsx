@@ -42,6 +42,18 @@ const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({ user, theme, setT
                 ))}
             </div>
         </div>
+
+        <div className="border-t border-[var(--border-primary)] my-8"></div>
+
+        <div>
+            <h3 className="text-lg font-semibold text-[var(--text-secondary)] mb-3">تسجيل الخروج</h3>
+            <button
+                onClick={onLogout}
+                className="w-full md:w-auto px-6 py-3 text-sm font-bold text-white bg-red-600/90 hover:bg-red-600 rounded-lg transition-colors duration-200"
+            >
+                تسجيل الخروج من لوحة التحكم
+            </button>
+        </div>
       </div>
     </div>
   );

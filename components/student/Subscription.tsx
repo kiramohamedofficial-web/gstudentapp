@@ -1,5 +1,4 @@
 
-
 import React, { useMemo, useState } from 'react';
 import { User, ToastType } from '../../types';
 import { getSubscriptionByUserId, addSubscriptionRequest, getUserSubscriptionRequest } from '../../services/storageService';
@@ -42,12 +41,12 @@ const Subscription: React.FC<SubscriptionProps> = ({ user }) => {
   const translatePlanName = (plan: 'Monthly' | 'Quarterly' | 'Annual') => pricingPlans.find(p => p.id === plan)?.name || plan;
 
   const renderActiveSubscription = () => (
-      <div className="p-6 bg-[var(--bg-secondary)] rounded-xl shadow-md border border-[var(--border-primary)] text-center">
+      <div className="p-6 bg-[var(--bg-primary)] rounded-xl shadow-lg border border-[var(--border-primary)] text-center">
         <h2 className="text-2xl font-semibold mb-4 text-[var(--text-primary)]">باقتك الحالية</h2>
         <div className="flex flex-col items-center justify-center space-y-3">
             <CheckCircleIcon className="w-16 h-16 text-green-500"/>
             <p className="font-semibold text-xl text-[var(--text-primary)]">باقة {translatePlanName(subscription!.plan)}</p>
-            <div className={`px-4 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800`}>
+            <div className={`px-4 py-1 rounded-full text-sm font-medium bg-green-500/20 text-green-400`}>
               نشط
             </div>
             <p className="text-[var(--text-secondary)]">
@@ -58,12 +57,12 @@ const Subscription: React.FC<SubscriptionProps> = ({ user }) => {
   );
 
   const renderPendingRequest = () => (
-    <div className="p-6 bg-[var(--bg-secondary)] rounded-xl shadow-md border border-[var(--border-primary)] text-center">
+    <div className="p-6 bg-[var(--bg-primary)] rounded-xl shadow-lg border border-[var(--border-primary)] text-center">
       <h2 className="text-2xl font-semibold mb-4 text-[var(--text-primary)]">تم استلام طلبك</h2>
       <div className="flex flex-col items-center justify-center space-y-3">
         <ClockIcon className="w-16 h-16 text-yellow-500"/>
         <p className="font-semibold text-xl text-[var(--text-primary)]">طلب اشتراك في باقة {translatePlanName(pendingRequest!.plan)}</p>
-        <div className={`px-4 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800`}>
+        <div className={`px-4 py-1 rounded-full text-sm font-medium bg-yellow-500/20 text-yellow-400`}>
           قيد المراجعة
         </div>
         <p className="text-[var(--text-secondary)] max-w-md mx-auto">
@@ -75,7 +74,7 @@ const Subscription: React.FC<SubscriptionProps> = ({ user }) => {
 
   const renderNewSubscriptionForm = () => (
     <>
-      <div className="p-6 mb-8 bg-[var(--bg-secondary)] rounded-xl shadow-md border border-[var(--border-primary)]">
+      <div className="p-6 mb-8 bg-[var(--bg-primary)] rounded-xl shadow-lg border border-[var(--border-primary)]">
         <h2 className="text-2xl font-semibold mb-4 text-[var(--text-primary)]">خطوات الاشتراك</h2>
         <ol className="list-decimal list-inside space-y-2 text-[var(--text-secondary)]">
             <li>اختر الباقة المناسبة لك من الأسفل.</li>
@@ -90,7 +89,7 @@ const Subscription: React.FC<SubscriptionProps> = ({ user }) => {
           <div 
             key={plan.id} 
             onClick={() => setSelectedPlan(plan.id as any)}
-            className={`relative p-6 border-2 rounded-2xl shadow-sm bg-[var(--bg-secondary)] flex flex-col cursor-pointer transition-all duration-300 ${selectedPlan === plan.id ? 'border-[var(--accent-primary)] scale-105 shadow-lg' : 'border-[var(--border-primary)] hover:border-[var(--border-secondary)]'}`}
+            className={`relative p-6 border-2 rounded-2xl shadow-md flex flex-col cursor-pointer transition-all duration-300 ${selectedPlan === plan.id ? 'border-[var(--accent-primary)] scale-105' : 'border-[var(--border-primary)] hover:border-[var(--text-secondary)]'}`}
           >
             {plan.popular && <div className="absolute top-0 right-1/2 translate-x-1/2 -translate-y-1/2 px-3 py-1 text-xs font-semibold text-white bg-[var(--accent-primary)] rounded-full">الأكثر شيوعًا</div>}
             <h3 className="text-xl font-bold text-[var(--text-primary)]">{plan.name}</h3>
@@ -107,7 +106,7 @@ const Subscription: React.FC<SubscriptionProps> = ({ user }) => {
         ))}
       </div>
 
-      <form onSubmit={handleSubmit} className="p-6 bg-[var(--bg-secondary)] rounded-xl shadow-md border border-[var(--border-primary)]">
+      <form onSubmit={handleSubmit} className="p-6 bg-[var(--bg-primary)] rounded-xl shadow-lg border border-[var(--border-primary)]">
           <h2 className="text-2xl font-semibold mb-4 text-[var(--text-primary)]">تأكيد الاشتراك</h2>
           <p className="text-[var(--text-secondary)] mb-4">
               أنت على وشك طلب الاشتراك في <strong className="text-[var(--text-primary)]">باقة {translatePlanName(selectedPlan)}</strong>.
@@ -120,13 +119,13 @@ const Subscription: React.FC<SubscriptionProps> = ({ user }) => {
                   onChange={(e) => setPaymentNumber(e.target.value)}
                   placeholder="رقم الهاتف الذي تم التحويل منه"
                   required
-                  className="flex-grow mt-1 block w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-[var(--accent-primary)] transition-all placeholder-[var(--text-secondary)]"
+                  className="flex-grow mt-1 block w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-[var(--accent-primary)] transition-all placeholder-[var(--text-secondary)]"
               />
               <button 
                 type="submit" 
-                className="w-full sm:w-auto py-3 px-6 font-bold text-white bg-blue-600 rounded-lg 
-                           hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500/50
-                           transition-all duration-300 transform hover:scale-105 shadow-md"
+                className="w-full sm:w-auto py-3 px-6 font-bold text-white bg-gradient-to-r from-blue-600 to-green-500 rounded-lg 
+                           hover:from-blue-700 hover:to-green-600 focus:outline-none focus:ring-4 focus:ring-blue-500/50
+                           transition-all duration-300 transform hover:scale-105 shadow-lg"
               >
                 إرسال طلب الاشتراك
               </button>

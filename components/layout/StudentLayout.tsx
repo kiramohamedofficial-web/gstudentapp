@@ -1,141 +1,118 @@
-import React from 'react';
-import { User, StudentView } from '../../types';
-import { BookOpenIcon, HomeIcon, UserCircleIcon, CreditCardIcon, QuestionMarkCircleIcon, ChartBarIcon, LogoutIcon, AtomIcon } from '../common/Icons';
+
+import React, { useState } from 'react';
+import { User, Theme, StudentView } from '../../types';
+import { BookOpenIcon, HomeIcon, UserCircleIcon, CreditCardIcon, MenuIcon, XIcon } from '../common/Icons';
 
 interface StudentLayoutProps {
   user: User;
   onLogout: () => void;
+  theme: Theme;
+  setTheme: (theme: Theme) => void;
   children: React.ReactNode;
   onNavClick: (view: StudentView) => void;
   activeView: string;
 }
 
-const navItems = [
+const StudentLayout: React.FC<StudentLayoutProps> = ({ user, onLogout, theme, setTheme, children, onNavClick, activeView }) => {
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+
+  const navItems = [
     { id: 'home', label: 'الرئيسية', icon: HomeIcon },
-    { id: 'grades', label: 'المنهج الدراسي', icon: BookOpenIcon },
-    { id: 'results', label: 'الواجبات والنتائج', icon: ChartBarIcon },
-    { id: 'ask', label: 'اسأل البروف', icon: QuestionMarkCircleIcon },
+    { id: 'grades', label: 'الصفوف الدراسيه', icon: BookOpenIcon },
     { id: 'subscription', label: 'الاشتراك', icon: CreditCardIcon },
     { id: 'profile', label: 'الإعدادات', icon: UserCircleIcon },
-];
+  ];
 
-const bottomNavItems = [
-    { id: 'home', label: 'الرئيسية', icon: HomeIcon },
-    { id: 'grades', label: 'المنهج', icon: BookOpenIcon },
-    { id: 'results', label: 'النتائج', icon: ChartBarIcon },
-    { id: 'subscription', label: 'الاشتراك', icon: CreditCardIcon },
-    { id: 'profile', label: 'ملفي', icon: UserCircleIcon },
-];
+  const handleMobileNavClick = (view: StudentView) => {
+    onNavClick(view);
+    setIsMobileNavOpen(false);
+  };
 
-const NavButton: React.FC<{
-    onClick: () => void;
-    label: string;
-    icon: React.FC<{className?: string}>;
-    isActive: boolean;
-}> = ({ onClick, label, icon: Icon, isActive }) => (
-    <button
-        onClick={onClick}
-        className={`relative w-full text-right flex items-center space-x-4 space-x-reverse transition-all duration-300 group rounded-lg p-3 nav-btn
-        ${isActive
-            ? 'active'
-            : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'}`}
-    >
-        <Icon className={`w-6 h-6 transition-transform duration-300 ${isActive ? 'text-[var(--accent-primary)]' : 'group-hover:scale-110 text-gray-500'}`} />
-        <span className="text-md">{label}</span>
-    </button>
-);
+  const NavContent = () => (
+    <nav className="mt-8 flex-1">
+      {navItems.map((item) => {
+        const Icon = item.icon;
+        const isActive = activeView === item.id;
+        return (
+          <button
+            key={item.id}
+            onClick={() => handleMobileNavClick(item.id as StudentView)}
+            className={`w-full text-right pr-8 py-4 mb-2 flex items-center transition-all duration-300 relative group rounded-r-lg
+              ${isActive
+                ? 'bg-gradient-to-l from-[var(--bg-secondary)] text-[var(--accent-primary)] font-bold'
+                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]/50'}`}
+          >
+            <span className={`absolute right-0 top-0 bottom-0 w-1 bg-[var(--accent-primary)] transition-all duration-300 ${isActive ? 'h-full' : 'h-0 group-hover:h-1/2'}`}></span>
+            <Icon className="w-5 h-5 ml-4" />
+            <span>{item.label}</span>
+          </button>
+        )
+      })}
+    </nav>
+  );
 
-
-const NavContent: React.FC<{ activeView: string; onNavClick: (view: StudentView) => void; onLogout: () => void; }> = ({ activeView, onNavClick, onLogout }) => (
-    <div className="flex flex-col flex-1">
-        <nav className="mt-2 flex-grow p-4 space-y-2">
-            {navItems.map((item) => (
-                <NavButton
-                    key={item.id}
-                    onClick={() => onNavClick(item.id as StudentView)}
-                    label={item.label}
-                    icon={item.icon}
-                    isActive={activeView === item.id}
-                />
-            ))}
-        </nav>
-        <div className="p-4 border-t border-[var(--border-primary)]">
-            <button
-                onClick={onLogout}
-                className="w-full flex items-center p-3 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors duration-200 space-x-4 space-x-reverse"
-            >
-                <LogoutIcon className="w-6 h-6" />
-                <span className="text-md font-semibold">تسجيل الخروج</span>
-            </button>
-        </div>
-    </div>
-);
-
-const BottomNavItem: React.FC<{
-    onClick: () => void;
-    label: string;
-    icon: React.FC<{className?: string}>;
-    isActive: boolean;
-}> = ({ onClick, label, icon: Icon, isActive }) => (
-    <button
-        onClick={onClick}
-        className={`flex-1 flex flex-col items-center justify-center p-2 transition-colors duration-300 group ${isActive ? 'text-[var(--accent-primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
-    >
-        <Icon className={`w-6 h-6 mb-1 transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
-        <span className="text-xs font-semibold">{label}</span>
-    </button>
-);
-
-const StudentLayout: React.FC<StudentLayoutProps> = ({ user, onLogout, children, onNavClick, activeView }) => {
   return (
-    <div className="flex h-screen bg-[var(--bg-primary)] text-[var(--text-primary)]">
-      {/* Desktop Sidebar */}
-      <aside className="w-72 flex-shrink-0 bg-[var(--bg-secondary)] border-l border-[var(--border-primary)] flex-col hidden md:flex">
-        <div className="h-20 flex items-center justify-center border-b border-[var(--border-primary)] px-4">
-           <div className="flex items-center space-x-2 space-x-reverse">
-                <AtomIcon className="w-8 h-8 text-[var(--accent-primary)]" />
-                <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-[var(--accent-gradient)]">
-                    بوابة الطالب
-                </h1>
-            </div>
-        </div>
-        <NavContent activeView={activeView} onNavClick={onNavClick} onLogout={onLogout} />
-      </aside>
-
+    <div className="flex h-screen bg-[var(--bg-secondary)] text-[var(--text-primary)]">
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="h-20 bg-[var(--bg-secondary)] flex items-center justify-between px-4 md:px-8 border-b border-[var(--border-primary)] flex-shrink-0">
+        <header className="h-16 bg-[var(--bg-primary)] flex items-center justify-between px-4 md:px-8 border-b border-[var(--border-primary)] flex-shrink-0">
           <div className="flex items-center space-x-3 space-x-reverse group">
-            <div className="h-12 w-12 rounded-full bg-gradient-to-r from-yellow-500 to-orange-400 flex items-center justify-center text-white font-bold text-lg">
+            <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 flex items-center justify-center text-white font-bold text-lg transition-transform duration-300 group-hover:scale-110">
               {user.name.charAt(0)}
             </div>
             <div className="text-right">
-              <span className="font-semibold text-md text-[var(--text-primary)]">{user.name}</span>
-              <span className="block text-sm text-[var(--text-secondary)]">طالب</span>
+              <span className="font-semibold text-sm md:text-md text-[var(--text-primary)]">{user.name}</span>
+              <span className="block text-xs text-[var(--text-secondary)]">طالب</span>
             </div>
+          </div>
+          <div className="md:hidden">
+            <button onClick={() => setIsMobileNavOpen(true)} className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+              <MenuIcon className="w-6 h-6" />
+            </button>
           </div>
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-20 md:pb-8">
+        <main className="flex-1 overflow-y-auto p-4 md:p-8">
           <div key={activeView} className="fade-in">
             {children}
           </div>
         </main>
-        
-        {/* Bottom Nav Bar */}
-        <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-[var(--bg-secondary)]/80 backdrop-blur-lg border-t border-[var(--border-primary)] flex justify-around items-center shadow-lg">
-            {bottomNavItems.map((item) => (
-                <BottomNavItem
-                    key={item.id}
-                    onClick={() => onNavClick(item.id as StudentView)}
-                    label={item.label}
-                    icon={item.icon}
-                    isActive={activeView === item.id}
-                />
-            ))}
-        </div>
       </div>
+      
+      {/* Desktop Sidebar */}
+      <aside className="w-72 flex-shrink-0 bg-[var(--bg-primary)] border-l border-[var(--border-primary)] flex-col hidden md:flex">
+        <div className="h-16 flex items-center justify-center border-b border-[var(--border-primary)]">
+          <h1 className="text-2xl font-black" style={{ background: 'var(--accent-gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+            بوابة الطالب
+          </h1>
+        </div>
+        <NavContent />
+        <div className="p-6 text-xs text-center text-[var(--text-secondary)]">
+          &copy; {new Date().getFullYear()} سنتر جوجل التعليمي. All rights reserved.
+        </div>
+      </aside>
+
+      {/* Mobile Sidebar */}
+      {isMobileNavOpen && (
+        <div className="md:hidden fixed inset-0 z-50" role="dialog" aria-modal="true">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setIsMobileNavOpen(false)}></div>
+          <div className="fixed inset-y-0 right-0 w-72 bg-[var(--bg-primary)] border-l border-[var(--border-primary)] flex flex-col animate-slide-in-right">
+            <div className="h-16 flex items-center justify-between px-6 border-b border-[var(--border-primary)] flex-shrink-0">
+              <h1 className="text-xl font-black" style={{ background: 'var(--accent-gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                بوابة الطالب
+              </h1>
+              <button onClick={() => setIsMobileNavOpen(false)} className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                <XIcon className="w-6 h-6" />
+              </button>
+            </div>
+            <NavContent />
+             <div className="p-6 text-xs text-center text-[var(--text-secondary)]">
+                &copy; {new Date().getFullYear()} سنتر جوجل التعليمي. All rights reserved.
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
