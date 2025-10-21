@@ -1,108 +1,106 @@
-
 import React, { useState } from 'react';
-import { BookBookmarkIcon, ArrowRightIcon } from '../common/Icons';
-import { DEMO_ADMIN_CODE, DEMO_ADMIN_USERNAME, DEMO_STUDENT_CODE, DEMO_STUDENT_USERNAME } from '../../constants';
-
-const CosmicFlowBackground: React.FC = () => {
-    return (
-        <div className="absolute inset-0 cosmic-flow-background">
-            <div id="stars"></div>
-            <div id="stars2"></div>
-        </div>
-    );
-};
+import { BookBookmarkIcon, ArrowRightIcon, UserCircleIcon, KeyIcon } from '../common/Icons';
 
 interface LoginScreenProps {
-  onLogin: (identifier: string, code: string) => void;
+  onLogin: (identifier: string, password: string) => void;
   error: string;
   onBack: () => void;
+  onNavigateToRegister: () => void;
 }
 
-const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, error, onBack }) => {
+const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, error, onBack, onNavigateToRegister }) => {
   const [identifier, setIdentifier] = useState('');
-  const [code, setCode] = useState('');
+  const [password, setPassword] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onLogin(identifier, code);
+    onLogin(identifier, password);
   };
 
   return (
-    <div className="relative flex items-center justify-center min-h-screen text-white overflow-hidden p-4">
-      <CosmicFlowBackground />
+    <div className="flex items-center justify-center min-h-screen bg-[#111827] text-gray-200 p-4 relative overflow-hidden">
+      {/* Background Glows */}
+      <div className="absolute top-0 -left-1/4 w-96 h-96 bg-blue-500/20 rounded-full filter blur-3xl animate-blob"></div>
+      <div className="absolute bottom-0 -right-1/4 w-96 h-96 bg-purple-500/20 rounded-full filter blur-3xl animate-blob animation-delay-4000"></div>
+
       <button 
         onClick={onBack}
-        className="absolute top-6 left-6 z-20 flex items-center space-x-2 space-x-reverse text-slate-300 hover:text-white transition-colors duration-200 group"
+        className="absolute top-6 left-6 z-20 flex items-center space-x-2 space-x-reverse text-gray-400 hover:text-white transition-colors duration-200 group"
       >
         <ArrowRightIcon className="w-5 h-5 transition-transform duration-300 group-hover:-translate-x-1" />
         <span>العودة للرئيسية</span>
       </button>
+
       <div 
-        className="login-form-container relative z-10 flex flex-col items-center p-6 md:p-10 space-y-8 w-full max-w-md
-                  bg-black/40 backdrop-blur-2xl border border-white/10 rounded-3xl shadow-2xl shadow-blue-500/10
-                  transition-all duration-500 ease-in-out"
+        className="relative z-10 p-8 space-y-8 w-full max-w-md bg-gray-800/60 backdrop-blur-lg border border-gray-700/50 rounded-2xl shadow-2xl"
       >
         <div className="text-center fade-in flex flex-col items-center">
-          <div className="p-4 bg-gradient-to-br from-blue-500/20 to-green-500/20 rounded-full mb-4 border border-white/10">
-            <BookBookmarkIcon className="w-12 h-12 text-white" />
+          <div className="p-4 bg-gray-700/50 rounded-full mb-4 border-2 border-gray-600">
+            <BookBookmarkIcon className="w-10 h-10 text-blue-400" />
           </div>
-          <h1 className="text-4xl md:text-5xl font-black tracking-tight" style={{ background: 'linear-gradient(120deg, #58a6ff, #3fb950)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+          <h1 className="text-4xl font-extrabold text-white tracking-tight">
             تسجيل الدخول
           </h1>
-          <p className="text-slate-300 mt-3 text-sm md:text-base">مرحباً بعودتك! أدخل بياناتك للمتابعة.</p>
+          <p className="text-gray-400 mt-3">مرحباً بعودتك! أدخل بياناتك للمتابعة.</p>
         </div>
         
         <form onSubmit={handleSubmit} className="w-full space-y-5 fade-in fade-in-delay-1">
           <div>
-            <label htmlFor="identifier" className="block text-sm font-medium text-slate-400 mb-2">الاسم أو البريد الإلكتروني</label>
-            <input
-              id="identifier"
-              type="text"
-              value={identifier}
-              onChange={(e) => setIdentifier(e.target.value)}
-              required
-              className="mt-1 block w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all duration-300 placeholder-slate-500 glow-on-focus"
-              placeholder="مثال: طالب تجريبي أو example@mail.com"
-            />
+            <label htmlFor="identifier" className="block text-sm font-medium text-gray-400 mb-2">رقم الهاتف أو البريد الإلكتروني</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                <UserCircleIcon className="w-5 h-5 text-gray-500"/>
+              </div>
+              <input
+                id="identifier"
+                type="text"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                required
+                className="block w-full px-4 py-3 pr-10 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
+                placeholder="أدخل رقم هاتفك أو بريدك الإلكتروني"
+              />
+            </div>
           </div>
           <div>
-            <label htmlFor="code" className="block text-sm font-medium text-slate-400 mb-2">كود الدخول</label>
-            <input
-              id="code"
-              type="password"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              required
-              className="mt-1 block w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all duration-300 placeholder-slate-500 glow-on-focus"
-              placeholder="أدخل الكود الخاص بك"
-            />
+            <label htmlFor="password" className="block text-sm font-medium text-gray-400 mb-2">كلمة المرور</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                <KeyIcon className="w-5 h-5 text-gray-500"/>
+              </div>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="block w-full px-4 py-3 pr-10 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
+                placeholder="أدخل كلمة المرور"
+              />
+            </div>
           </div>
-          {error && <p className="text-red-400 text-sm animate-pulse">{error}</p>}
+          {error && <p className="text-red-500 text-sm">{error}</p>}
           <button 
             type="submit" 
-            className="w-full py-3.5 px-4 font-bold text-white bg-gradient-to-r from-blue-600 to-green-500 rounded-lg 
-                       hover:from-blue-700 hover:to-green-600 focus:outline-none focus:ring-4 focus:ring-blue-500/50
-                       transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-blue-500/40 pulse-btn"
+            className="w-full py-3.5 px-4 font-bold text-white bg-blue-600 rounded-lg 
+                       hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500/50
+                       transition-all duration-300 transform hover:scale-105 shadow-lg shadow-blue-500/20"
           >
             تسجيل الدخول
           </button>
         </form>
 
-        <div className="w-full pt-6 border-t border-white/10 flex flex-col sm:flex-row gap-4 fade-in fade-in-delay-2">
-            <button 
-                onClick={() => onLogin(DEMO_STUDENT_USERNAME, DEMO_STUDENT_CODE)}
-                className="w-full py-2 px-4 text-sm font-semibold text-white bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-all duration-300"
-            >
-                دخول تجريبي (طالب)
-            </button>
-            <button 
-                onClick={() => onLogin(DEMO_ADMIN_USERNAME, DEMO_ADMIN_CODE)}
-                className="w-full py-2 px-4 text-sm font-semibold text-white bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-all duration-300"
-            >
-                دخول تجريبي (مدير)
-            </button>
+        <div className="w-full pt-6 border-t border-gray-700 text-center fade-in fade-in-delay-2">
+            <p className="text-sm text-gray-400">
+                ليس لديك حساب؟
+                <button 
+                    onClick={onNavigateToRegister}
+                    className="font-semibold text-blue-400 hover:text-blue-300 transition-colors duration-300 mr-2"
+                >
+                    إنشاء حساب جديد
+                </button>
+            </p>
         </div>
-
       </div>
     </div>
   );

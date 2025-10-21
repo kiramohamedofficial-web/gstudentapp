@@ -1,10 +1,9 @@
-
-import React, { useState, useMemo } from 'react';
-import { Grade, Unit, Lesson, LessonType, ToastType } from '../../types';
-import { setLessonCompleted } from '../../services/storageService';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Grade, Unit, Lesson, LessonType, ToastType, User } from '../../types';
+import { getUserProgress, setLessonCompleted } from '../../services/storageService';
 import { useToast } from '../../useToast';
 import LessonView from './LessonView';
-import { BookOpenIcon, PencilIcon, CheckCircleIcon, VideoCameraIcon, DocumentTextIcon, ArrowRightIcon } from '../common/Icons';
+import { BookOpenIcon, PencilIcon, CheckCircleIcon, VideoCameraIcon, DocumentTextIcon, ArrowRightIcon, ChevronDownIcon, PlaySolidIcon } from '../common/Icons';
 
 interface GroupedLesson {
     baseTitle: string;
@@ -21,94 +20,148 @@ interface GroupedLesson {
 interface CourseViewProps {
   grade: Grade;
   unit: Unit;
+  user: User;
   onBack: () => void;
 }
 
-const LessonPartCard: React.FC<{ lesson: Lesson; onSelect: (lesson: Lesson) => void; }> = ({ lesson, onSelect }) => {
-    const typeInfo: Record<LessonType, { icon: React.FC<{className?: string}>; label: string }> = {
-        [LessonType.EXPLANATION]: { icon: VideoCameraIcon, label: 'شرح الدرس' },
-        [LessonType.HOMEWORK]: { icon: PencilIcon, label: 'الواجب' },
-        [LessonType.EXAM]: { icon: BookOpenIcon, label: 'الامتحان' },
-        [LessonType.SUMMARY]: { icon: DocumentTextIcon, label: 'الملخص' },
+const CircularProgress: React.FC<{ progress: number }> = ({ progress }) => {
+    const strokeWidth = 5;
+    const radius = 22;
+    const circumference = 2 * Math.PI * radius;
+    const offset = circumference - (progress / 100) * circumference;
+
+    return (
+        <div className="relative w-12 h-12 flex-shrink-0">
+            <svg className="w-full h-full" viewBox="0 0 50 50">
+                <circle
+                    className="text-[var(--border-primary)]"
+                    strokeWidth={strokeWidth}
+                    stroke="currentColor"
+                    fill="transparent"
+                    r={radius}
+                    cx="25"
+                    cy="25"
+                />
+                <circle
+                    className="text-[var(--accent-primary)] transition-all duration-500"
+                    strokeWidth={strokeWidth}
+                    strokeDasharray={circumference}
+                    style={{ strokeDashoffset: offset }}
+                    strokeLinecap="round"
+                    stroke="currentColor"
+                    fill="transparent"
+                    r={radius}
+                    cx="25"
+                    cy="25"
+                    transform="rotate(-90 25 25)"
+                />
+            </svg>
+            <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-[var(--text-secondary)]">
+                {Math.round(progress)}%
+            </span>
+        </div>
+    );
+};
+
+
+const LessonPartCard: React.FC<{ lesson: Lesson; onSelect: (lesson: Lesson) => void; isCompleted: boolean; }> = ({ lesson, onSelect, isCompleted }) => {
+    const typeInfo: Record<LessonType, { icon: React.FC<{className?: string}>; label: string; action: string }> = {
+        [LessonType.EXPLANATION]: { icon: VideoCameraIcon, label: 'شرح الدرس', action: 'مشاهدة' },
+        [LessonType.HOMEWORK]: { icon: PencilIcon, label: 'الواجب', action: 'بدء' },
+        [LessonType.EXAM]: { icon: BookOpenIcon, label: 'الامتحان', action: 'بدء' },
+        [LessonType.SUMMARY]: { icon: DocumentTextIcon, label: 'الملخص', action: 'قراءة' },
     };
     
-    const { icon: Icon, label } = typeInfo[lesson.type];
+    const { icon: Icon, label, action } = typeInfo[lesson.type];
 
     return (
         <button 
             onClick={() => onSelect(lesson)}
-            className="bg-[var(--bg-secondary)] p-4 rounded-lg text-right w-full flex items-center space-x-3 space-x-reverse transition-all duration-300 transform hover:scale-105 hover:bg-[var(--bg-tertiary)] group"
+            className="bg-[var(--bg-primary)] p-3 rounded-lg text-right w-full flex items-center space-x-4 space-x-reverse transition-all duration-300 transform hover:bg-[var(--border-primary)] group"
         >
-            <div className={`p-2 rounded-md bg-gradient-to-br from-white/5 to-white/10 ${lesson.isCompleted ? 'text-green-400' : 'text-[var(--accent-primary)]'}`}>
+            <div className={`p-3 rounded-md transition-colors ${isCompleted ? 'text-green-400 bg-green-500/10' : 'text-[var(--text-secondary)] bg-[var(--bg-tertiary)]'}`}>
                 <Icon className="w-6 h-6" />
             </div>
             <div className="flex-grow">
-                <p className="font-semibold text-sm text-[var(--text-primary)]">{label}</p>
-                <p className="text-xs text-[var(--text-secondary)]">{lesson.isCompleted ? 'مكتمل' : 'ابدأ الآن'}</p>
+                <p className="font-semibold text-md text-[var(--text-primary)]">{label}</p>
+                <p className="text-sm text-[var(--text-secondary)]">{lesson.title}</p>
             </div>
-            {lesson.isCompleted && (
-                <CheckCircleIcon className="w-5 h-5 text-green-400 flex-shrink-0" />
+            {isCompleted ? (
+                <div className="flex items-center space-x-1 space-x-reverse text-green-400 font-semibold">
+                    <CheckCircleIcon className="w-5 h-5" />
+                    <span>مكتمل</span>
+                </div>
+            ) : (
+                 <div className="flex items-center space-x-2 space-x-reverse py-2 px-4 rounded-lg bg-[var(--bg-tertiary)] text-[var(--text-accent)] group-hover:bg-[var(--accent-primary)] group-hover:text-white transition-colors">
+                    <span>{action}</span>
+                    <PlaySolidIcon className="w-5 h-5"/>
+                </div>
             )}
         </button>
     );
 };
 
-
-const GroupedLessonCard: React.FC<{ groupedLesson: GroupedLesson; onSelect: (lesson: Lesson) => void; index: number }> = ({ groupedLesson, onSelect, index }) => {
-    return (
+const LessonAccordionItem: React.FC<{ 
+    groupedLesson: GroupedLesson; 
+    onSelect: (lesson: Lesson) => void; 
+    index: number; 
+    userProgress: Record<string, boolean>;
+    isOpen: boolean;
+    onToggle: () => void;
+}> = ({ groupedLesson, onSelect, index, userProgress, isOpen, onToggle }) => {
+     return (
         <div
-            className="bg-[var(--bg-primary)] rounded-xl shadow-lg border border-[var(--border-primary)] p-5 flex flex-col transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl hover:border-[var(--accent-primary)] group fade-in"
+            className={`bg-[var(--bg-secondary)] rounded-xl shadow-md border border-[var(--border-primary)] transition-all duration-300 ease-in-out fade-in ${isOpen ? 'border-[var(--accent-primary)] shadow-lg' : 'hover:border-[var(--border-secondary)]'}`}
             style={{ animationDelay: `${index * 75}ms`}}
         >
             {/* Header */}
-            <div className="flex justify-between items-start mb-4">
-                <div>
-                    <h3 className="font-bold text-lg text-[var(--text-primary)] flex items-center">
-                        <span className="ml-3 flex items-center justify-center w-8 h-8 rounded-full bg-[var(--bg-secondary)] text-[var(--accent-primary)] font-mono text-sm">
-                           {String(index + 1).padStart(2, '0')}
-                        </span>
-                        {groupedLesson.baseTitle}
-                    </h3>
+            <button onClick={onToggle} className="w-full flex justify-between items-center p-4 text-right">
+                <div className="flex items-center space-x-4 space-x-reverse">
+                    <span className="text-xl font-mono text-[var(--text-secondary)]">
+                       {String(index + 1).padStart(2, '0')}
+                    </span>
+                    <h3 className="font-bold text-lg text-[var(--text-primary)]">{groupedLesson.baseTitle}</h3>
+                    {groupedLesson.isCompleted && (
+                        <div className="hidden sm:flex items-center space-x-1 space-x-reverse px-2 py-1 text-xs font-semibold text-green-400 bg-green-500/10 rounded-full">
+                            <CheckCircleIcon className="w-4 h-4" />
+                            <span>مكتمل</span>
+                        </div>
+                    )}
                 </div>
-                {groupedLesson.isCompleted && (
-                    <div className="flex items-center space-x-1 space-x-reverse px-2 py-1 text-xs font-semibold text-green-400 bg-green-500/10 rounded-full">
-                        <CheckCircleIcon className="w-4 h-4" />
-                        <span>مكتمل</span>
-                    </div>
-                )}
-            </div>
+                <div className="flex items-center space-x-4 space-x-reverse">
+                    <CircularProgress progress={groupedLesson.progress} />
+                    <ChevronDownIcon className={`w-6 h-6 text-[var(--text-secondary)] transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
+                </div>
+            </button>
             
-            {/* Progress */}
-            <div className="mb-5">
-                <div className="flex justify-between items-center mb-1 text-xs text-[var(--text-secondary)]">
-                    <span className="font-semibold">التقدم</span>
-                    <span>{groupedLesson.completedCount} / {groupedLesson.totalParts} مكتمل</span>
+            {/* Content Body */}
+            <div className={`transition-all duration-500 ease-in-out overflow-hidden ${isOpen ? 'max-h-96' : 'max-h-0'}`}>
+                <div className="p-4 border-t border-[var(--border-primary)] space-y-3">
+                    {groupedLesson.explanation && <LessonPartCard lesson={groupedLesson.explanation} onSelect={onSelect} isCompleted={!!userProgress[groupedLesson.explanation.id]} />}
+                    {groupedLesson.homework && <LessonPartCard lesson={groupedLesson.homework} onSelect={onSelect} isCompleted={!!userProgress[groupedLesson.homework.id]} />}
+                    {groupedLesson.exam && <LessonPartCard lesson={groupedLesson.exam} onSelect={onSelect} isCompleted={!!userProgress[groupedLesson.exam.id]} />}
+                    {groupedLesson.summary && <LessonPartCard lesson={groupedLesson.summary} onSelect={onSelect} isCompleted={!!userProgress[groupedLesson.summary.id]} />}
                 </div>
-                <div className="w-full bg-[var(--bg-secondary)] rounded-full h-2 overflow-hidden">
-                    <div className="bg-gradient-to-r from-blue-500 to-cyan-400 h-full rounded-full transition-all duration-500" style={{width: `${groupedLesson.progress}%`}}></div>
-                </div>
-            </div>
-
-            {/* Lesson Parts */}
-            <div className="space-y-3">
-                {groupedLesson.explanation && <LessonPartCard lesson={groupedLesson.explanation} onSelect={onSelect} />}
-                {groupedLesson.homework && <LessonPartCard lesson={groupedLesson.homework} onSelect={onSelect} />}
-                {groupedLesson.exam && <LessonPartCard lesson={groupedLesson.exam} onSelect={onSelect} />}
-                {groupedLesson.summary && <LessonPartCard lesson={groupedLesson.summary} onSelect={onSelect} />}
             </div>
         </div>
     );
 };
 
-const CourseView: React.FC<CourseViewProps> = ({ grade, unit, onBack }) => {
-  const [currentUnit, setCurrentUnit] = useState<Unit>(unit);
+
+const CourseView: React.FC<CourseViewProps> = ({ grade, unit, user, onBack }) => {
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
+  const [userProgress, setUserProgress] = useState<Record<string, boolean>>({});
+  const [openAccordion, setOpenAccordion] = useState<string | null>(null);
   const { addToast } = useToast();
+
+  useEffect(() => {
+      setUserProgress(getUserProgress(user.id));
+  }, [user.id]);
 
   const groupedLessons = useMemo((): GroupedLesson[] => {
     const lessonGroups: Record<string, Partial<Record<LessonType, Lesson>>> = {};
 
-    currentUnit.lessons.forEach(lesson => {
+    unit.lessons.forEach(lesson => {
         const baseTitle = lesson.title.replace(/^(شرح|واجب|امتحان|ملخص)\s/, '').trim();
         
         if (!lessonGroups[baseTitle]) {
@@ -119,7 +172,7 @@ const CourseView: React.FC<CourseViewProps> = ({ grade, unit, onBack }) => {
 
     return Object.entries(lessonGroups).map(([baseTitle, parts]) => {
         const lessonParts = Object.values(parts).filter(p => p) as Lesson[];
-        const completedCount = lessonParts.filter(p => p.isCompleted).length;
+        const completedCount = lessonParts.filter(p => !!userProgress[p.id]).length;
         const totalParts = lessonParts.length;
         
         return {
@@ -134,30 +187,28 @@ const CourseView: React.FC<CourseViewProps> = ({ grade, unit, onBack }) => {
             totalParts,
         };
     });
-  }, [currentUnit.lessons]);
+  }, [unit.lessons, userProgress]);
 
 
   const handleLessonComplete = (lessonId: string) => {
-    const lessonExists = currentUnit.lessons.some(l => l.id === lessonId && !l.isCompleted);
-      
-    if (lessonExists) {
-      setLessonCompleted(grade.id, lessonId, true);
-      
-      setCurrentUnit(prevUnit => {
-        const newLessons = prevUnit.lessons.map(l => 
-          l.id === lessonId ? { ...l, isCompleted: true } : l
-        );
-        return { ...prevUnit, lessons: newLessons };
-      });
+    if (!userProgress[lessonId]) {
+      setLessonCompleted(user.id, lessonId, true);
+      setUserProgress(prev => ({ ...prev, [lessonId]: true }));
       addToast('أحسنت! لقد أكملت هذا الجزء بنجاح.', ToastType.SUCCESS);
     }
   };
+
+  const handleToggleAccordion = (baseTitle: string) => {
+    setOpenAccordion(prev => (prev === baseTitle ? null : baseTitle));
+  };
+
 
   if (activeLesson) {
     return <LessonView 
         lesson={activeLesson} 
         onBack={() => setActiveLesson(null)} 
         grade={grade}
+        user={user}
         onLessonComplete={handleLessonComplete}
     />;
   }
@@ -170,21 +221,24 @@ const CourseView: React.FC<CourseViewProps> = ({ grade, unit, onBack }) => {
       </button>
 
       <h1 className="text-3xl md:text-4xl font-bold mb-2 text-[var(--text-primary)]">محتوى مادة: {unit.title}</h1>
-      <p className="text-md text-[var(--text-secondary)] mb-8">استعرض جميع الدروس والواجبات المتاحة لهذه المادة.</p>
+      <p className="text-md text-[var(--text-secondary)] mb-8">اختر درساً لبدء رحلتك التعليمية.</p>
       
       {groupedLessons.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="space-y-4">
           {groupedLessons.map((groupedLesson, index) => (
-            <GroupedLessonCard
+            <LessonAccordionItem
               key={groupedLesson.baseTitle} 
               groupedLesson={groupedLesson}
               onSelect={setActiveLesson}
               index={index}
+              userProgress={userProgress}
+              isOpen={openAccordion === groupedLesson.baseTitle}
+              onToggle={() => handleToggleAccordion(groupedLesson.baseTitle)}
             />
           ))}
         </div>
       ) : (
-        <div className="text-center p-12 bg-[var(--bg-primary)] rounded-xl border border-[var(--border-primary)]">
+        <div className="text-center p-12 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-primary)]">
             <p className="text-[var(--text-secondary)]">لم يتم إضافة دروس لهذه المادة بعد.</p>
         </div>
       )}

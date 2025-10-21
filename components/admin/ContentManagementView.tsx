@@ -1,17 +1,11 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { Grade, Semester, Unit, Lesson, LessonType, Question, ToastType } from '../../types';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { Grade, Semester, Unit, Lesson, LessonType, ToastType } from '../../types';
 import { 
-    getAllGrades, 
-    addLessonToUnit, 
-    updateLesson,
-    deleteLesson,
-    addUnitToSemester,
-    updateUnit,
-    deleteUnit,
-    addActivityLog 
+    getAllGrades, addLessonToUnit, updateLesson, deleteLesson,
+    addUnitToSemester, updateUnit, deleteUnit, addActivityLog 
 } from '../../services/storageService';
 import Modal from '../common/Modal';
-import { PlusIcon, PencilIcon, TrashIcon, CheckCircleIcon, VideoCameraIcon, DocumentTextIcon, BookOpenIcon, SparklesIcon } from '../common/Icons';
+import { PlusIcon, PencilIcon, TrashIcon, CheckCircleIcon, VideoCameraIcon, DocumentTextIcon, BookOpenIcon, DotsVerticalIcon, CollectionIcon, ChevronDownIcon } from '../common/Icons';
 import { useToast } from '../../useToast';
 
 // Helper to parse YouTube video ID from various URL formats
@@ -25,9 +19,9 @@ const parseYouTubeVideoId = (url: string): string | null => {
 // Confirmation Modal Component
 const ConfirmationModal: React.FC<{ isOpen: boolean; onClose: () => void; onConfirm: () => void; title: string; message: string; }> = ({ isOpen, onClose, onConfirm, title, message }) => (
     <Modal isOpen={isOpen} onClose={onClose} title={title}>
-        <p className="text-slate-300 mb-6">{message}</p>
+        <p className="text-[var(--text-secondary)] mb-6">{message}</p>
         <div className="flex justify-end space-x-3 space-x-reverse">
-            <button onClick={onClose} className="px-4 py-2 rounded-md bg-slate-600 hover:bg-slate-700 transition-colors">إلغاء</button>
+            <button onClick={onClose} className="px-4 py-2 rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] transition-colors">إلغاء</button>
             <button onClick={onConfirm} className="px-4 py-2 rounded-md bg-red-600 hover:bg-red-700 transition-colors text-white">تأكيد الحذف</button>
         </div>
     </Modal>
@@ -50,17 +44,17 @@ const UnitEditModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (t
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={unit ? 'تعديل الوحدة' : 'إضافة وحدة جديدة'}>
             <form onSubmit={handleSubmit}>
-                <label htmlFor="unitTitle" className="block text-sm font-medium text-slate-300 mb-2">عنوان الوحدة</label>
+                <label htmlFor="unitTitle" className="block text-sm font-medium text-[var(--text-secondary)] mb-2">عنوان الوحدة</label>
                 <input
                     id="unitTitle"
                     type="text"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    className="w-full p-2 rounded-md bg-slate-700 border border-slate-600 focus:ring-cyan-500 focus:border-cyan-500"
+                    className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)] focus:ring-purple-500 focus:border-purple-500"
                     required
                 />
                 <div className="flex justify-end mt-6">
-                    <button type="submit" className="px-5 py-2 text-sm font-medium text-white bg-cyan-600 rounded-md hover:bg-cyan-700">حفظ</button>
+                    <button type="submit" className="px-5 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700">حفظ</button>
                 </div>
             </form>
         </Modal>
@@ -73,7 +67,10 @@ const LessonEditModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: 
         title: lesson?.title || prefill?.title || '',
         type: lesson?.type || prefill?.type || LessonType.EXPLANATION,
         content: lesson?.content || '',
-        questions: lesson?.questions || [],
+        imageUrl: lesson?.imageUrl || '',
+        correctAnswers: lesson?.correctAnswers || [],
+        timeLimit: lesson?.timeLimit || 0,
+        passingScore: lesson?.passingScore || 50,
     });
     const [data, setData] = useState(getInitialState());
     const [error, setError] = useState('');
@@ -83,31 +80,33 @@ const LessonEditModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: 
             setData(getInitialState());
             setError('');
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [lesson, prefill, isOpen]);
     
     const handleChange = (field: keyof typeof data, value: any) => {
         setData(prev => ({ ...prev, [field]: value }));
     };
 
-    const handleQuestionChange = (qIndex: number, field: keyof Question, value: any) => {
-        const newQuestions = [...data.questions];
-        (newQuestions[qIndex] as any)[field] = value;
-        handleChange('questions', newQuestions);
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            if (file.size > 1 * 1024 * 1024) { // 1MB Limit
+                setError('حجم الصورة يجب ألا يتجاوز 1 ميجابايت.');
+                e.target.value = ''; // Reset file input
+                return;
+            }
+            setError('');
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                handleChange('imageUrl', reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
     };
 
-    const handleOptionChange = (qIndex: number, oIndex: number, value: string) => {
-        const newQuestions = [...data.questions];
-        newQuestions[qIndex].options[oIndex] = value;
-        handleChange('questions', newQuestions);
-    };
-
-    const addQuestion = () => {
-        const newQuestion: Question = { id: `q_new_${Date.now()}`, text: '', options: ['', '', '', ''], correctAnswer: '' };
-        handleChange('questions', [...data.questions, newQuestion]);
-    };
-    
-    const removeQuestion = (qIndex: number) => {
-        handleChange('questions', data.questions.filter((_, i) => i !== qIndex));
+    const handleCorrectAnswersChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const answers = e.target.value.split(',').map(a => a.trim());
+        handleChange('correctAnswers', answers);
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -115,7 +114,8 @@ const LessonEditModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: 
         setError('');
         if (!data.title.trim()) { setError('عنوان الدرس مطلوب.'); return; }
 
-        let finalContent = data.content;
+        let lessonToSave: any = { ...data };
+
         if (data.type === LessonType.EXPLANATION) {
             if (!/^[a-zA-Z0-9_-]{11}$/.test(data.content)) {
                 const videoId = parseYouTubeVideoId(data.content);
@@ -123,11 +123,32 @@ const LessonEditModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: 
                     setError('رابط يوتيوب غير صالح أو معرف فيديو غير صحيح.');
                     return;
                 }
-                finalContent = videoId || '';
+                lessonToSave.content = videoId || '';
             }
         }
+        
+        if (data.type === LessonType.HOMEWORK || data.type === LessonType.EXAM) {
+            if (!data.imageUrl) {
+                setError('الرجاء رفع صورة للواجب أو الامتحان.');
+                return;
+            }
+            if (data.correctAnswers.length === 0 || (data.correctAnswers.length === 1 && !data.correctAnswers[0])) {
+                setError('الرجاء إدخال إجابة صحيحة واحدة على الأقل.');
+                return;
+            }
+            lessonToSave = {
+                ...data,
+                correctAnswers: data.correctAnswers.filter(Boolean), // remove empty strings from array
+                content: '', // Clear content field for image quizzes
+            };
+        } else {
+            lessonToSave.imageUrl = '';
+            lessonToSave.correctAnswers = [];
+        }
 
-        const lessonToSave = { ...data, content: finalContent };
+        lessonToSave.timeLimit = Number(data.timeLimit);
+        lessonToSave.passingScore = Number(data.passingScore);
+
         if (lesson) {
             onSave({ ...lesson, ...lessonToSave });
         } else {
@@ -137,149 +158,179 @@ const LessonEditModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: 
     
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={lesson ? 'تعديل الدرس' : 'إضافة درس جديد'}>
-            <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
-                <input type="text" placeholder="عنوان الدرس" value={data.title} onChange={(e) => handleChange('title', e.target.value)} className="w-full p-2 rounded-md bg-slate-700 border border-slate-600" required />
-                <select value={data.type} onChange={(e) => handleChange('type', e.target.value as LessonType)} className="w-full p-2 rounded-md bg-slate-700 border border-slate-600" disabled={!!prefill?.type}>
+            <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto p-1">
+                <input type="text" placeholder="عنوان الدرس" value={data.title} onChange={(e) => handleChange('title', e.target.value)} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)]" required />
+                <select value={data.type} onChange={(e) => handleChange('type', e.target.value as LessonType)} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)]" disabled={!!prefill?.type}>
                     {Object.values(LessonType).map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
 
-                {data.type === LessonType.EXPLANATION && <input type="text" placeholder="الصق رابط يوتيوب أو أدخل معرف الفيديو" value={data.content} onChange={(e) => handleChange('content', e.target.value)} className="w-full p-2 rounded-md bg-slate-700 border border-slate-600" />}
-                {data.type === LessonType.SUMMARY && <textarea placeholder="اكتب الملخص هنا (يدعم HTML)" value={data.content} onChange={(e) => handleChange('content', e.target.value)} className="w-full p-2 rounded-md bg-slate-700 border border-slate-600" rows={5} required />}
+                {data.type === LessonType.EXPLANATION && <input type="text" placeholder="الصق رابط يوتيوب أو أدخل معرف الفيديو" value={data.content} onChange={(e) => handleChange('content', e.target.value)} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)]" />}
+                {data.type === LessonType.SUMMARY && <textarea placeholder="اكتب الملخص هنا (يدعم HTML)" value={data.content} onChange={(e) => handleChange('content', e.target.value)} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)]" rows={5} required />}
                 
                 {(data.type === LessonType.HOMEWORK || data.type === LessonType.EXAM) && (
-                    <div className="space-y-4 pt-2 border-t border-slate-600">
-                        <h4 className="font-semibold">بنك الأسئلة</h4>
-                        {data.questions.map((q, qIndex) => (
-                            <div key={q.id} className="p-3 bg-slate-900/50 rounded-lg border border-slate-700 relative">
-                                <button type="button" onClick={() => removeQuestion(qIndex)} className="absolute top-2 left-2 text-red-400 hover:text-red-300"><TrashIcon className="w-5 h-5"/></button>
-                                <textarea placeholder={`نص السؤال ${qIndex + 1}`} value={q.text} onChange={(e) => handleQuestionChange(qIndex, 'text', e.target.value)} className="w-full p-2 mb-2 rounded-md bg-slate-700 border border-slate-600 text-sm" rows={2} required></textarea>
-                                <div className="grid grid-cols-2 gap-2">
-                                    {q.options.map((opt, oIndex) => (
-                                        <div key={oIndex} className="flex items-center">
-                                            <input type="text" placeholder={`الخيار ${oIndex + 1}`} value={opt} onChange={(e) => handleOptionChange(qIndex, oIndex, e.target.value)} className="w-full p-2 rounded-md bg-slate-700 border border-slate-600 text-xs" required/>
-                                            <button type="button" title="تعيين كإجابة صحيحة" onClick={() => handleQuestionChange(qIndex, 'correctAnswer', opt)} className={`mr-2 ${q.correctAnswer === opt ? 'text-green-400' : 'text-slate-500'}`}><CheckCircleIcon className="w-5 h-5"/></button>
-                                        </div>
-                                    ))}
-                                </div>
+                    <div className="space-y-4 pt-4 border-t border-[var(--border-primary)]">
+                        <div>
+                            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">صورة الامتحان (1 ميجا بحد أقصى)</label>
+                            <input type="file" onChange={handleImageUpload} accept="image/*" className="w-full text-sm text-[var(--text-secondary)] file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"/>
+                            {data.imageUrl && <img src={data.imageUrl} alt="Preview" className="mt-4 rounded-lg border border-[var(--border-primary)] max-h-60 w-auto" />}
+                        </div>
+                         <div>
+                            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">الإجابات الصحيحة (افصل بينها بفاصلة ,)</label>
+                            <input type="text" value={(data.correctAnswers || []).join(',')} onChange={handleCorrectAnswersChange} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)]" placeholder="الإجابة 1, الإجابة 2" />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                             <div>
+                                <label className="text-sm text-[var(--text-secondary)]">الوقت المحدد (بالدقائق)</label>
+                                <input type="number" placeholder="0 لترك الوقت مفتوح" value={data.timeLimit} onChange={(e) => handleChange('timeLimit', e.target.value)} className="w-full mt-1 p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)]" />
                             </div>
-                        ))}
-                        <button type="button" onClick={addQuestion} className="w-full text-sm py-2 px-4 bg-slate-600/50 hover:bg-slate-600 rounded-md transition-colors">+ إضافة سؤال جديد</button>
+                            <div>
+                                <label className="text-sm text-[var(--text-secondary)]">درجة النجاح (%)</label>
+                                <input type="number" placeholder="مثال: 50" value={data.passingScore} onChange={(e) => handleChange('passingScore', e.target.value)} min="0" max="100" className="w-full mt-1 p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)]" />
+                            </div>
+                        </div>
                     </div>
                 )}
 
                 {error && <p className="text-sm text-red-400">{error}</p>}
-                <div className="flex justify-end pt-4"><button type="submit" className="px-5 py-2 font-medium text-white bg-cyan-600 rounded-md hover:bg-cyan-700">حفظ الدرس</button></div>
+                <div className="flex justify-end pt-4"><button type="submit" className="px-5 py-2 font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700">حفظ الدرس</button></div>
             </form>
         </Modal>
     );
 };
 
-const lessonTypeDetails: Record<LessonType, { icon: React.FC<{className?: string}>, label: string, verb: string }> = {
-    [LessonType.EXPLANATION]: { icon: VideoCameraIcon, label: 'شرح', verb: 'إضافة شرح' },
-    [LessonType.HOMEWORK]: { icon: PencilIcon, label: 'واجب', verb: 'إضافة واجب' },
-    [LessonType.EXAM]: { icon: BookOpenIcon, label: 'امتحان', verb: 'إضافة امتحان' },
-    [LessonType.SUMMARY]: { icon: DocumentTextIcon, label: 'ملخص', verb: 'إضافة ملخص' },
+const lessonTypeDetails: Record<LessonType, { icon: React.FC<{className?: string}>, label: string }> = {
+    [LessonType.EXPLANATION]: { icon: VideoCameraIcon, label: 'شرح' },
+    [LessonType.HOMEWORK]: { icon: PencilIcon, label: 'واجب' },
+    [LessonType.EXAM]: { icon: BookOpenIcon, label: 'امتحان' },
+    [LessonType.SUMMARY]: { icon: DocumentTextIcon, label: 'ملخص' },
 };
 
-interface GroupedLesson {
-    baseTitle: string;
-    parts: Partial<Record<LessonType, Lesson>>;
-}
+interface GroupedLesson { baseTitle: string; parts: Partial<Record<LessonType, Lesson>>; }
+interface ModalData { grade?: Grade; semester?: Semester; unit?: Unit; lesson?: Lesson; prefill?: Partial<Lesson>; group?: GroupedLesson; }
 
-// FIX: Define a specific type for modal data to avoid `any` and subsequent type errors.
-interface ModalData {
-    grade?: Grade;
-    semester?: Semester;
-    unit?: Unit;
-    lesson?: Lesson;
-    prefill?: Partial<Lesson>;
-    group?: GroupedLesson;
-}
+// --- Sub-components for Accordion Layout ---
+const DropdownMenu: React.FC<{ onEdit: () => void; onDelete: () => void }> = ({ onEdit, onDelete }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
 
-// FIX: Update component props to use specific types instead of `any`.
-const LessonGroupCard: React.FC<{
-    group: GroupedLesson;
-    grade: Grade;
-    semester: Semester;
-    unit: Unit;
-    // FIX: Replaced `any` with `Partial<ModalData>` to ensure type safety.
-    openModal: (type: string, data: Partial<ModalData>) => void;
-}> = ({ group, grade, semester, unit, openModal }) => {
-    const [addMenuOpen, setAddMenuOpen] = useState(false);
-    const availablePartTypes = Object.values(LessonType);
-    const missingPartTypes = availablePartTypes.filter(type => !group.parts[type]);
-
-    const handleAddPart = (type: LessonType) => {
-        setAddMenuOpen(false);
-        const titlePrefix = lessonTypeDetails[type].label;
-        openModal('add-lesson', {
-            grade, semester, unit,
-            prefill: {
-                title: `${titlePrefix} ${group.baseTitle}`,
-                type,
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
             }
-        });
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleAction = (action: () => void) => {
+        action();
+        setIsOpen(false);
     };
 
     return (
-        <div className="bg-[var(--bg-secondary)] p-3 rounded-md border border-[var(--border-primary)]">
-            <div className="flex justify-between items-center">
-                <p className="font-bold text-md text-[var(--text-primary)]">{group.baseTitle}</p>
-                <div className="flex items-center space-x-2 space-x-reverse">
-                    <div className="relative">
-                        <button onClick={() => setAddMenuOpen(p => !p)} className="text-green-400 hover:text-green-300"><PlusIcon className="w-5 h-5"/></button>
-                        {addMenuOpen && (
-                            <div className="absolute left-0 mt-2 w-36 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-md shadow-lg z-10">
-                                {missingPartTypes.map(type => {
-                                    const partDetail = lessonTypeDetails[type];
-                                    return (
-                                        <button key={type} onClick={() => handleAddPart(type)} className="w-full text-right px-3 py-2 text-sm hover:bg-[var(--bg-tertiary)] flex items-center">
-                                            <partDetail.icon className="w-4 h-4 ml-2 text-[var(--text-secondary)]" /> {partDetail.verb}
-                                        </button>
-                                    );
-                                })}
-                                {missingPartTypes.length === 0 && <span className="block text-center text-xs p-2 text-[var(--text-secondary)]">كل الأجزاء مضافة</span>}
-                            </div>
-                        )}
-                    </div>
-                    <button onClick={() => openModal('delete-group', { grade, semester, unit, group })} className="text-red-400 hover:text-red-300"><TrashIcon className="w-5 h-5"/></button>
+        <div className="relative" ref={menuRef} onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setIsOpen(p => !p)} className="p-1 rounded-full hover:bg-black/10"><DotsVerticalIcon className="w-5 h-5"/></button>
+            {isOpen && (
+                <div className="absolute left-0 mt-2 w-36 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-md shadow-lg z-20 text-sm">
+                    <button onClick={() => handleAction(onEdit)} className="w-full text-right px-3 py-2 hover:bg-[var(--bg-tertiary)] flex items-center"><PencilIcon className="w-4 h-4 ml-2"/> تعديل</button>
+                    <button onClick={() => handleAction(onDelete)} className="w-full text-right px-3 py-2 hover:bg-[var(--bg-tertiary)] flex items-center text-red-500"><TrashIcon className="w-4 h-4 ml-2"/> حذف</button>
                 </div>
-            </div>
-            <div className="mt-2 space-y-1 pr-2 border-r-2 border-[var(--border-primary)]">
-                {Object.values(group.parts).map(lesson => {
-                    if (!lesson) return null;
-                    const { icon: Icon } = lessonTypeDetails[lesson.type];
-                    return (
-                        <div key={lesson.id} className="flex justify-between items-center p-2 rounded-md hover:bg-[var(--bg-tertiary)]/30">
-                            <div className="flex items-center space-x-2 space-x-reverse text-sm text-[var(--text-secondary)]">
-                                <Icon className="w-4 h-4 text-[var(--accent-secondary)]" />
-                                <span>{lesson.title}</span>
-                            </div>
-                            <div className="flex items-center space-x-2 space-x-reverse">
-                                <button onClick={() => openModal('edit-lesson', { grade, semester, unit, lesson })} className="text-yellow-400 hover:text-yellow-300"><PencilIcon className="w-4 h-4"/></button>
-                                <button onClick={() => openModal('delete-lesson', { grade, semester, unit, lesson })} className="text-red-400 hover:text-red-300"><TrashIcon className="w-4 h-4"/></button>
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
+            )}
         </div>
     );
 };
 
+const UnitAccordion: React.FC<{ unit: Unit; grade: Grade; semester: Semester; openModal: (type: string, data: Partial<ModalData>) => void; }> = ({ unit, grade, semester, openModal }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+
+    const groupedLessons = useMemo(() => {
+        return Object.values(unit.lessons.reduce((acc, lesson) => {
+            const baseTitle = lesson.title.replace(/^(شرح|واجب|امتحان|ملخص)\s/, '').trim();
+            if (!acc[baseTitle]) {
+                acc[baseTitle] = { baseTitle, parts: {} };
+            }
+            acc[baseTitle].parts[lesson.type] = lesson;
+            return acc;
+        }, {} as Record<string, GroupedLesson>));
+    }, [unit.lessons]);
+
+    return (
+        <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-primary)] overflow-hidden transition-all duration-300">
+            <button onClick={() => setIsExpanded(!isExpanded)} className="w-full flex justify-between items-center p-4 text-right hover:bg-[var(--bg-tertiary)]/50 transition-colors">
+                <div className="flex items-center">
+                    <span className="ml-4 px-2 py-1 text-xs font-mono rounded-md bg-[var(--bg-tertiary)] text-[var(--text-secondary)]">{groupedLessons.length} دروس</span>
+                    <h3 className="font-bold text-lg text-[var(--text-primary)]">{unit.title}</h3>
+                </div>
+                <div className="flex items-center">
+                    <DropdownMenu
+                        onEdit={() => openModal('edit-unit', { grade, semester, unit })}
+                        onDelete={() => openModal('delete-unit', { grade, semester, unit })}
+                    />
+                    <ChevronDownIcon className={`w-6 h-6 text-[var(--text-secondary)] mr-2 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                </div>
+            </button>
+            {isExpanded && (
+                <div className="p-4 border-t border-[var(--border-primary)] space-y-3 fade-in">
+                    {groupedLessons.map(group => (
+                        <div key={group.baseTitle} className="bg-[var(--bg-tertiary)] rounded-lg p-3 flex justify-between items-center">
+                            <div>
+                                <p className="font-semibold text-md text-[var(--text-primary)]">{group.baseTitle}</p>
+                                <div className="flex items-center flex-wrap gap-2 mt-2">
+                                    {Object.entries(group.parts).map(([type, lesson]) => {
+                                        if(!lesson) return null;
+                                        const details = lessonTypeDetails[type as LessonType];
+                                        return <span key={type} title={details.label} className="flex items-center text-xs px-2 py-1 rounded-full bg-black/10 text-[var(--text-secondary)]"><details.icon className="w-4 h-4 ml-1"/> {details.label}</span>
+                                    })}
+                                </div>
+                            </div>
+                            <DropdownMenu
+                                onEdit={() => {
+                                    const firstLesson = Object.values(group.parts)[0];
+                                    if(firstLesson) openModal('edit-lesson', { grade, semester, unit, lesson: firstLesson });
+                                }}
+                                onDelete={() => openModal('delete-group', { grade, semester, unit, group })}
+                            />
+                        </div>
+                    ))}
+                    {groupedLessons.length === 0 && <p className="text-center text-sm text-[var(--text-secondary)] py-4">لا توجد دروس في هذه الوحدة.</p>}
+                    
+                    <div className="pt-3 mt-3 border-t border-[var(--border-primary)]/50">
+                        <p className="text-sm font-semibold text-[var(--text-secondary)] mb-2">إضافة جزء جديد:</p>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+                            {(Object.keys(lessonTypeDetails) as LessonType[]).map(type => (
+                                <button key={type} onClick={() => openModal('add-lesson', { grade, semester, unit, prefill: { type }})} className="flex items-center justify-center p-2 rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--accent-primary)]/20 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
+                                    <PlusIcon className="w-4 h-4 ml-1"/> {lessonTypeDetails[type].label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
 
 // Main Component
 const ContentManagementView: React.FC = () => {
     const [dataVersion, setDataVersion] = useState(0);
     const grades = useMemo(() => getAllGrades(), [dataVersion]);
-    const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
-    // FIX: Used the specific ModalData interface for modal state to ensure type safety, replacing `any`.
     const [modalState, setModalState] = useState<{ type: string | null; data: Partial<ModalData> }>({ type: null, data: {} });
     const { addToast } = useToast();
 
-    const refreshData = () => setDataVersion(v => v + 1);
+    const [selectedGradeId, setSelectedGradeId] = useState<string>('');
+    const [selectedSemesterId, setSelectedSemesterId] = useState<string>('');
+    
+    const selectedGrade = useMemo(() => grades.find(g => g.id.toString() === selectedGradeId), [grades, selectedGradeId]);
+    const selectedSemester = useMemo(() => selectedGrade?.semesters.find(s => s.id === selectedSemesterId), [selectedGrade, selectedSemesterId]);
+    const units = useMemo(() => selectedSemester?.units || [], [selectedSemester]);
 
-    const toggleExpand = (id: string) => setExpandedIds(prev => ({ ...prev, [id]: !prev[id] }));
+    const handleSelectGrade = (gradeId: string) => {
+        setSelectedGradeId(gradeId);
+        setSelectedSemesterId('');
+    };
+
+    const refreshData = () => setDataVersion(v => v + 1);
 
     const handleSaveUnit = (title: string) => {
         const { grade, semester, unit } = modalState.data;
@@ -340,10 +391,8 @@ const ContentManagementView: React.FC = () => {
     const handleDeleteGroup = () => {
         const { grade, semester, unit, group } = modalState.data;
         if (grade && semester && unit && group) {
-            Object.values(group.parts).forEach(lesson => {
-                if(lesson) {
-                    deleteLesson(grade.id, semester.id, unit.id, lesson.id);
-                }
+            (Object.values(group.parts) as (Lesson | undefined)[]).forEach(lesson => {
+                if(lesson) deleteLesson(grade.id, semester.id, unit.id, lesson.id);
             });
             addActivityLog('Content Delete', `Lesson group "${group.baseTitle}" deleted.`);
             addToast('تم حذف مجموعة الدرس بنجاح.', ToastType.SUCCESS);
@@ -352,101 +401,53 @@ const ContentManagementView: React.FC = () => {
         setModalState({ type: null, data: {} });
     };
 
-    // FIX: Used the specific ModalData interface for the data parameter to ensure type safety, replacing `any`.
     const openModal = (type: string, data: Partial<ModalData>) => setModalState({ type, data });
-
+    
     return (
-        <div>
-            <h1 className="text-3xl font-bold mb-6 text-[var(--text-primary)]">إدارة المحتوى التعليمي</h1>
-            <p className="mb-8 text-[var(--text-secondary)]">تحكم كامل في المنهج الدراسي: قم بتجميع الدروس وأجزائها (شرح، واجب، امتحان) في مكان واحد.</p>
-            <div className="space-y-2">
-                {grades.map(grade => (
-                    <div key={grade.id} className="bg-[var(--bg-primary)] rounded-lg border border-[var(--border-primary)]">
-                        <button onClick={() => toggleExpand(`g-${grade.id}`)} className="w-full text-right p-4 flex justify-between items-center hover:bg-[var(--bg-secondary)]/50">
-                            <span className="text-lg font-bold">{grade.name}</span>
-                            <svg className={`w-5 h-5 transform transition-transform ${expandedIds[`g-${grade.id}`] ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                        </button>
-                        {expandedIds[`g-${grade.id}`] && <div className="p-2 md:p-4 border-t border-[var(--border-primary)] space-y-2">
-                            {grade.semesters.map(semester => (
-                                <div key={semester.id} className="bg-[var(--bg-primary)]/30 p-3 rounded-md">
-                                    <div className="flex justify-between items-center mb-2">
-                                        <h3 className="font-semibold text-[var(--text-secondary)]">{semester.title}</h3>
-                                        <button onClick={() => openModal('add-unit', { grade, semester })} className="flex items-center text-xs px-2 py-1 bg-cyan-600/50 hover:bg-cyan-600 rounded-md"><PlusIcon className="w-4 h-4 ml-1"/> إضافة مادة</button>
-                                    </div>
-                                    <div className="space-y-2 pl-2 border-r-2 border-[var(--border-primary)]">
-                                        {semester.units.map(unit => {
-                                            const groupedLessons = unit.lessons.reduce((acc, lesson) => {
-                                                const baseTitle = lesson.title.replace(/^(شرح|واجب|امتحان|ملخص)\s/, '').trim();
-                                                if (!acc[baseTitle]) {
-                                                    acc[baseTitle] = { baseTitle, parts: {} };
-                                                }
-                                                acc[baseTitle].parts[lesson.type] = lesson;
-                                                return acc;
-                                            }, {} as Record<string, GroupedLesson>);
+        <div className="flex flex-col h-full">
+            <div className="flex-shrink-0 flex flex-col sm:flex-row justify-between sm:items-center mb-6 gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold text-[var(--text-primary)]">إدارة المحتوى التعليمي</h1>
+                    <p className="text-[var(--text-secondary)] mt-1">تنظيم المنهج الدراسي بنظام الأكورديون الرأسي.</p>
+                </div>
+                <div className="flex items-center space-x-2 space-x-reverse self-end sm:self-center">
+                    <select value={selectedGradeId} onChange={(e) => handleSelectGrade(e.target.value)} className="w-40 p-2 text-sm rounded-md bg-[var(--bg-secondary)] border border-[var(--border-primary)] focus:ring-2 focus:ring-[var(--accent-primary)]">
+                        <option value="">اختر الصف</option>
+                        {grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                    </select>
+                    <select value={selectedSemesterId} onChange={(e) => setSelectedSemesterId(e.target.value)} disabled={!selectedGrade} className="w-48 p-2 text-sm rounded-md bg-[var(--bg-secondary)] border border-[var(--border-primary)] focus:ring-2 focus:ring-[var(--accent-primary)] disabled:opacity-50">
+                        <option value="">اختر الفصل الدراسي</option>
+                        {selectedGrade?.semesters.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
+                    </select>
+                </div>
+            </div>
 
-                                            return (
-                                                <div key={unit.id} className="bg-[var(--bg-primary)] p-3 rounded-md">
-                                                    <div className="flex justify-between items-center">
-                                                        <p className="font-semibold text-md">{unit.title}</p>
-                                                        <div className="flex items-center space-x-2 space-x-reverse">
-                                                            <button onClick={() => openModal('add-lesson', { grade, semester, unit })} className="text-green-400 hover:text-green-300"><PlusIcon className="w-5 h-5"/></button>
-                                                            <button onClick={() => openModal('edit-unit', { grade, semester, unit })} className="text-yellow-400 hover:text-yellow-300"><PencilIcon className="w-5 h-5"/></button>
-                                                            <button onClick={() => openModal('delete-unit', { grade, semester, unit })} className="text-red-400 hover:text-red-300"><TrashIcon className="w-5 h-5"/></button>
-                                                        </div>
-                                                    </div>
-                                                    <div className="mt-3 space-y-2">
-                                                        {Object.values(groupedLessons).map(group => (
-                                                            <LessonGroupCard key={group.baseTitle} group={group} grade={grade} semester={semester} unit={unit} openModal={openModal} />
-                                                        ))}
-                                                        <button onClick={() => openModal('add-lesson', { grade, semester, unit })} className="w-full text-center text-sm py-2 px-3 mt-2 bg-[var(--bg-secondary)]/50 hover:bg-[var(--bg-secondary)] rounded-md transition-colors text-[var(--text-secondary)]">
-                                                            + إضافة درس جديد...
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>}
+            <div className="flex-grow overflow-y-auto pr-2 -mr-2">
+                {selectedSemester ? (
+                     <div className="space-y-4">
+                        {units.map(unit => (
+                            <UnitAccordion key={unit.id} unit={unit} grade={selectedGrade!} semester={selectedSemester} openModal={openModal} />
+                        ))}
+                        <button onClick={() => openModal('add-unit', { grade: selectedGrade, semester: selectedSemester })} className="w-full text-center p-3 rounded-xl bg-transparent hover:bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors border-2 border-dashed border-[var(--border-primary)] hover:border-[var(--accent-primary)]">
+                            <PlusIcon className="w-6 h-6 inline-block mr-2"/> إضافة وحدة جديدة
+                        </button>
                     </div>
-                ))}
+                ) : (
+                    <div className="w-full h-full flex items-center justify-center text-center text-[var(--text-secondary)] p-4 min-h-[50vh]">
+                        <div>
+                            <CollectionIcon className="w-16 h-16 mx-auto opacity-20 mb-4" />
+                            <h3 className="font-bold text-lg text-[var(--text-primary)]">ابدأ التنظيم</h3>
+                            <p>اختر صفًا وفصلاً دراسيًا لعرض الوحدات والدروس.</p>
+                        </div>
+                    </div>
+                )}
             </div>
             
-            <UnitEditModal 
-                isOpen={['add-unit', 'edit-unit'].includes(modalState.type || '')}
-                onClose={() => setModalState({ type: null, data: {} })}
-                onSave={handleSaveUnit}
-                unit={modalState.type === 'edit-unit' ? modalState.data.unit : null}
-            />
-            <LessonEditModal
-                isOpen={['add-lesson', 'edit-lesson'].includes(modalState.type || '')}
-                onClose={() => setModalState({ type: null, data: {} })}
-                onSave={handleSaveLesson}
-                lesson={modalState.type === 'edit-lesson' ? modalState.data.lesson : null}
-                prefill={modalState.type === 'add-lesson' ? modalState.data.prefill : undefined}
-            />
-            <ConfirmationModal
-                isOpen={modalState.type === 'delete-unit'}
-                onClose={() => setModalState({ type: null, data: {} })}
-                onConfirm={handleDeleteUnit}
-                title="تأكيد حذف المادة"
-                message={`هل أنت متأكد من رغبتك في حذف مادة "${modalState.data.unit?.title}"؟ سيتم حذف جميع الدروس المرتبطة بها بشكل دائم.`}
-            />
-             <ConfirmationModal
-                isOpen={modalState.type === 'delete-lesson'}
-                onClose={() => setModalState({ type: null, data: {} })}
-                onConfirm={handleDeleteLesson}
-                title="تأكيد حذف جزء من الدرس"
-                message={`هل أنت متأكد من رغبتك في حذف "${modalState.data.lesson?.title}"؟ لا يمكن التراجع عن هذا الإجراء.`}
-            />
-            <ConfirmationModal
-                isOpen={modalState.type === 'delete-group'}
-                onClose={() => setModalState({ type: null, data: {} })}
-                onConfirm={handleDeleteGroup}
-                title="تأكيد حذف مجموعة الدرس"
-                message={`هل أنت متأكد من رغبتك في حذف درس "${modalState.data.group?.baseTitle}" بجميع أجزائه (الشرح، الواجب، ...إلخ)؟ لا يمكن التراجع عن هذا الإجراء.`}
-            />
+            <UnitEditModal isOpen={['add-unit', 'edit-unit'].includes(modalState.type || '')} onClose={() => setModalState({ type: null, data: {} })} onSave={handleSaveUnit} unit={modalState.type === 'edit-unit' ? modalState.data.unit : null} />
+            <LessonEditModal isOpen={['add-lesson', 'edit-lesson'].includes(modalState.type || '')} onClose={() => setModalState({ type: null, data: {} })} onSave={handleSaveLesson} lesson={modalState.type === 'edit-lesson' ? modalState.data.lesson : null} prefill={modalState.type === 'add-lesson' ? modalState.data.prefill : undefined} />
+            <ConfirmationModal isOpen={modalState.type === 'delete-unit'} onClose={() => setModalState({ type: null, data: {} })} onConfirm={handleDeleteUnit} title="تأكيد حذف الوحدة" message={`هل أنت متأكد من رغبتك في حذف وحدة "${modalState.data.unit?.title}"؟ سيتم حذف جميع الدروس المرتبطة بها بشكل دائم.`} />
+            <ConfirmationModal isOpen={modalState.type === 'delete-lesson'} onClose={() => setModalState({ type: null, data: {} })} onConfirm={handleDeleteLesson} title="تأكيد حذف جزء من الدرس" message={`هل أنت متأكد من رغبتك في حذف "${modalState.data.lesson?.title}"؟ لا يمكن التراجع عن هذا الإجراء.`} />
+            <ConfirmationModal isOpen={modalState.type === 'delete-group'} onClose={() => setModalState({ type: null, data: {} })} onConfirm={handleDeleteGroup} title="تأكيد حذف مجموعة الدرس" message={`هل أنت متأكد من رغبتك في حذف درس "${modalState.data.group?.baseTitle}" بجميع أجزائه (الشرح، الواجب، ...إلخ)؟ لا يمكن التراجع عن هذا الإجراء.`} />
         </div>
     );
 };
