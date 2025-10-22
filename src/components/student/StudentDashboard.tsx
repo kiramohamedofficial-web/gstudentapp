@@ -1,6 +1,3 @@
-
-
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { User, Unit, StudentView } from '../../types';
 import { getGradeById, generateSubscriptionNotifications } from '../../services/storageService';

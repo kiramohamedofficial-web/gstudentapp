@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { User } from '../../types';
-import { CollectionIcon, KeyIcon, CreditCardIcon, HomeIcon, MenuIcon, XIcon, TemplateIcon, SparklesIcon, CogIcon, LogoutIcon, UsersIcon, UsersSolidIcon, UserCircleIcon } from '../common/Icons';
+import { CollectionIcon, QrcodeIcon, CreditCardIcon, HomeIcon, MenuIcon, XIcon, TemplateIcon, SparklesIcon, CogIcon, LogoutIcon, UsersIcon, UsersSolidIcon, UserCircleIcon } from '../common/Icons';
 
 type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'content' | 'tools' | 'homeManagement' | 'questionGenerator' | 'platformSettings' | 'teacherManagement' | 'accountSettings';
 
@@ -10,6 +10,7 @@ interface AdminLayoutProps {
   children: React.ReactNode;
   onNavClick: (view: AdminView) => void;
   activeView: string;
+  pendingQuestionsCount: number;
   pendingSubscriptionsCount: number;
 }
 
@@ -44,7 +45,7 @@ const NavContent: React.FC<{ activeView: string; onNavClick: (view: AdminView) =
         { id: 'homeManagement', label: 'إدارة الرئيسية', icon: TemplateIcon },
         { id: 'subscriptions', label: 'الاشتراكات', icon: CreditCardIcon, notificationCount: pendingSubscriptionsCount },
         { id: 'questionGenerator', label: 'مولد الأسئلة (AI)', icon: SparklesIcon },
-        { id: 'tools', label: 'الأدوات', icon: KeyIcon },
+        { id: 'tools', label: 'الأدوات', icon: QrcodeIcon },
         { id: 'platformSettings', label: 'إعدادات المنصة', icon: CogIcon },
         { id: 'accountSettings', label: 'إعدادات الحساب', icon: UserCircleIcon },
     ];

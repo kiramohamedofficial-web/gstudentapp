@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { Subject, Question, GeneratorFormState, QuestionType, Difficulty } from '../../types';
 import { CURRICULUM_TOPICS } from '../../constants';
@@ -73,7 +72,6 @@ const QuestionGeneratorView: React.FC = () => {
             const newDifficulty: typeof prev.difficulty = { ...prev.difficulty, [difficultyKey]: changedValue };
             const otherSliders = (Object.keys(newDifficulty) as Array<keyof typeof newDifficulty>).filter(k => k !== difficultyKey);
 
-            // FIX: Replaced reduce with direct property summation to fix type inference errors.
             const currentTotal = newDifficulty.easy + newDifficulty.medium + newDifficulty.hard;
             
             if (currentTotal > 100) {
@@ -91,7 +89,6 @@ const QuestionGeneratorView: React.FC = () => {
     };
     
     const handleGenerate = async () => {
-        // FIX: Replaced reduce with direct property summation to fix type inference errors.
         const difficultySum = formState.difficulty.easy + formState.difficulty.medium + formState.difficulty.hard;
         if (difficultySum !== 100) {
             addToast('يجب أن يكون مجموع توزيع الصعوبة 100%.', 'error');
@@ -166,7 +163,7 @@ const QuestionGeneratorView: React.FC = () => {
                              </div>
                         </div>
                     </div>
-                     <button onClick={handleGenerate} disabled={isLoading} className="mt-8 w-full flex items-center justify-center py-3 px-4 font-bold text-white bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg transition-transform transform hover:scale-105 shadow-lg shadow-purple-500/30 disabled:opacity-50 disabled:cursor-not-allowed">
+                     <button onClick={handleGenerate} disabled={isLoading} className="mt-8 w-full flex items-center justify-center py-3 px-4 font-bold text-white bg-gradient-to-r from-purple-600 to-pink-500 rounded-lg transition-transform transform hover:scale-105 shadow-lg shadow-purple-500/30 disabled:opacity-50 disabled:cursor-not-allowed">
                         {isLoading ? <Loader /> : <><SparklesIcon className="w-5 h-5 ml-2"/> إنشاء الأسئلة</>}
                     </button>
                 </div>

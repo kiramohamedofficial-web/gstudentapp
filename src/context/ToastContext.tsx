@@ -1,5 +1,3 @@
-
-
 import React, { createContext, useState, useCallback } from 'react';
 import { ToastMessage, ToastType } from '../types';
 

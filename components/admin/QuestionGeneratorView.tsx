@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Subject, Question, GeneratorFormState, QuestionType, Difficulty } from '../../types';
 // FIX: Corrected import path for CURRICULUM_TOPICS.
-import { CURRICULUM_TOPICS } from '../../src/constants';
+import { CURRICULUM_TOPICS } from '../../constants';
 import { generateQuestions } from '../../services/geminiService';
 import { SparklesIcon, DocumentTextIcon, CheckCircleIcon } from '../common/Icons';
 import Loader from '../common/Loader';

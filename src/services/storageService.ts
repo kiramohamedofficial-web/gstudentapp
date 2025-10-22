@@ -380,7 +380,6 @@ export const updateLesson = (gradeId: number, semesterId: string, unitId: string
     if (!grade) return;
     const semester = grade.semesters.find(s => s.id === semesterId);
     if (!semester) return;
-    // FIX: Use `unitId` from parameters instead of a non-existent `updatedUnit`.
     const unit = semester.units.find(u => u.id === unitId);
     if (!unit) return;
     const lessonIndex = unit.lessons.findIndex(l => l.id === updatedLesson.id);
@@ -395,7 +394,6 @@ export const deleteLesson = (gradeId: number, semesterId: string, unitId: string
     if (!grade) return;
     const semester = grade.semesters.find(s => s.id === semesterId);
     if (!semester) return;
-    // FIX: This was finding the wrong unit (the first one that was NOT the target). Corrected to find the correct unit.
     const unit = semester.units.find(u => u.id === unitId);
     if (!unit) return;
     unit.lessons = unit.lessons.filter(l => l.id !== lessonId);
