@@ -1,12 +1,12 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { Subject, Question, GeneratorFormState, QuestionType, Difficulty } from '../../types';
-// FIX: Corrected import path for CURRICULUM_TOPICS.
-import { CURRICULUM_TOPICS } from '../../src/constants';
+import { CURRICULUM_TOPICS } from '../../constants';
 import { generateQuestions } from '../../services/geminiService';
 import { SparklesIcon, DocumentTextIcon, CheckCircleIcon } from '../common/Icons';
 import Loader from '../common/Loader';
-import { useToast } from '../../useToast';
+import { useToast } from '../../hooks/useToast';
 
 const QuestionCard: React.FC<{ question: Question, index: number }> = ({ question, index }) => (
     <div className="bg-[var(--bg-tertiary)] p-4 rounded-lg border border-[var(--border-primary)] fade-in" style={{ animationDelay: `${index * 50}ms` }}>

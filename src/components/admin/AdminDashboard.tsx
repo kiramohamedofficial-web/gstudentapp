@@ -6,7 +6,6 @@ import StudentDetailView from './StudentDetailView';
 import { 
     getAllUsers, 
     getActivityLogs, 
-    // FIX: Corrected function name from getSubscriptionByUserId to getSubscriptionsByUserId
     getSubscriptionsByUserId, 
     getAllSubscriptions, 
     getAllGrades,
@@ -19,7 +18,6 @@ import ContentManagementView from './ContentManagementView';
 import AccessCodeGeneratorView from './QrCodeGeneratorView';
 import HomeManagementView from './HomeManagementView';
 import QuestionGeneratorView from './QuestionGeneratorView';
-// FIX: Changed to a named import as PlatformSettingsView is not a default export.
 import { PlatformSettingsView } from './PlatformSettingsView';
 import TeacherManagementView from './TeacherManagementView';
 import AccountSettingsView from './AdminSettingsView';
@@ -71,7 +69,6 @@ const StudentManagementView: React.FC<{ onViewDetails: (user: User) => void }> =
             .map(user => ({
                 ...user,
                 progress: calculateStudentProgress(user, allGrades),
-                // FIX: Use getSubscriptionsByUserId and find an active subscription to match the expected logic.
                 subscription: getSubscriptionsByUserId(user.id).find(s => s.status === 'Active'),
             }))
             .filter(user => {

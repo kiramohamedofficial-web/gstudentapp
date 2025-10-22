@@ -113,6 +113,17 @@ export interface SubscriptionRequest {
   createdAt: string;
 }
 
+// FIX: Add StudentQuestion interface
+export interface StudentQuestion {
+  id: string;
+  userId: string;
+  userName: string;
+  questionText: string;
+  answerText?: string;
+  status: 'Pending' | 'Answered';
+  createdAt: string;
+}
+
 export enum ToastType {
   SUCCESS = 'success',
   ERROR = 'error',

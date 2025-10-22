@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { User, PlatformSettings, ToastType } from '../../types';
 import { getPlatformSettings, updatePlatformSettings } from '../../services/storageService';
-import { useToast } from '../../useToast';
+import { useToast } from '../../hooks/useToast';
 import { UserCircleIcon, TemplateIcon, SparklesIcon, CogIcon } from '../common/Icons';
 
 
@@ -48,7 +48,6 @@ interface PlatformSettingsViewProps {
 
 type SettingsTab = 'profile' | 'hero' | 'features' | 'footer' | 'branding';
 
-// FIX: Changed to a named export to resolve module loading issue.
 export const PlatformSettingsView: React.FC<PlatformSettingsViewProps> = ({ user }) => {
     const [settings, setSettings] = useState<PlatformSettings | null>(null);
     const [isLoading, setIsLoading] = useState(true);
