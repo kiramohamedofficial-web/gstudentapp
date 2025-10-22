@@ -1,4 +1,4 @@
-import { Teacher } from '../../types';
+import { Teacher } from '../types';
 
 export const teachers: Teacher[] = [
   { id: 't1', name: 'أ. محمد عبد المعبود', subject: 'الرياضيات', imageUrl: 'https://i.ibb.co/bJCmnz5/teacher1.png', levels: ['Middle', 'Secondary'], grades: [7, 8, 9, 10, 11, 12] },

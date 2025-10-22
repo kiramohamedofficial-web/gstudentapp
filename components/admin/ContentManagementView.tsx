@@ -1,11 +1,11 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { Grade, Semester, Unit, Lesson, LessonType, ToastType } from '../../types';
+import { Grade, Semester, Unit, Lesson, LessonType, ToastType, Teacher } from '../../types';
 import { 
     getAllGrades, addLessonToUnit, updateLesson, deleteLesson,
-    addUnitToSemester, updateUnit, deleteUnit, addActivityLog 
+    addUnitToSemester, updateUnit, deleteUnit, addActivityLog, getTeachers, assignTeacherToUnit
 } from '../../services/storageService';
 import Modal from '../common/Modal';
-import { PlusIcon, PencilIcon, TrashIcon, CheckCircleIcon, VideoCameraIcon, DocumentTextIcon, BookOpenIcon, DotsVerticalIcon, CollectionIcon, ChevronDownIcon } from '../common/Icons';
+import { PlusIcon, PencilIcon, TrashIcon, CheckCircleIcon, VideoCameraIcon, DocumentTextIcon, BookOpenIcon, DotsVerticalIcon, CollectionIcon, ChevronDownIcon, UsersSolidIcon, XIcon } from '../common/Icons';
 import { useToast } from '../../useToast';
 
 // Helper to parse YouTube video ID from various URL formats
@@ -241,7 +241,7 @@ const DropdownMenu: React.FC<{ onEdit: () => void; onDelete: () => void }> = ({ 
     );
 };
 
-const UnitAccordion: React.FC<{ unit: Unit; grade: Grade; semester: Semester; openModal: (type: string, data: Partial<ModalData>) => void; }> = ({ unit, grade, semester, openModal }) => {
+const UnitAccordion: React.FC<{ unit: Unit; grade: Grade; semester: Semester; teacher: Teacher | undefined; openModal: (type: string, data: Partial<ModalData>) => void; onAssignTeacher: (unit: Unit) => void; }> = ({ unit, grade, semester, teacher, openModal, onAssignTeacher }) => {
     const [isExpanded, setIsExpanded] = useState(false);
 
     const groupedLessons = useMemo(() => {
@@ -258,9 +258,23 @@ const UnitAccordion: React.FC<{ unit: Unit; grade: Grade; semester: Semester; op
     return (
         <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-primary)] overflow-hidden transition-all duration-300">
             <button onClick={() => setIsExpanded(!isExpanded)} className="w-full flex justify-between items-center p-4 text-right hover:bg-[var(--bg-tertiary)]/50 transition-colors">
-                <div className="flex items-center">
-                    <span className="ml-4 px-2 py-1 text-xs font-mono rounded-md bg-[var(--bg-tertiary)] text-[var(--text-secondary)]">{groupedLessons.length} دروس</span>
-                    <h3 className="font-bold text-lg text-[var(--text-primary)]">{unit.title}</h3>
+                <div className="flex items-center space-x-4 space-x-reverse">
+                    <button onClick={(e) => { e.stopPropagation(); onAssignTeacher(unit); }} className="flex-shrink-0 group relative">
+                        {teacher ? (
+                            <img src={teacher.imageUrl} alt={teacher.name} className="w-12 h-12 rounded-full object-cover border-2 border-[var(--border-primary)] group-hover:border-purple-400 transition-colors" />
+                        ) : (
+                            <div className="w-12 h-12 rounded-full bg-[var(--bg-tertiary)] border-2 border-dashed border-[var(--border-primary)] flex items-center justify-center group-hover:border-purple-400 transition-colors">
+                                <UsersSolidIcon className="w-6 h-6 text-[var(--text-secondary)]"/>
+                            </div>
+                        )}
+                         <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <PencilIcon className="w-5 h-5 text-white"/>
+                        </div>
+                    </button>
+                    <div>
+                        <h3 className="font-bold text-lg text-[var(--text-primary)]">{unit.title}</h3>
+                        <p className="text-sm text-[var(--text-secondary)]">{teacher ? teacher.name : 'غير مسند'}</p>
+                    </div>
                 </div>
                 <div className="flex items-center">
                     <DropdownMenu
@@ -311,10 +325,38 @@ const UnitAccordion: React.FC<{ unit: Unit; grade: Grade; semester: Semester; op
     );
 };
 
+const TeacherAssignmentModal: React.FC<{isOpen: boolean; onClose: () => void; onSave: (teacherId: string | null) => void; unit: Unit | null; allTeachers: Teacher[]}> = ({isOpen, onClose, onSave, unit, allTeachers}) => {
+    if (!unit) return null;
+    return (
+        <Modal isOpen={isOpen} onClose={onClose} title={`تعيين معلم لمادة: ${unit.title}`}>
+            <div className="space-y-2 max-h-80 overflow-y-auto">
+                {allTeachers.map(teacher => (
+                    <button key={teacher.id} onClick={() => onSave(teacher.id)} className={`w-full text-right p-3 rounded-lg flex items-center space-x-3 space-x-reverse transition-colors ${unit.teacherId === teacher.id ? 'bg-purple-500/20' : 'hover:bg-[var(--bg-tertiary)]'}`}>
+                        <img src={teacher.imageUrl} alt={teacher.name} className="w-10 h-10 rounded-full object-cover"/>
+                        <div>
+                            <p className="font-semibold text-[var(--text-primary)]">{teacher.name}</p>
+                            <p className="text-xs text-[var(--text-secondary)]">{teacher.subject}</p>
+                        </div>
+                    </button>
+                ))}
+            </div>
+            <div className="mt-4 pt-4 border-t border-[var(--border-primary)]">
+                <button onClick={() => onSave(null)} className="w-full p-3 rounded-lg flex items-center space-x-3 space-x-reverse hover:bg-[var(--bg-tertiary)] text-red-500">
+                    <XIcon className="w-6 h-6 p-1 bg-red-500/10 rounded-full"/>
+                    <span>إلغاء تعيين المعلم</span>
+                </button>
+            </div>
+        </Modal>
+    )
+}
+
 // Main Component
 const ContentManagementView: React.FC = () => {
     const [dataVersion, setDataVersion] = useState(0);
     const grades = useMemo(() => getAllGrades(), [dataVersion]);
+    const allTeachers = useMemo(() => getTeachers(), [dataVersion]);
+    const teacherMap = useMemo(() => new Map(allTeachers.map(t => [t.id, t])), [allTeachers]);
+    
     const [modalState, setModalState] = useState<{ type: string | null; data: Partial<ModalData> }>({ type: null, data: {} });
     const { addToast } = useToast();
 
@@ -401,6 +443,16 @@ const ContentManagementView: React.FC = () => {
         setModalState({ type: null, data: {} });
     };
 
+    const handleAssignTeacherSave = (teacherId: string | null) => {
+        const { grade, semester, unit } = modalState.data;
+        if(grade && semester && unit) {
+            assignTeacherToUnit(grade.id, semester.id, unit.id, teacherId);
+            addToast('تم تحديث المعلم بنجاح!', ToastType.SUCCESS);
+        }
+        refreshData();
+        setModalState({ type: null, data: {} });
+    }
+
     const openModal = (type: string, data: Partial<ModalData>) => setModalState({ type, data });
     
     return (
@@ -408,7 +460,7 @@ const ContentManagementView: React.FC = () => {
             <div className="flex-shrink-0 flex flex-col sm:flex-row justify-between sm:items-center mb-6 gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-[var(--text-primary)]">إدارة المحتوى التعليمي</h1>
-                    <p className="text-[var(--text-secondary)] mt-1">تنظيم المنهج الدراسي بنظام الأكورديون الرأسي.</p>
+                    <p className="text-[var(--text-secondary)] mt-1">تنظيم المنهج الدراسي وربط المعلمين بالمواد.</p>
                 </div>
                 <div className="flex items-center space-x-2 space-x-reverse self-end sm:self-center">
                     <select value={selectedGradeId} onChange={(e) => handleSelectGrade(e.target.value)} className="w-40 p-2 text-sm rounded-md bg-[var(--bg-secondary)] border border-[var(--border-primary)] focus:ring-2 focus:ring-[var(--accent-primary)]">
@@ -426,7 +478,15 @@ const ContentManagementView: React.FC = () => {
                 {selectedSemester ? (
                      <div className="space-y-4">
                         {units.map(unit => (
-                            <UnitAccordion key={unit.id} unit={unit} grade={selectedGrade!} semester={selectedSemester} openModal={openModal} />
+                            <UnitAccordion 
+                                key={unit.id} 
+                                unit={unit} 
+                                grade={selectedGrade!} 
+                                semester={selectedSemester} 
+                                teacher={unit.teacherId ? teacherMap.get(unit.teacherId) : undefined}
+                                openModal={openModal}
+                                onAssignTeacher={(u) => openModal('assign-teacher', { unit: u, grade: selectedGrade, semester: selectedSemester })}
+                            />
                         ))}
                         <button onClick={() => openModal('add-unit', { grade: selectedGrade, semester: selectedSemester })} className="w-full text-center p-3 rounded-xl bg-transparent hover:bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors border-2 border-dashed border-[var(--border-primary)] hover:border-[var(--accent-primary)]">
                             <PlusIcon className="w-6 h-6 inline-block mr-2"/> إضافة وحدة جديدة
@@ -448,6 +508,7 @@ const ContentManagementView: React.FC = () => {
             <ConfirmationModal isOpen={modalState.type === 'delete-unit'} onClose={() => setModalState({ type: null, data: {} })} onConfirm={handleDeleteUnit} title="تأكيد حذف الوحدة" message={`هل أنت متأكد من رغبتك في حذف وحدة "${modalState.data.unit?.title}"؟ سيتم حذف جميع الدروس المرتبطة بها بشكل دائم.`} />
             <ConfirmationModal isOpen={modalState.type === 'delete-lesson'} onClose={() => setModalState({ type: null, data: {} })} onConfirm={handleDeleteLesson} title="تأكيد حذف جزء من الدرس" message={`هل أنت متأكد من رغبتك في حذف "${modalState.data.lesson?.title}"؟ لا يمكن التراجع عن هذا الإجراء.`} />
             <ConfirmationModal isOpen={modalState.type === 'delete-group'} onClose={() => setModalState({ type: null, data: {} })} onConfirm={handleDeleteGroup} title="تأكيد حذف مجموعة الدرس" message={`هل أنت متأكد من رغبتك في حذف درس "${modalState.data.group?.baseTitle}" بجميع أجزائه (الشرح، الواجب، ...إلخ)؟ لا يمكن التراجع عن هذا الإجراء.`} />
+            <TeacherAssignmentModal isOpen={modalState.type === 'assign-teacher'} onClose={() => setModalState({type: null, data: {}})} onSave={handleAssignTeacherSave} unit={modalState.data.unit || null} allTeachers={allTeachers} />
         </div>
     );
 };

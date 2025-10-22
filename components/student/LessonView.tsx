@@ -30,6 +30,12 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, grade, user, on
         setCurrentLesson(lesson);
     }, [lesson]);
 
+    useEffect(() => {
+        if (currentLesson.type === LessonType.SUMMARY) {
+            onLessonComplete(currentLesson.id);
+        }
+    }, [currentLesson, onLessonComplete]);
+
     const subjectTitle = useMemo(() => {
         for (const semester of grade.semesters) {
             for (const unit of semester.units) {

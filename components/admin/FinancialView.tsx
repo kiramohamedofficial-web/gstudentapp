@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useCallback } from 'react';
 import { SubscriptionRequest, ToastType, Subscription } from '../../types';
 import { getSubscriptionRequests, updateSubscriptionRequest, createOrUpdateSubscription, getAllSubscriptions, getAllUsers } from '../../services/storageService';
@@ -8,17 +9,18 @@ const ApprovalModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;
     request: SubscriptionRequest | null;
-    onConfirm: (request: SubscriptionRequest, plan: 'Monthly' | 'Quarterly' | 'Annual', customEndDate?: string) => void;
+    onConfirm: (request: SubscriptionRequest, plan: 'Monthly' | 'Quarterly' | 'Annual' | 'SemiAnnually', customEndDate?: string) => void;
 }> = ({ isOpen, onClose, request, onConfirm }) => {
     const [endDate, setEndDate] = useState('');
     
     if (!request) return null;
 
-    const calculateDefaultEndDate = (plan: 'Monthly' | 'Quarterly' | 'Annual') => {
+    const calculateDefaultEndDate = (plan: 'Monthly' | 'Quarterly' | 'Annual' | 'SemiAnnually') => {
         const d = new Date();
         switch (plan) {
             case 'Monthly': d.setMonth(d.getMonth() + 1); break;
             case 'Quarterly': d.setMonth(d.getMonth() + 3); break;
+            case 'SemiAnnually': d.setMonth(d.getMonth() + 6); break;
             case 'Annual': d.setFullYear(d.getFullYear() + 1); break;
         }
         return d.toISOString().split('T')[0];
@@ -31,7 +33,7 @@ const ApprovalModal: React.FC<{
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={`تفعيل اشتراك ${request.userName}`}>
             <div className="space-y-4">
-                <p>أنت على وشك تفعيل باقة <span className="font-bold">{request.plan}</span> للطالب.</p>
+                <p>أنت على وشك تفعيل باقة <span className="font-bold">{request.plan}</span> للطالب في مادة <span className="font-bold">"{request.itemName}"</span>.</p>
                 <div>
                     <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">تاريخ الانتهاء (اختياري)</label>
                     <input
@@ -64,8 +66,8 @@ const SubscriptionManagementView: React.FC = () => {
 
     const refreshData = useCallback(() => setDataVersion(v => v + 1), []);
 
-    const handleApproveConfirm = (request: SubscriptionRequest, plan: 'Monthly' | 'Quarterly' | 'Annual', customEndDate?: string) => {
-        createOrUpdateSubscription(request.userId, plan, 'Active', customEndDate);
+    const handleApproveConfirm = (request: SubscriptionRequest, plan: 'Monthly' | 'Quarterly' | 'Annual' | 'SemiAnnually', customEndDate?: string) => {
+        createOrUpdateSubscription(request.userId, plan, 'Active', request.itemId, request.itemName, request.itemType, customEndDate);
         updateSubscriptionRequest({ ...request, status: 'Approved' });
         addToast(`تم تفعيل اشتراك ${request.userName} بنجاح.`, ToastType.SUCCESS);
         setApprovalRequest(null);
@@ -88,9 +90,10 @@ const SubscriptionManagementView: React.FC = () => {
         Expired: 'الاشتراكات المنتهية',
     }
 
-    const planLabels: Record<'Monthly' | 'Quarterly' | 'Annual', string> = {
+    const planLabels: Record<'Monthly' | 'Quarterly' | 'Annual' | 'SemiAnnually', string> = {
         Monthly: 'شهري',
         Quarterly: 'ربع سنوي',
+        SemiAnnually: 'نصف سنوي',
         Annual: 'سنوي'
     };
 
@@ -99,6 +102,7 @@ const SubscriptionManagementView: React.FC = () => {
             {filteredRequests.length > 0 ? filteredRequests.map(req => (
                 <tr key={req.id} className="hover:bg-[var(--bg-tertiary)] transition-colors">
                     <td className="px-6 py-4 font-semibold text-[var(--text-primary)]">{req.userName}</td>
+                    <td className="px-6 py-4">{req.itemName}</td>
                     <td className="px-6 py-4">{planLabels[req.plan]}</td>
                     <td className="px-6 py-4 font-mono tracking-wider">{req.paymentFromNumber}</td>
                     <td className="px-6 py-4">{new Date(req.createdAt).toLocaleDateString('ar-EG', { day: '2-digit', month: 'long', year: 'numeric' })}</td>
@@ -111,7 +115,7 @@ const SubscriptionManagementView: React.FC = () => {
                 </tr>
             )) : (
                 <tr>
-                    <td colSpan={5} className="text-center py-12 text-[var(--text-secondary)]">
+                    <td colSpan={6} className="text-center py-12 text-[var(--text-secondary)]">
                         لا توجد طلبات في هذا القسم.
                     </td>
                 </tr>
@@ -124,13 +128,14 @@ const SubscriptionManagementView: React.FC = () => {
             {subscriptions.length > 0 ? subscriptions.map(sub => (
                 <tr key={sub.id} className="hover:bg-[var(--bg-tertiary)] transition-colors">
                     <td className="px-6 py-4 font-semibold text-[var(--text-primary)]">{userMap.get(sub.userId) || 'طالب محذوف'}</td>
+                    <td className="px-6 py-4">{sub.itemName}</td>
                     <td className="px-6 py-4">{planLabels[sub.plan]}</td>
                     <td className="px-6 py-4">{new Date(sub.startDate).toLocaleDateString('ar-EG')}</td>
                     <td className="px-6 py-4">{new Date(sub.endDate).toLocaleDateString('ar-EG')}</td>
                 </tr>
             )) : (
                  <tr>
-                    <td colSpan={4} className="text-center py-12 text-[var(--text-secondary)]">
+                    <td colSpan={5} className="text-center py-12 text-[var(--text-secondary)]">
                         لا توجد اشتراكات في هذا القسم.
                     </td>
                 </tr>
@@ -161,6 +166,7 @@ const SubscriptionManagementView: React.FC = () => {
                        {activeTab === 'Pending' ? (
                             <tr>
                                 <th className="px-6 py-4 font-bold text-[var(--text-primary)]">الطالب</th>
+                                <th className="px-6 py-4 font-bold text-[var(--text-primary)]">المادة</th>
                                 <th className="px-6 py-4 font-bold text-[var(--text-primary)]">الباقة المطلوبة</th>
                                 <th className="px-6 py-4 font-bold text-[var(--text-primary)]">رقم الدفع</th>
                                 <th className="px-6 py-4 font-bold text-[var(--text-primary)]">تاريخ الطلب</th>
@@ -169,6 +175,7 @@ const SubscriptionManagementView: React.FC = () => {
                        ) : (
                             <tr>
                                 <th className="px-6 py-4 font-bold text-[var(--text-primary)]">الطالب</th>
+                                <th className="px-6 py-4 font-bold text-[var(--text-primary)]">المادة</th>
                                 <th className="px-6 py-4 font-bold text-[var(--text-primary)]">الباقة</th>
                                 <th className="px-6 py-4 font-bold text-[var(--text-primary)]">تاريخ البدء</th>
                                 <th className="px-6 py-4 font-bold text-[var(--text-primary)]">تاريخ الانتهاء</th>

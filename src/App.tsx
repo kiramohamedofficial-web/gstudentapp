@@ -6,7 +6,7 @@ import StudentDashboard from './components/student/StudentDashboard';
 import AdminDashboard from './components/admin/AdminDashboard';
 import Loader from './components/common/Loader';
 import { ToastContainer } from './components/common/Toast';
-import { useToast } from './useToast';
+import { useToast } from './hooks/useToast';
 import WelcomeScreen from './components/welcome/WelcomeScreen';
 import RegistrationScreen from './components/auth/RegistrationScreen';
 import ScreenSecurity from './components/common/ScreenSecurity';

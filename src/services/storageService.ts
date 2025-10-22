@@ -14,11 +14,10 @@ import {
   QuizAttempt,
   PlatformSettings,
   Teacher,
-  StudentQuestion,
   Notification,
 } from '../types';
 import { DEMO_ADMIN_IDENTIFIER, DEMO_ADMIN_PASSWORD, DEMO_STUDENT_IDENTIFIER, DEMO_STUDENT_PASSWORD } from '../constants';
-import { teachers as initialTeachers } from '../components/student/teacherData';
+import { teachers as initialTeachers } from '../data/teacherData';
 
 // --- New Curriculum Data Generation ---
 
@@ -187,11 +186,6 @@ const notifications: Notification[] = [
     }
 ];
 
-// FIX: Add StudentQuestion data store
-const studentQuestions: StudentQuestion[] = [
-  { id: 'q1', userId: '1', userName: 'طالب تجريبي', questionText: 'ما هو الفرق بين التفاضل والتكامل؟', status: 'Answered', createdAt: '2024-07-20T10:00:00Z', answerText: 'التفاضل يدرس معدل التغير، بينما التكامل يدرس المساحة تحت المنحنى. هما عمليتان عكسيتان.' },
-  { id: 'q2', userId: '1', userName: 'طالب تجريبي', questionText: 'كيف يمكنني حل هذه المسألة الفيزيائية؟', status: 'Pending', createdAt: '2024-07-21T12:30:00Z' },
-];
 // New store for user-specific lesson progress
 const userProgress: Record<string, Record<string, boolean>> = {};
 
@@ -227,8 +221,6 @@ export const initData = (): void => {
     setData('featuredBooks', featuredBooks);
     setData('quizAttempts', quizAttempts);
     setData('userProgress', userProgress);
-    // FIX: Initialize studentQuestions store
-    setData('studentQuestions', studentQuestions);
     setData('notifications', notifications);
   }
 };
@@ -643,41 +635,6 @@ export const getQuizAttemptsByUserId = (userId: string): QuizAttempt[] => {
 export const getLatestQuizAttemptForLesson = (userId: string, lessonId: string): QuizAttempt | undefined => {
     const userAttempts = getQuizAttemptsByUserId(userId);
     return userAttempts.find(a => a.lessonId === lessonId);
-};
-
-// --- Student Question Functions ---
-export const getAllStudentQuestions = (): StudentQuestion[] => {
-    const questions = getData<StudentQuestion>('studentQuestions');
-    return questions.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-};
-
-export const getStudentQuestionsByUserId = (userId: string): StudentQuestion[] => {
-    return getAllStudentQuestions().filter(q => q.userId === userId);
-};
-
-export const addStudentQuestion = (userId: string, userName: string, questionText: string): void => {
-    const questions = getAllStudentQuestions();
-    const newQuestion: StudentQuestion = {
-        id: `q-${Date.now()}`,
-        userId,
-        userName,
-        questionText,
-        status: 'Pending',
-        createdAt: new Date().toISOString(),
-    };
-    setData('studentQuestions', [newQuestion, ...questions]);
-    addActivityLog('Question Asked', `User "${userName}" asked a question.`);
-};
-
-export const answerStudentQuestion = (questionId: string, answerText: string): void => {
-    let questions = getAllStudentQuestions();
-    const index = questions.findIndex(q => q.id === questionId);
-    if (index !== -1) {
-        questions[index].answerText = answerText;
-        questions[index].status = 'Answered';
-        setData('studentQuestions', questions);
-        addActivityLog('Question Answered', `Answered question ID ${questionId}.`);
-    }
 };
 
 // --- Platform Settings Functions ---

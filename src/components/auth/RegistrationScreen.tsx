@@ -46,6 +46,7 @@ const normalizePhoneNumber = (phone: string): string => {
     return ''; // Return empty for invalid formats to fail regex
 };
 
+// FIX: A stray `const;` declaration was present in this file, causing a syntax error. It has been removed.
 const RegistrationScreen: React.FC<RegistrationScreenProps> = ({ onRegister, error, onBack, registrationCode }) => {
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState({

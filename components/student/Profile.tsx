@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { User, ToastType } from '../../types';
-import { getGradeById, getSubscriptionByUserId, getUserProgress } from '../../services/storageService';
+import { getGradeById, getSubscriptionsByUserId, getUserProgress } from '../../services/storageService';
 import { CheckCircleIcon, ClockIcon, CreditCardIcon, KeyIcon, LogoutIcon } from '../common/Icons';
 import Modal from '../common/Modal';
 import { useToast } from '../../useToast';
@@ -62,7 +62,8 @@ const CircularProgress: React.FC<{ progress: number }> = ({ progress }) => {
 
 const Profile: React.FC<ProfileProps> = ({ user, onLogout }) => {
   const grade = useMemo(() => getGradeById(user.grade), [user.grade]);
-  const subscription = useMemo(() => getSubscriptionByUserId(user.id), [user.id]);
+  const subscriptions = useMemo(() => getSubscriptionsByUserId(user.id), [user.id]);
+  const activeSubscriptionsCount = useMemo(() => subscriptions.filter(s => s.status === 'Active').length, [subscriptions]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { addToast } = useToast();
 
@@ -111,11 +112,9 @@ const Profile: React.FC<ProfileProps> = ({ user, onLogout }) => {
                             <StatCard icon={ClockIcon} title="الدروس المتبقية" value={(totalLessons - completedLessons).toString()} delay={200}/>
                             <StatCard 
                             icon={CreditCardIcon} 
-                            title="حالة الاشتراك" 
+                            title="الاشتراكات النشطة" 
                             value={
-                                <span className={`px-2 py-1 text-xs rounded-full ${subscription?.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                {subscription?.status === 'Active' ? 'نشط' : 'غير نشط'}
-                                </span>
+                                <span className="text-green-400 font-bold">{activeSubscriptionsCount}</span>
                             }
                             delay={300}
                             />

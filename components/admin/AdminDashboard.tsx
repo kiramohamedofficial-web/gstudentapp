@@ -6,32 +6,34 @@ import StudentDetailView from './StudentDetailView';
 import { 
     getAllUsers, 
     getActivityLogs, 
-    getSubscriptionByUserId, 
+    // FIX: Corrected function name from getSubscriptionByUserId to getSubscriptionsByUserId
+    getSubscriptionsByUserId, 
     getAllSubscriptions, 
     getAllGrades,
     getPendingSubscriptionRequestCount,
-    getPendingStudentQuestionCount,
     getUserProgress
 } from '../../services/storageService';
-import { ChartBarIcon, UsersIcon, BellIcon, SearchIcon, InformationCircleIcon, QuestionMarkCircleIcon } from '../common/Icons';
+import { ChartBarIcon, UsersIcon, BellIcon, SearchIcon, InformationCircleIcon, SparklesIcon, KeyIcon } from '../common/Icons';
 import RevenueChart from './RevenueChart';
 import ContentManagementView from './ContentManagementView';
-import QrCodeGeneratorView from './QrCodeGeneratorView';
+import AccessCodeGeneratorView from './QrCodeGeneratorView';
 import HomeManagementView from './HomeManagementView';
-import QuestionBankView from './QuestionBankView';
+import QuestionGeneratorView from './QuestionGeneratorView';
 import PlatformSettingsView from './PlatformSettingsView';
+import TeacherManagementView from './TeacherManagementView';
+import AccountSettingsView from './AdminSettingsView';
 
 interface AdminDashboardProps {
   user: User;
   onLogout: () => void;
 }
 
-type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'content' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings';
+type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'content' | 'tools' | 'homeManagement' | 'questionGenerator' | 'platformSettings' | 'teacherManagement' | 'accountSettings';
 
 const StatCard: React.FC<{ title: string; value: string; icon: React.FC<{ className?: string; }>; delay: number; onClick?: () => void; }> = ({ title, value, icon: Icon, delay, onClick }) => (
     <div 
         onClick={onClick}
-        className={`bg-[var(--bg-secondary)] p-6 rounded-xl shadow-md border border-[var(--border-primary)] flex items-center space-x-4 space-x-reverse fade-in ${onClick ? 'transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-purple-400 cursor-pointer' : ''}`} 
+        className={`bg-[var(--bg-secondary-opaque)] p-6 rounded-xl shadow-md border border-[var(--border-primary)] flex items-center space-x-4 space-x-reverse fade-in ${onClick ? 'transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-purple-400 cursor-pointer' : ''}`} 
         style={{animationDelay: `${delay}ms`}}
     >
         <div className="p-3 bg-[var(--bg-tertiary)] rounded-lg">
@@ -68,7 +70,8 @@ const StudentManagementView: React.FC<{ onViewDetails: (user: User) => void }> =
             .map(user => ({
                 ...user,
                 progress: calculateStudentProgress(user, allGrades),
-                subscription: getSubscriptionByUserId(user.id),
+                // FIX: Use getSubscriptionsByUserId and find an active subscription to match the expected logic.
+                subscription: getSubscriptionsByUserId(user.id).find(s => s.status === 'Active'),
             }))
             .filter(user => {
                 const query = searchQuery.toLowerCase();
@@ -91,7 +94,7 @@ const StudentManagementView: React.FC<{ onViewDetails: (user: User) => void }> =
         <div>
             <h1 className="text-3xl font-bold mb-6 text-[var(--text-primary)]">إدارة الطلاب</h1>
             
-            <div className="bg-[var(--bg-secondary)] p-4 rounded-xl shadow-md border border-[var(--border-primary)] mb-6">
+            <div className="bg-[var(--bg-secondary-opaque)] p-4 rounded-xl shadow-md border border-[var(--border-primary)] mb-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="relative md:col-span-2">
                         <input
@@ -123,7 +126,7 @@ const StudentManagementView: React.FC<{ onViewDetails: (user: User) => void }> =
             <div className="space-y-4">
                 {filteredUsers.length > 0 ? (
                     filteredUsers.map(user => (
-                        <div key={user.id} className="bg-[var(--bg-secondary)] rounded-xl shadow-md border border-[var(--border-primary)] p-4 transition-all duration-300 hover:border-purple-400 hover:shadow-lg">
+                        <div key={user.id} className="bg-[var(--bg-secondary-opaque)] rounded-xl shadow-md border border-[var(--border-primary)] p-4 transition-all duration-300 hover:border-purple-400 hover:shadow-lg">
                             <div className="flex flex-col md:flex-row md:items-center gap-4">
                                 <div className="flex items-center gap-4 flex-grow">
                                     <div className="h-12 w-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-xl flex-shrink-0">
@@ -157,7 +160,7 @@ const StudentManagementView: React.FC<{ onViewDetails: (user: User) => void }> =
                         </div>
                     ))
                 ) : (
-                    <div className="text-center p-12 bg-[var(--bg-secondary)] rounded-xl border border-dashed border-[var(--border-primary)]">
+                    <div className="text-center p-12 bg-[var(--bg-secondary-opaque)] rounded-xl border border-dashed border-[var(--border-primary)]">
                         <p className="text-[var(--text-secondary)]">لم يتم العثور على طلاب مطابقين لمعايير البحث.</p>
                     </div>
                 )}
@@ -167,14 +170,12 @@ const StudentManagementView: React.FC<{ onViewDetails: (user: User) => void }> =
 };
 
 
-const MainDashboard: React.FC<{ onNavigate: (view: AdminView) => void }> = ({ onNavigate }) => {
+const MainDashboard: React.FC<{ onNavigate: (view: AdminView) => void; pendingRequestsCount: number; }> = ({ onNavigate, pendingRequestsCount }) => {
     const allUsers = useMemo(() => getAllUsers(), []);
     const users = useMemo(() => allUsers.filter(u => u.role !== 'admin'), [allUsers]);
     const latestUsers = useMemo(() => [...users].reverse().slice(0, 5), [users]);
     const subscriptions = useMemo(() => getAllSubscriptions(), []);
     const activityLogs = useMemo(() => getActivityLogs().slice(0, 5), []);
-    const pendingRequestsCount = useMemo(() => getPendingSubscriptionRequestCount(), []);
-    const pendingQuestionsCount = useMemo(() => getPendingStudentQuestionCount(), []);
     
     const activeSubscriptions = subscriptions.filter(s => s.status === 'Active').length;
 
@@ -188,19 +189,16 @@ const MainDashboard: React.FC<{ onNavigate: (view: AdminView) => void }> = ({ on
                      <StatCard title="طلبات اشتراك" value={pendingRequestsCount.toString()} icon={InformationCircleIcon} delay={300} onClick={() => onNavigate('subscriptions')} />
                      {pendingRequestsCount > 0 && <span className="absolute top-4 right-4 h-3 w-3 rounded-full bg-red-500"></span>}
                 </div>
-                <div className="relative">
-                    <StatCard title="أسئلة جديدة" value={pendingQuestionsCount.toString()} icon={QuestionMarkCircleIcon} delay={400} onClick={() => onNavigate('questionBank')} />
-                    {pendingQuestionsCount > 0 && <span className="absolute top-4 right-4 h-3 w-3 rounded-full bg-red-500"></span>}
-                </div>
+                 <StatCard title="مولد الأسئلة" value="AI" icon={SparklesIcon} delay={400} onClick={() => onNavigate('questionGenerator')} />
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 bg-[var(--bg-secondary)] p-6 rounded-xl shadow-md border border-[var(--border-primary)] fade-in" style={{animationDelay: '500ms'}}>
+                <div className="lg:col-span-2 bg-[var(--bg-secondary-opaque)] p-6 rounded-xl shadow-md border border-[var(--border-primary)] fade-in" style={{animationDelay: '500ms'}}>
                     <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4">نظرة عامة على الإيرادات</h2>
                     <RevenueChart />
                 </div>
                 <div className="space-y-6">
-                    <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-md border border-[var(--border-primary)] fade-in" style={{animationDelay: '600ms'}}>
+                    <div className="bg-[var(--bg-secondary-opaque)] p-6 rounded-xl shadow-md border border-[var(--border-primary)] fade-in" style={{animationDelay: '600ms'}}>
                         <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4 flex items-center"><UsersIcon className="w-6 h-6 ml-2"/> أحدث الطلاب</h2>
                         <div className="space-y-3">
                             {latestUsers.map(user => (
@@ -216,7 +214,7 @@ const MainDashboard: React.FC<{ onNavigate: (view: AdminView) => void }> = ({ on
                             ))}
                         </div>
                     </div>
-                    <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-md border border-[var(--border-primary)] fade-in" style={{animationDelay: '700ms'}}>
+                    <div className="bg-[var(--bg-secondary-opaque)] p-6 rounded-xl shadow-md border border-[var(--border-primary)] fade-in" style={{animationDelay: '700ms'}}>
                         <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4 flex items-center"><BellIcon className="w-6 h-6 ml-2"/> أحدث الأنشطة</h2>
                         <div className="space-y-4">
                             {activityLogs.map((log: ActivityLog) => (
@@ -240,6 +238,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
   const { user, onLogout } = props;
   const [activeView, setActiveView] = useState<AdminView>('dashboard');
   const [selectedStudent, setSelectedStudent] = useState<User | null>(null);
+
+  // Fetch counts here to pass to layout for notification badges
+  const pendingRequestsCount = useMemo(() => getPendingSubscriptionRequestCount(), []);
 
   const handleViewStudentDetails = (student: User) => {
     setSelectedStudent(student);
@@ -266,24 +267,37 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
         return <SubscriptionManagementView />;
       case 'students':
         return <StudentManagementView onViewDetails={handleViewStudentDetails} />;
+      case 'teacherManagement':
+        return <TeacherManagementView />;
       case 'homeManagement':
         return <HomeManagementView />;
       case 'content':
         return <ContentManagementView />;
-      case 'questionBank':
-        return <QuestionBankView />;
+      case 'questionGenerator':
+        return <QuestionGeneratorView />;
       case 'tools':
-        return <QrCodeGeneratorView />;
+        return <AccessCodeGeneratorView />;
       case 'platformSettings':
         return <PlatformSettingsView user={user} />;
+      case 'accountSettings':
+        return <AccountSettingsView user={user} />;
       case 'dashboard':
       default:
-        return <MainDashboard onNavigate={setActiveView} />;
+        return <MainDashboard 
+                    onNavigate={setActiveView} 
+                    pendingRequestsCount={pendingRequestsCount} 
+                />;
     }
   };
 
   return (
-    <AdminLayout {...props} activeView={activeView} onNavClick={handleNavClick}>
+    <AdminLayout 
+        {...props} 
+        activeView={activeView} 
+        onNavClick={handleNavClick}
+        pendingSubscriptionsCount={pendingRequestsCount}
+        pendingQuestionsCount={0}
+    >
       {renderContent()}
     </AdminLayout>
   );
