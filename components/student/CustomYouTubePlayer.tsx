@@ -74,6 +74,8 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
     const containerRef = useRef<HTMLDivElement>(null);
     const qualityMenuRef = useRef<HTMLDivElement>(null);
     const hideControlsTimeoutRef = useRef<number | null>(null);
+    const qualityLevelsLoaded = useRef(false);
+
 
     const [isReady, setIsReady] = useState(false);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -108,6 +110,7 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
 
         loadYouTubeApi().then(() => {
             if (!containerRef.current) return;
+            qualityLevelsLoaded.current = false; // Reset for new video
             const playerContainerId = `yt-player-${videoId}-${Math.random()}`;
             const playerDiv = document.createElement('div');
             playerDiv.id = playerContainerId;
@@ -127,13 +130,22 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
                     onReady: (event: any) => {
                         setIsReady(true);
                         setDuration(event.target.getDuration());
-                        setAvailableQualities(['auto', ...(event.target.getAvailableQualityLevels() || [])]);
                         setCurrentQuality(event.target.getPlaybackQuality());
                         event.target.playVideo();
                     },
                     onStateChange: (event: any) => {
                         const playerState = event.data;
-                        setIsPlaying(playerState === window.YT.PlayerState.PLAYING);
+                        const isPlayingNow = playerState === window.YT.PlayerState.PLAYING;
+                        setIsPlaying(isPlayingNow);
+
+                        if (isPlayingNow && !qualityLevelsLoaded.current) {
+                            const qualities = event.target.getAvailableQualityLevels();
+                            if (qualities && qualities.length > 0) {
+                                setAvailableQualities(['auto', ...qualities]);
+                                qualityLevelsLoaded.current = true;
+                            }
+                        }
+                        
                         if (playerState === window.YT.PlayerState.ENDED) {
                             onLessonCompleteRef.current(videoId);
                         }
@@ -157,6 +169,23 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
             playerRef.current?.destroy();
         };
     }, [videoId]);
+    
+    useEffect(() => {
+        const qualityInterval = setInterval(() => {
+            if (playerRef.current && typeof playerRef.current.getPlaybackQuality === 'function') {
+                const newQuality = playerRef.current.getPlaybackQuality();
+                // Update state only if quality has actually changed to prevent re-renders
+                setCurrentQuality(prevQuality => {
+                    if (newQuality && newQuality !== prevQuality) {
+                        return newQuality;
+                    }
+                    return prevQuality;
+                });
+            }
+        }, 1000); // Poll every second
+
+        return () => clearInterval(qualityInterval);
+    }, []); // Run only once
 
 
     useEffect(() => {
@@ -218,6 +247,7 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
     };
     const handleSetQuality = (quality: string) => {
         playerRef.current?.setPlaybackQuality(quality);
+        setCurrentQuality(quality); // Optimistically update
         setQualityMenuOpen(false);
     }
     
@@ -276,7 +306,7 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
                         <span className="yt-time-display">{formatTime(currentTime)} / {formatTime(duration)}</span>
                         <div className="flex items-center gap-2">
                              <div className="relative" ref={qualityMenuRef}>
-                                {isQualityMenuOpen && availableQualities.length > 0 && (
+                                {isQualityMenuOpen && availableQualities.length > 1 && (
                                     <div className="yt-quality-menu fade-in-up">
                                         {availableQualities.map(q => (
                                             <button 
