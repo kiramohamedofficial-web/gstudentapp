@@ -22,28 +22,11 @@ import { DEMO_ADMIN_IDENTIFIER, DEMO_ADMIN_PASSWORD, DEMO_STUDENT_IDENTIFIER, DE
 const DAILY_CHAT_LIMIT = 50;
 
 // --- New Data Stores ---
-const teachers: Teacher[] = [
-  { id: 't1', name: 'أ. محمد عبد المعبود', subject: 'الفيزياء', imageUrl: 'https://i.ibb.co/ckr2x0G/teacher2.png', teachingLevels: ['Secondary'], teachingGrades: [10, 11, 12] },
-  { id: 't2', name: 'أ. ماجد إمام', subject: 'الكيمياء', imageUrl: 'https://i.ibb.co/bJCmnz5/teacher1.png', teachingLevels: ['Secondary'], teachingGrades: [10, 11, 12] },
-  { id: 't3', name: 'أ. حسن الجبالي', subject: 'اللغة الفرنسية', imageUrl: 'https://i.ibb.co/ckr2x0G/teacher2.png', teachingLevels: ['Middle', 'Secondary'], teachingGrades: [7, 8, 9, 10, 11, 12] },
-  { id: 't4', name: 'أ. محمد عبد السلام', subject: 'الرياضيات', imageUrl: 'https://i.ibb.co/bJCmnz5/teacher1.png', teachingLevels: ['Middle', 'Secondary'], teachingGrades: [7, 8, 9, 10, 11, 12] },
-];
+const teachers: Teacher[] = [];
 
 // --- Curriculum Data Generation ---
 
-const createPlaceholderLessons = (): Lesson[] => ([
-  { id: `l_exp_${Date.now()}_${Math.random()}`, title: 'شرح الدرس الأول', type: LessonType.EXPLANATION, content: 'dQw4w9WgXcQ' },
-  { 
-    id: `l_hw_${Date.now()}_${Math.random()}`, 
-    title: 'واجب الدرس الأول', 
-    type: LessonType.HOMEWORK, 
-    content: '', 
-    imageUrl: 'https://i.ibb.co/2n9bQhX/quiz-placeholder.png',
-    correctAnswers: ['4', '15'],
-    passingScore: 50,
-    dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(), // Due in 2 days
-  },
-]);
+const createPlaceholderLessons = (): Lesson[] => ([]);
 
 const createSubjects = (subjects: {title: string, teacherId: string, track?: Unit['track']}[], gradeId: number, semesterId: string): Unit[] => subjects.map((subject, i) => ({
   id: `unit_${gradeId}_${semesterId}_${i}`,
@@ -54,72 +37,23 @@ const createSubjects = (subjects: {title: string, teacherId: string, track?: Uni
 }));
 
 // --- Subject Lists ---
-const middle_school_subjects: { title: string; teacherId: string; track?: Unit['track'] }[] = [
-    { title: 'الجبر والإحصاء', teacherId: 't4' },
-    { title: 'الهندسة', teacherId: 't4' },
-    { title: 'العلوم', teacherId: 't2' },
-    { title: 'اللغة الإنجليزية', teacherId: 't3' },
-    { title: 'اللغة العربية', teacherId: 't3' },
-    { title: 'الدراسات الاجتماعية', teacherId: 't3' },
-];
+const middle_school_subjects: { title: string; teacherId: string; track?: Unit['track'] }[] = [];
 
-const sec_1_subjects: { title: string; teacherId: string; track?: Unit['track'] }[] = [
-    { title: 'الرياضيات', teacherId: 't4' },
-    { title: 'الفيزياء', teacherId: 't1' },
-    { title: 'الكيمياء', teacherId: 't2' },
-    { title: 'الأحياء', teacherId: 't2' },
-    { title: 'اللغة الإنجليزية', teacherId: 't3' },
-    { title: 'اللغة العربية', teacherId: 't3' },
-];
+const sec_1_subjects: { title: string; teacherId: string; track?: Unit['track'] }[] = [];
 
-const sec_2_subjects: { title: string; teacherId: string; track?: Unit['track'] }[] = [
-    { title: 'اللغة العربية', teacherId: 't3', track: 'All' },
-    { title: 'اللغة الأجنبية الأولى', teacherId: 't3', track: 'All' },
-    { title: 'الرياضيات البحتة', teacherId: 't4', track: 'All' },
-    { title: 'الرياضيات التطبيقية', teacherId: 't4', track: 'Scientific' },
-    { title: 'الفيزياء', teacherId: 't1', track: 'Scientific' },
-    { title: 'الكيمياء', teacherId: 't2', track: 'Scientific' },
-    { title: 'التاريخ', teacherId: 't3', track: 'Literary' },
-    { title: 'الجغرافيا', teacherId: 't3', track: 'Literary' },
-    { title: 'علم النفس والاجتماع', teacherId: 't3', track: 'Literary' },
-];
+const sec_2_subjects: { title: string; teacherId: string; track?: Unit['track'] }[] = [];
 
-const sec_3_subjects: { title: string; teacherId: string; track?: Unit['track'] }[] = [
-    { title: 'اللغة العربية', teacherId: 't3', track: 'All' },
-    { title: 'اللغة الأجنبية الأولى', teacherId: 't3', track: 'All' },
-    { title: 'الفيزياء', teacherId: 't1', track: 'Science' },
-    { title: 'الكيمياء', teacherId: 't2', track: 'Science' },
-    { title: 'الأحياء', teacherId: 't2', track: 'Science' },
-    { title: 'الجيولوجيا والعلوم البيئية', teacherId: 't2', track: 'Science' },
-    { title: 'الفيزياء ', teacherId: 't1', track: 'Math' }, // Physics is also for math track
-    { title: 'الكيمياء ', teacherId: 't2', track: 'Math' }, // Chemistry is also for math track
-    { title: 'التفاضل والتكامل', teacherId: 't4', track: 'Math' },
-    { title: 'الجبر والهندسة الفراغية', teacherId: 't4', track: 'Math' },
-    { title: 'الإستاتيكا', teacherId: 't4', track: 'Math' },
-    { title: 'الديناميكا', teacherId: 't4', track: 'Math' },
-    { title: 'التاريخ', teacherId: 't3', track: 'Literary' },
-    { title: 'الجغرافيا', teacherId: 't3', track: 'Literary' },
-    { title: 'علم النفس والاجتماع', teacherId: 't3', track: 'Literary' },
-    { title: 'الفلسفة والمنطق', teacherId: 't3', track: 'Literary' },
-];
+const sec_3_subjects: { title: string; teacherId: string; track?: Unit['track'] }[] = [];
 
 
 // Mock Data
 const users: User[] = [
-  { id: '1', name: 'طالب تجريبي', email: DEMO_STUDENT_IDENTIFIER, phone: '+201000000001', password: DEMO_STUDENT_PASSWORD, guardianPhone: '+201100000001', grade: 10, role: Role.STUDENT, subscriptionId: 'sub1' },
-  { id: '2', name: 'طالبة متفوقة', email: 'student2@demo.com', phone: '+201000000002', password: '5678', guardianPhone: '+201100000002', grade: 11, track: 'Scientific', role: Role.STUDENT, subscriptionId: 'sub2' },
-  { id: '3', name: 'طالب مجتهد', email: 'student3@demo.com', phone: '+201000000003', password: '9012', guardianPhone: '+201100000003', grade: 12, track: 'Science', role: Role.STUDENT, subscriptionId: 'sub3' },
   { id: '4', name: 'مدير المنصة', email: DEMO_ADMIN_IDENTIFIER, phone: '+201200000001', password: DEMO_ADMIN_PASSWORD, guardianPhone: '', grade: 0, role: Role.ADMIN },
   { id: '5', name: 'مالك المنصة', email: 'jytt0jewellery@gmail.com', phone: '+201200000002', password: 'Hshsh555&HehgeUDNYf744&&$$@Jg28848', guardianPhone: '', grade: 0, role: Role.ADMIN },
   { id: '6', name: 'مالك جديد', email: 'new.owner@demo.com', phone: '+201200000003', password: 'KLJF5488#$$7ag', guardianPhone: '', grade: 0, role: Role.ADMIN },
-  { id: 't_user_1', name: 'أ. محمد عبد المعبود', email: 't1@gstudent.com', phone: '+201211111111', password: '123', guardianPhone: '', grade: 0, role: Role.TEACHER, teacherId: 't1'},
 ];
 
-const subscriptions: Subscription[] = [
-  { id: 'sub1', userId: '1', plan: 'Monthly', startDate: '2024-07-01', endDate: '2024-08-01', status: 'Active' },
-  { id: 'sub2', userId: '2', plan: 'Quarterly', startDate: '2024-06-01', endDate: '2024-09-01', status: 'Active' },
-  { id: 'sub3', userId: '3', plan: 'Annual', startDate: '2023-09-01', endDate: '2024-09-01', status: 'Expired' },
-];
+const subscriptions: Subscription[] = [];
 
 const grades: Grade[] = [
   // Middle School
@@ -193,16 +127,9 @@ const defaultPlatformSettings: PlatformSettings = {
 
 const generateInitialData = () => {
     const settings = getPlatformSettings(); // Get settings first
-    const featuredCourses: Course[] = [
-        { id: 'c1', title: 'مراجعة الفيزياء الحديثة', subtitle: 'لطلاب الصف الثالث الثانوي', teacherId: 't1', coverImage: 'https://i.ibb.co/g7jCg0D/course1.png', fileCount: 10, videoCount: 25, quizCount: 8, price: 300 },
-        { id: 'c2', title: 'كورس تأسيس الكيمياء', subtitle: 'للمرحلة الثانوية', teacherId: 't2', coverImage: 'https://i.ibb.co/R9m4M58/course2.png', fileCount: 8, videoCount: 20, quizCount: 5, price: 250 },
-        { id: 'c3', title: 'دورة التفاضل والتكامل المتقدمة', subtitle: 'للصف الثالث الثانوي', teacherId: 't4', coverImage: 'https://i.ibb.co/yQxG4d8/book2.png', fileCount: 15, videoCount: 30, quizCount: 12, price: 400 },
-    ];
+    const featuredCourses: Course[] = [];
     
-    const featuredBooks: Book[] = [
-        { id: 'b1', title: 'كتاب التفوق في الفيزياء', teacherName: 'أ. محمد عبد المعبود', teacherImage: 'https://i.ibb.co/ckr2x0G/teacher2.png', price: 250, coverImage: 'https://i.ibb.co/yQxG4d8/book2.png' },
-        { id: 'b2', title: 'ملزمة الكيمياء العضوية', teacherName: 'أ. ماجد إمام', teacherImage: 'https://i.ibb.co/bJCmnz5/teacher1.png', price: 150, coverImage: 'https://i.ibb.co/q0V9bFN/book1.png' },
-    ];
+    const featuredBooks: Book[] = [];
 
     return { featuredCourses, featuredBooks };
 }

@@ -128,7 +128,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ user, onLogout, children, onN
 
         <div className="flex-1 flex flex-col overflow-hidden rounded-2xl">
           {/* Header */}
-          <header className="h-20 bg-[var(--glass-bg)] backdrop-blur-[var(--glass-blur)] border-b border-[var(--border-primary)] flex items-center justify-between px-4 md:px-6 rounded-t-2xl flex-shrink-0">
+          <header className="relative h-20 bg-[var(--glass-bg)] backdrop-blur-[var(--glass-blur)] border-b border-[var(--border-primary)] flex items-center justify-between px-4 md:px-6 rounded-t-2xl flex-shrink-0">
             <div className="flex items-center space-x-3 space-x-reverse group">
               <div className="h-12 w-12 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-lg">
                 {user.name.charAt(0)}
@@ -137,6 +137,14 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ user, onLogout, children, onN
                 <span className="font-semibold text-md text-[var(--text-primary)]">{user.name}</span>
                 <span className="block text-sm text-[var(--text-secondary)]">المدير</span>
               </div>
+            </div>
+            {/* Centered Logo */}
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+                <img
+                    src="https://l.top4top.io/p_3583m3alu0.png"
+                    alt="Platform Logo"
+                    className="h-[76px] object-contain"
+                />
             </div>
             <div className="md:hidden">
               <button onClick={() => setIsMobileNavOpen(true)} className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]">

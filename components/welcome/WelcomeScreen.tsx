@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { getAllGrades, getPlatformSettings } from '../../services/storageService';
-import { Grade, PlatformSettings } from '../../types';
+import { getAllGrades, getPlatformSettings, getTeachers } from '../../services/storageService';
+import { Grade, PlatformSettings, Teacher } from '../../types';
 import { AtomIcon, ArrowLeftIcon, PhoneIcon, YoutubeIcon, FacebookIcon, SparklesIcon, ChartBarIcon, VideoCameraIcon, BrainIcon, BookOpenIcon, ArrowRightIcon, MenuIcon, XIcon } from '../common/Icons';
 
 interface WelcomeScreenProps {
@@ -156,6 +156,49 @@ const DetailedFeaturesSection: React.FC<{ settings: PlatformSettings }> = ({ set
     );
 };
 
+const TeachersSection: React.FC = () => {
+    const teachers = useMemo(() => getTeachers(), []);
+    if (teachers.length === 0) return null;
+
+    return (
+        <section className="py-20">
+            <div className="container mx-auto px-6 text-center">
+                <h2 className="text-3xl md:text-4xl font-bold mb-12">تعرف على أفضل المدرسين</h2>
+                <div className="flex flex-wrap justify-center gap-8 md:gap-12">
+                    {teachers.slice(0, 5).map((teacher, index) => (
+                        <div key={teacher.id} className="fade-in text-center group" style={{ animationDelay: `${index * 100}ms` }}>
+                            <img src={teacher.imageUrl} alt={teacher.name} className="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-[var(--bg-tertiary)] group-hover:border-[var(--accent-primary)] transition-all duration-300 shadow-lg"/>
+                            <h3 className="font-bold text-lg text-[var(--text-primary)]">{teacher.name}</h3>
+                            <p className="text-sm text-[var(--text-secondary)]">{teacher.subject}</p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </section>
+    );
+}
+
+const CallToActionSection: React.FC<{ onNavigateToLogin: () => void; onNavigateToRegister: () => void; }> = ({ onNavigateToLogin, onNavigateToRegister }) => (
+    <section className="pb-20">
+        <div className="container mx-auto px-6 text-center">
+            <div className="relative bg-[var(--glass-bg)] backdrop-blur-[var(--glass-blur)] border border-[var(--glass-border)] rounded-2xl p-12 overflow-hidden">
+                 <div className="absolute inset-x-0 top-0 h-[200px] bg-gradient-to-b from-[rgba(var(--accent-primary-rgb),0.15)] to-transparent blur-3xl -translate-y-1/2"></div>
+                <h2 className="text-3xl md:text-4xl font-bold mb-4 text-[var(--text-primary)]">هل أنت مستعد لبدء رحلتك؟</h2>
+                <p className="text-lg text-[var(--text-secondary)] mb-8 max-w-2xl mx-auto">انضم إلى آلاف الطلاب الذين يحققون النجاح والتفوق معنا.</p>
+                <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
+                    <button onClick={onNavigateToRegister} className="w-full sm:w-auto px-8 py-3.5 font-bold bg-[var(--accent-primary)] text-white rounded-lg transition-transform transform hover:scale-105 shadow-lg shadow-[0_10px_20px_-10px_rgba(var(--accent-primary-rgb),0.4)]">
+                        إنشاء حساب جديد
+                    </button>
+                    <button onClick={onNavigateToLogin} className="w-full sm:w-auto px-8 py-3.5 font-semibold bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors">
+                        لدي حساب بالفعل
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+);
+
+
 const CardWaves: React.FC = () => (
     <div className="card-waves-container">
         <svg className="waves-svg absolute bottom-0 w-full h-full" xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink" viewBox="0 24 150 28" preserveAspectRatio="none" shapeRendering="auto">
@@ -278,6 +321,8 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onNavigateToLogin, onNavi
                 <HeroSection onNavigateToRegister={onNavigateToRegister} settings={settings} />
                 <StatsSection />
                 <DetailedFeaturesSection settings={settings} />
+                <TeachersSection />
+                <CallToActionSection onNavigateToLogin={onNavigateToLogin} onNavigateToRegister={onNavigateToRegister} />
                 <GradesSection grades={grades} onNavigateToLogin={onNavigateToLogin} />
             </main>
             <AnimatedWaves />

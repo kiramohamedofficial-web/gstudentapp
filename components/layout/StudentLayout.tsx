@@ -26,10 +26,22 @@ const SubscriptionBottomNavIcon: React.FC<{ className?: string }> = ({ className
     <img src="https://k.top4top.io/p_35830gaoq2.png" alt="الاشتراكات" className={className} />
 );
 
+const ProfileBottomNavIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <img src="https://l.top4top.io/p_3583el7rr0.png" alt="ملفي" className={className} />
+);
+
+const ResultsBottomNavIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <img src="https://a.top4top.io/p_3583i1gc31.png" alt="النتائج" className={className} />
+);
+
+const ChatbotIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <img src="https://b.top4top.io/p_3583ycfjf2.png" alt="المساعد الذكي" className={className} />
+);
+
 const navItems = [
     { id: 'home', label: 'الرئيسية', icon: HomeIcon },
     { id: 'smartPlan', label: 'الخطة الذكية', icon: SparklesIcon },
-    { id: 'chatbot', label: 'المساعد الذكي', icon: BrainIcon },
+    { id: 'chatbot', label: 'المساعد الذكي', icon: ChatbotIcon },
     { id: 'askTheProf', label: 'اسأل البروف', icon: QuestionMarkCircleIcon },
     { id: 'grades', label: 'المنهج الدراسي', icon: CurriculumIcon },
     { id: 'teachers', label: 'المدرسون', icon: UsersIcon },
@@ -41,9 +53,9 @@ const navItems = [
 const bottomNavItems = [
     { id: 'home', label: 'الرئيسية', icon: HomeIcon },
     { id: 'grades', label: 'المنهج', icon: CurriculumIcon },
-    { id: 'results', label: 'النتائج', icon: ChartBarIcon },
+    { id: 'results', label: 'النتائج', icon: ResultsBottomNavIcon },
     { id: 'subscription', label: 'الاشتراك', icon: SubscriptionBottomNavIcon },
-    { id: 'profile', label: 'ملفي', icon: UserCircleIcon },
+    { id: 'profile', label: 'ملفي', icon: ProfileBottomNavIcon },
 ];
 
 const NavButton: React.FC<{ onClick: () => void; label: string; icon: React.FC<{className?: string}>; isActive: boolean; }> = ({ onClick, label, icon: Icon, isActive }) => (
@@ -119,19 +131,23 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ user, onLogout, children,
 
         <div className="flex-1 flex flex-col overflow-hidden rounded-2xl">
           {/* Header */}
-          <header className="flex-shrink-0 bg-[var(--glass-bg)] backdrop-blur-[var(--glass-blur)] flex items-center justify-between px-4 md:px-6 h-20 rounded-t-2xl border-b border-[var(--glass-border)]">
+          <header className="relative z-10 flex-shrink-0 bg-[var(--glass-bg)] backdrop-blur-[var(--glass-blur)] flex items-center justify-between px-4 md:px-6 h-20 rounded-t-2xl border-b border-[var(--glass-border)]">
               <div className="flex items-center space-x-4 space-x-reverse">
                   <button onClick={() => setIsMobileNavOpen(true)} className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] md:hidden"><img src="https://b.top4top.io/p_3583gmh281.png" alt="Menu" className="w-6 h-6" /></button>
                   <h1 className="hidden md:block text-xl font-bold text-[var(--text-primary)]">مرحباً، {user.name.split(' ')[0]}</h1>
               </div>
+              {/* Centered Logo */}
+              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+                  <img src="https://l.top4top.io/p_3583m3alu0.png" alt="Platform Logo" className="h-[76px] object-contain" />
+              </div>
               <div className="flex items-center space-x-2 md:space-x-3 space-x-reverse">
                   {/* Notifications */}
                   <div className="relative">
-                      <button onClick={() => { setIsNotificationsOpen(p => !p); setIsProfileMenuOpen(false); }} className="relative h-11 w-11 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] rounded-full transition-colors">
+                      <button onClick={() => { setIsNotificationsOpen(p => !p); setIsProfileMenuOpen(false); }} className="relative h-11 w-11 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--bg-tertiary)] border border-[var(--border-primary)] hover:border-[var(--border-secondary)] rounded-full transition-all">
                           <BellIcon className="w-6 h-6" /><span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span></span>
                       </button>
                       {isNotificationsOpen && (
-                           <div ref={notificationsRef} className="absolute top-full mt-3 left-0 w-80 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-2xl shadow-2xl z-50 fade-in-up">
+                           <div ref={notificationsRef} className="absolute top-full mt-3 left-0 w-80 bg-[var(--bg-primary)] border border-[var(--border-secondary)] rounded-2xl shadow-lg z-50 fade-in-up">
                               <div className="p-4 border-b border-[var(--border-primary)]"><h3 className="font-bold text-lg text-[var(--text-primary)]">الإشعارات</h3></div>
                               <div className="p-2 max-h-80 overflow-y-auto">{mockNotifications.map(n => <div key={n.id} className="p-3 rounded-lg hover:bg-[var(--bg-tertiary)] text-right"><p className="text-sm text-[var(--text-primary)]">{n.text}</p><p className="text-xs text-[var(--text-secondary)] mt-1">{n.time}</p></div>)}</div>
                               <div className="p-2 border-t border-[var(--border-primary)] text-center"><button className="text-sm font-semibold text-[var(--accent-primary)] hover:underline">عرض الكل</button></div>
@@ -140,9 +156,9 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ user, onLogout, children,
                   </div>
                   {/* Profile */}
                   <div className="relative">
-                      <button onClick={() => { setIsProfileMenuOpen(p => !p); setIsNotificationsOpen(false); }} className="h-11 w-11 rounded-full bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] border-2 border-transparent flex items-center justify-center text-[var(--text-primary)] font-bold text-lg transition-all hover:border-[var(--accent-primary)]">{user.name.charAt(0)}</button>
+                      <button onClick={() => { setIsProfileMenuOpen(p => !p); setIsNotificationsOpen(false); }} className="h-11 w-11 rounded-full bg-[var(--bg-tertiary)] border border-[var(--border-primary)] hover:border-[var(--accent-primary)] flex items-center justify-center text-[var(--text-primary)] font-bold text-lg transition-all">{user.name.charAt(0)}</button>
                       {isProfileMenuOpen && (
-                          <div ref={profileMenuRef} className="absolute top-full mt-3 left-0 w-72 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-2xl shadow-2xl z-50 fade-in-up overflow-hidden">
+                          <div ref={profileMenuRef} className="absolute top-full mt-3 left-0 w-72 bg-[var(--bg-primary)] border border-[var(--border-secondary)] rounded-2xl shadow-lg z-50 fade-in-up overflow-hidden">
                               <div className="p-4"><p className="font-bold text-lg text-[var(--text-primary)] truncate">{user.name}</p><p className="text-sm text-[var(--text-secondary)]">{gradeName || 'طالب'}</p></div>
                               <div className="h-px bg-[var(--border-primary)] mx-4"></div>
                               <div className="p-2 space-y-1">
