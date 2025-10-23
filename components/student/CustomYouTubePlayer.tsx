@@ -92,6 +92,16 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
     const onAutoPlayNextRef = useRef(onAutoPlayNext);
     useEffect(() => { onAutoPlayNextRef.current = onAutoPlayNext; }, [onAutoPlayNext]);
 
+    const hideControls = useCallback(() => {
+        // Don't hide controls if the menu is open or if the video is not playing
+        if (isPlaying && !isQualityMenuOpen) {
+            if (hideControlsTimeoutRef.current) clearTimeout(hideControlsTimeoutRef.current);
+            hideControlsTimeoutRef.current = window.setTimeout(() => {
+                setShowControls(false);
+            }, 3000);
+        }
+    }, [isPlaying, isQualityMenuOpen]);
+
     useEffect(() => {
         let playerInstance: any;
         let progressInterval: number;
@@ -117,7 +127,7 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
                     onReady: (event: any) => {
                         setIsReady(true);
                         setDuration(event.target.getDuration());
-                        setAvailableQualities(['auto', ...event.target.getAvailableQualityLevels()]);
+                        setAvailableQualities(['auto', ...(event.target.getAvailableQualityLevels() || [])]);
                         setCurrentQuality(event.target.getPlaybackQuality());
                         event.target.playVideo();
                     },
@@ -149,12 +159,6 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
         };
     }, [videoId]);
 
-    const hideControls = useCallback(() => {
-        if (isPlaying) {
-            if (hideControlsTimeoutRef.current) clearTimeout(hideControlsTimeoutRef.current);
-            hideControlsTimeoutRef.current = window.setTimeout(() => setShowControls(false), 3000);
-        }
-    }, [isPlaying]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -167,6 +171,18 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
         }
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [isQualityMenuOpen]);
+
+    useEffect(() => {
+        if (isQualityMenuOpen) {
+            // If the menu is open, cancel any pending timer to hide controls.
+            if (hideControlsTimeoutRef.current) {
+                clearTimeout(hideControlsTimeoutRef.current);
+            }
+        } else {
+            // If the menu is closed, restart the hide timer.
+            hideControls();
+        }
+    }, [isQualityMenuOpen, hideControls]);
 
 
     const handleMouseMove = () => {
@@ -228,7 +244,7 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
                 </button>
             )}
 
-            <div className={`yt-controls-overlay ${showControls || !isPlaying ? 'visible' : ''}`}>
+            <div className={`yt-controls-overlay ${showControls || !isPlaying || isQualityMenuOpen ? 'visible' : ''}`}>
                 <div className="yt-controls-bar">
                     <input
                         type="range"
