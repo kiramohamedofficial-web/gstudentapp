@@ -1,10 +1,9 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Grade, Unit, Lesson, LessonType, ToastType, User, Teacher, Book } from '../../types';
-import { getUserProgress, setLessonCompleted, getTeachers, hasSubscriptionForItem, getFeaturedBooks } from '../../services/storageService';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Grade, Unit, Lesson, LessonType, ToastType, User, StudentView } from '../../types';
+import { getUserProgress, setLessonCompleted } from '../../services/storageService';
 import { useToast } from '../../useToast';
 import LessonView from './LessonView';
-import { BookOpenIcon, PencilIcon, CheckCircleIcon, VideoCameraIcon, DocumentTextIcon, ArrowRightIcon, ChevronDownIcon, PlaySolidIcon, ShieldCheckIcon, ChevronLeftIcon, ChevronRightIcon } from '../common/Icons';
-import Modal from '../common/Modal';
+import { BookOpenIcon, PencilIcon, CheckCircleIcon, VideoCameraIcon, DocumentTextIcon, ArrowRightIcon, ChevronDownIcon, PlaySolidIcon } from '../common/Icons';
 
 interface GroupedLesson {
     baseTitle: string;
@@ -23,58 +22,9 @@ interface CourseViewProps {
   unit: Unit;
   user: User;
   onBack: () => void;
-  onSubscriptionNeeded: (unit: Unit) => void;
+  onNavigate: (view: StudentView) => void;
+  initialLesson?: Lesson | null;
 }
-
-// Carousel component for horizontal scrolling content
-const Carousel: React.FC<{ title: string; children: React.ReactNode; }> = ({ title, children }) => {
-    const scrollRef = useRef<HTMLDivElement>(null);
-
-    const scroll = (direction: 'left' | 'right') => {
-        if (scrollRef.current) {
-            const scrollAmount = direction === 'left' ? -300 : 300;
-            scrollRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
-        }
-    };
-
-    return (
-        <section>
-            <header className="flex justify-between items-center mb-4 px-2">
-                <h2 className="text-2xl font-bold text-[var(--text-primary)]">{title}</h2>
-                <div className="flex items-center space-x-2 space-x-reverse">
-                    <button onClick={() => scroll('left')} className="p-2 rounded-full bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
-                        <ChevronRightIcon className="w-5 h-5" />
-                    </button>
-                    <button onClick={() => scroll('right')} className="p-2 rounded-full bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
-                        <ChevronLeftIcon className="w-5 h-5" />
-                    </button>
-                </div>
-            </header>
-            <div
-                ref={scrollRef}
-                className="flex overflow-x-auto gap-5 p-2 scroll-smooth"
-                style={{ scrollbarWidth: 'none', '-ms-overflow-style': 'none' }}
-            >
-                {children}
-            </div>
-        </section>
-    );
-};
-
-// Book Card component
-const BookCard: React.FC<{ book: Book }> = ({ book }) => (
-    <div className="flex-shrink-0 w-52 p-4 bg-[var(--bg-tertiary)] rounded-2xl shadow-md border border-[var(--border-primary)] group transition-transform duration-300 hover:-translate-y-1">
-        <div className="relative">
-             <img src={book.coverImage} alt={book.title} className="w-full h-60 object-contain rounded-md mb-3 transition-transform duration-500 group-hover:scale-105" style={{filter: 'drop-shadow(0 10px 15px rgba(0,0,0,0.1))'}} loading="lazy" decoding="async"/>
-        </div>
-        <h3 className="font-bold text-md text-[var(--text-primary)] truncate mt-2">{book.title}</h3>
-        <div className="flex items-center justify-between mt-2">
-            <span className="text-xs text-[var(--text-secondary)]">{book.teacherName}</span>
-            <span className="font-bold text-md text-[var(--text-accent)]">{book.price} ج.م</span>
-        </div>
-    </div>
-);
-
 
 const CircularProgress: React.FC<{ progress: number }> = ({ progress }) => {
     const strokeWidth = 5;
@@ -200,31 +150,21 @@ const LessonAccordionItem: React.FC<{
 };
 
 
-const CourseView: React.FC<CourseViewProps> = ({ grade, unit, user, onBack, onSubscriptionNeeded }) => {
+const CourseView: React.FC<CourseViewProps> = ({ grade, unit, user, onBack, onNavigate, initialLesson }) => {
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
   const [userProgress, setUserProgress] = useState<Record<string, boolean>>({});
   const [openAccordion, setOpenAccordion] = useState<string | null>(null);
-  const [teacher, setTeacher] = useState<Teacher | null>(null);
-  const [showSubPrompt, setShowSubPrompt] = useState(false);
-  const [relatedBooks, setRelatedBooks] = useState<Book[]>([]);
   const { addToast } = useToast();
 
   useEffect(() => {
       setUserProgress(getUserProgress(user.id));
-      if (unit.teacherId) {
-          const allTeachers = getTeachers();
-          const unitTeacher = allTeachers.find(t => t.id === unit.teacherId);
-          setTeacher(unitTeacher || null);
-      }
+  }, [user.id]);
 
-       // Fetch and filter related books
-        const allBooks = getFeaturedBooks();
-        const subjectKeyword = unit.title.split(' ')[0]; // e.g., "الجبر" from "الجبر وحساب المثلثات"
-        if (subjectKeyword) {
-            const related = allBooks.filter(book => book.title.includes(subjectKeyword));
-            setRelatedBooks(related);
-        }
-  }, [user.id, unit.teacherId, unit.title]);
+  useEffect(() => {
+    if (initialLesson) {
+        setActiveLesson(initialLesson);
+    }
+  }, [initialLesson]);
 
   const groupedLessons = useMemo((): GroupedLesson[] => {
     const lessonGroups: Record<string, Partial<Record<LessonType, Lesson>>> = {};
@@ -256,6 +196,23 @@ const CourseView: React.FC<CourseViewProps> = ({ grade, unit, user, onBack, onSu
         };
     });
   }, [unit.lessons, userProgress]);
+  
+  const overallProgress = useMemo(() => {
+    // Get all units for the student's grade and track
+    const allUnitsForTrack = grade.semesters.flatMap(s => s.units.filter(u =>
+        !u.track || u.track === 'All' || u.track === user.track
+    ));
+
+    // Get all lessons from those units
+    const allLessons = allUnitsForTrack.flatMap(u => u.lessons);
+    
+    if (allLessons.length === 0) return 0;
+
+    // Count completed lessons
+    const completedCount = allLessons.filter(lesson => userProgress[lesson.id]).length;
+
+    return Math.round((completedCount / allLessons.length) * 100);
+  }, [grade, user.track, userProgress]);
 
 
   const handleLessonComplete = (lessonId: string) => {
@@ -270,20 +227,6 @@ const CourseView: React.FC<CourseViewProps> = ({ grade, unit, user, onBack, onSu
     setOpenAccordion(prev => (prev === baseTitle ? null : baseTitle));
   };
 
-  const handleLessonClick = (lesson: Lesson) => {
-    const isSubscribed = hasSubscriptionForItem(user.id, unit.id);
-    if (isSubscribed) {
-        setActiveLesson(lesson);
-    } else {
-        setShowSubPrompt(true);
-    }
-  };
-
-  const handleConfirmSubscription = () => {
-    setShowSubPrompt(false);
-    onSubscriptionNeeded(unit);
-  };
-
 
   if (activeLesson) {
     return <LessonView 
@@ -292,6 +235,7 @@ const CourseView: React.FC<CourseViewProps> = ({ grade, unit, user, onBack, onSu
         grade={grade}
         user={user}
         onLessonComplete={handleLessonComplete}
+        onNavigate={onNavigate}
     />;
   }
   
@@ -302,10 +246,22 @@ const CourseView: React.FC<CourseViewProps> = ({ grade, unit, user, onBack, onSu
         <span>العودة إلى اختيار المواد</span>
       </button>
 
-      <h1 className="text-3xl md:text-4xl font-bold mb-2 text-[var(--text-primary)]">محتوى مادة: {unit.title}</h1>
-      <p className="text-md text-[var(--text-secondary)] mb-8">
-        {teacher ? `مقدمة من ${teacher.name}` : 'اختر درساً لبدء رحلتك التعليمية.'}
-      </p>
+       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
+          <div className="w-full md:w-auto md:order-1 order-2">
+              <div className="bg-[rgba(var(--bg-secondary-rgb),0.5)] border border-[var(--border-primary)] rounded-2xl p-6 text-center shadow-lg backdrop-blur-sm w-full md:w-48">
+                  <p className="text-md text-[var(--text-secondary)] mb-2">معدل الإنجاز الكلي</p>
+                  <p className="text-5xl font-black text-gradient-purple-blue">{overallProgress}%</p>
+              </div>
+          </div>
+          <div className="flex-1 text-right md:order-2 order-1">
+              <h1 className="text-4xl md:text-5xl font-black text-[var(--text-primary)] leading-tight">
+                  الدروس <span className="text-gradient-purple">والمحتوى</span> <span className="text-gradient-blue">التعليمي</span>
+              </h1>
+              <p className="text-md text-[var(--text-secondary)] mt-2">
+                  {grade.name} - {unit.title}
+              </p>
+          </div>
+      </div>
       
       {groupedLessons.length > 0 ? (
         <div className="space-y-4">
@@ -313,7 +269,7 @@ const CourseView: React.FC<CourseViewProps> = ({ grade, unit, user, onBack, onSu
             <LessonAccordionItem
               key={groupedLesson.baseTitle} 
               groupedLesson={groupedLesson}
-              onSelect={handleLessonClick}
+              onSelect={setActiveLesson}
               index={index}
               userProgress={userProgress}
               isOpen={openAccordion === groupedLesson.baseTitle}
@@ -326,37 +282,6 @@ const CourseView: React.FC<CourseViewProps> = ({ grade, unit, user, onBack, onSu
             <p className="text-[var(--text-secondary)]">لم يتم إضافة دروس لهذه المادة بعد.</p>
         </div>
       )}
-
-      <div className="mt-12">
-        {relatedBooks.length > 0 && (
-            <Carousel title="كتب وملازم متعلقة">
-                {relatedBooks.map(book => <BookCard key={book.id} book={book} />)}
-            </Carousel>
-        )}
-      </div>
-
-       <Modal isOpen={showSubPrompt} onClose={() => setShowSubPrompt(false)} title="الاشتراك مطلوب">
-            <div className="text-center">
-                <ShieldCheckIcon className="w-16 h-16 text-blue-500 mx-auto mb-4" />
-                <p className="text-lg text-[var(--text-secondary)]">
-                    يجب عليك الاشتراك في مادة <strong className="text-[var(--text-primary)]">"{unit.title}"</strong> أولاً لتتمكن من عرض هذا المحتوى.
-                </p>
-                <div className="flex justify-center mt-6 space-x-4 space-x-reverse">
-                    <button 
-                        onClick={() => setShowSubPrompt(false)} 
-                        className="px-6 py-2.5 font-semibold bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] rounded-lg transition-colors"
-                    >
-                        إلغاء
-                    </button>
-                    <button 
-                        onClick={handleConfirmSubscription}
-                        className="px-6 py-2.5 font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-all transform hover:scale-105 shadow-md"
-                    >
-                        الانتقال للاشتراك
-                    </button>
-                </div>
-            </div>
-        </Modal>
     </div>
   );
 };

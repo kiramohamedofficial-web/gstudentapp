@@ -3,7 +3,6 @@ import { User, QuizAttempt } from '../../types';
 import { getQuizAttemptsByUserId, getAllGrades } from '../../services/storageService';
 import { CheckCircleIcon, XCircleIcon } from '../common/Icons';
 
-// FIX: Removed a stale TODO comment as the 'user' prop is already correctly destructured.
 const ResultsView: React.FC<{ user: User }> = ({ user }) => {
     const attempts = useMemo(() => getQuizAttemptsByUserId(user.id), [user.id]);
     

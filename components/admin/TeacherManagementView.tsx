@@ -1,49 +1,84 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { Teacher, ToastType, Grade } from '../../types';
-import { getTeachers, addTeacher, updateTeacher, deleteTeacher, getUnitsForTeacher, getAllGrades } from '../../services/storageService';
+import { Teacher, ToastType, Grade, User } from '../../types';
+import { getTeachers, addTeacher, updateTeacher, deleteTeacher, getAllGrades, getAllUsers } from '../../services/storageService';
 import Modal from '../common/Modal';
-import { PlusIcon, PencilIcon, TrashIcon, UsersSolidIcon, BookOpenIcon, CollectionIcon } from '../common/Icons';
+import { PlusIcon, PencilIcon, TrashIcon, UserCircleIcon } from '../common/Icons';
 import { useToast } from '../../useToast';
 
-// Reusable Confirmation Modal
-const ConfirmationModal: React.FC<{ isOpen: boolean; onClose: () => void; onConfirm: () => void; title: string; message: string; }> = ({ isOpen, onClose, onConfirm, title, message }) => (
-    <Modal isOpen={isOpen} onClose={onClose} title={title}>
-        <p className="text-[var(--text-secondary)] mb-6">{message}</p>
-        <div className="flex justify-end space-x-3 space-x-reverse">
-            <button onClick={onClose} className="px-4 py-2 rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] transition-colors">إلغاء</button>
-            <button onClick={onConfirm} className="px-4 py-2 rounded-md bg-red-600 hover:bg-red-700 transition-colors text-white">تأكيد الحذف</button>
-        </div>
-    </Modal>
+const Checkbox: React.FC<{ label: string; checked: boolean; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; name: string; }> = ({ label, checked, onChange, name }) => (
+    <label className="flex items-center space-x-2 space-x-reverse cursor-pointer p-2 rounded-md hover:bg-white/5 transition-colors">
+        <input type="checkbox" name={name} checked={checked} onChange={onChange} className="h-4 w-4 rounded border-gray-500 bg-transparent text-purple-600 focus:ring-purple-500" />
+        <span className="text-[var(--text-secondary)] text-sm">{label}</span>
+    </label>
 );
 
-// Teacher Add/Edit Modal
-const TeacherModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (data: Omit<Teacher, 'id'> | Teacher) => void; teacher: Partial<Teacher> | null }> = ({ isOpen, onClose, onSave, teacher }) => {
-    const [formData, setFormData] = useState<Partial<Teacher>>({ levels: [], grades: [] });
-    const { addToast } = useToast();
+interface TeacherModalSaveData extends Omit<Teacher, 'id'> {
+    phone: string;
+    password?: string;
+    id?: string; // for editing
+}
+
+const TeacherModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    onSave: (data: TeacherModalSaveData) => void;
+    teacher: Teacher | null;
+}> = ({ isOpen, onClose, onSave, teacher }) => {
+    const [formData, setFormData] = useState({ name: '', subject: '', imageUrl: '', phone: '', password: '' });
+    const [selectedLevels, setSelectedLevels] = useState<('Middle' | 'Secondary')[]>([]);
+    const [selectedGrades, setSelectedGrades] = useState<number[]>([]);
+    const [error, setError] = useState('');
 
     const allGrades = useMemo(() => getAllGrades(), []);
-    const middleSchoolGrades = useMemo(() => allGrades.filter(g => g.level === 'Middle'), [allGrades]);
-    const secondarySchoolGrades = useMemo(() => allGrades.filter(g => g.level === 'Secondary'), [allGrades]);
+    const middleSchoolGrades = useMemo(() => allGrades.filter(g => g.level === 'Middle').sort((a,b) => a.id - b.id), [allGrades]);
+    const secondarySchoolGrades = useMemo(() => allGrades.filter(g => g.level === 'Secondary').sort((a,b) => a.id - b.id), [allGrades]);
 
     React.useEffect(() => {
         if (isOpen) {
-            setFormData(teacher || { levels: [], grades: [] });
+            setError('');
+            if (teacher) {
+                const teacherUser = getAllUsers().find(u => u.teacherId === teacher.id);
+                setFormData({
+                    name: teacher.name || '',
+                    subject: teacher.subject || '',
+                    imageUrl: teacher.imageUrl || '',
+                    phone: teacherUser?.phone.replace('+2', '') || '',
+                    password: '' // Don't pre-fill password
+                });
+                setSelectedLevels(teacher.teachingLevels || []);
+                setSelectedGrades(teacher.teachingGrades || []);
+            } else {
+                setFormData({ name: '', subject: '', imageUrl: '', phone: '', password: '' });
+                setSelectedLevels([]);
+                setSelectedGrades([]);
+            }
         }
-    }, [isOpen, teacher]);
+    }, [teacher, isOpen]);
 
+    const handleLevelChange = (level: 'Middle' | 'Secondary', isChecked: boolean) => {
+        setSelectedLevels(prev => isChecked ? [...prev, level] : prev.filter(l => l !== level));
+        if (!isChecked) {
+            const gradesToClear = (level === 'Middle' ? middleSchoolGrades : secondarySchoolGrades).map(g => g.id);
+            setSelectedGrades(prev => prev.filter(gId => !gradesToClear.includes(gId)));
+        }
+    };
+
+    const handleGradeChange = (gradeId: number, isChecked: boolean) => {
+        setSelectedGrades(prev => isChecked ? [...prev, gradeId] : prev.filter(id => id !== gradeId));
+    };
+    
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
+        if (name === 'phone') {
+            setFormData(prev => ({ ...prev, [name]: value.replace(/[^0-9]/g, '') }));
+        } else {
+            setFormData(prev => ({ ...prev, [name]: value }));
+        }
     };
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            if (file.size > 2 * 1024 * 1024) { // 2MB Limit
-                addToast('حجم الصورة يجب ألا يتجاوز 2 ميجابايت.', ToastType.ERROR);
-                e.target.value = '';
-                return;
-            }
             const reader = new FileReader();
             reader.onloadend = () => {
                 setFormData(prev => ({ ...prev, imageUrl: reader.result as string }));
@@ -52,108 +87,93 @@ const TeacherModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (da
         }
     };
 
-    const handleLevelChange = (level: 'Middle' | 'Secondary', isChecked: boolean) => {
-        setFormData(prev => {
-            const currentLevels = prev.levels || [];
-            const newLevels = isChecked ? [...currentLevels, level] : currentLevels.filter(l => l !== level);
-
-            const gradesToKeep: number[] = [];
-            if (newLevels.includes('Middle')) {
-                gradesToKeep.push(...middleSchoolGrades.map(g => g.id));
-            }
-            if (newLevels.includes('Secondary')) {
-                gradesToKeep.push(...secondarySchoolGrades.map(g => g.id));
-            }
-            
-            const newGrades = (prev.grades || []).filter(gradeId => gradesToKeep.includes(gradeId));
-
-            return { ...prev, levels: newLevels, grades: newGrades };
-        });
-    };
-
-    const handleGradeChange = (gradeId: number, isChecked: boolean) => {
-        setFormData(prev => {
-            const currentGrades = prev.grades || [];
-            const newGrades = isChecked ? [...currentGrades, gradeId] : currentGrades.filter(g => g.id !== gradeId);
-            return { ...prev, grades: newGrades };
-        });
-    };
-
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!formData.name || !formData.subject || !formData.imageUrl) {
-            addToast("الرجاء ملء جميع الحقول الأساسية.", ToastType.ERROR);
+        setError('');
+
+        const phoneRegex = /^01[0125]\d{8}$/;
+        if (!phoneRegex.test(formData.phone)) {
+            setError('الرجاء إدخال رقم هاتف مصري صحيح (11 رقم).');
             return;
         }
-        if (!formData.levels || formData.levels.length === 0) {
-            addToast("الرجاء تحديد مرحلة دراسية واحدة على الأقل.", ToastType.ERROR);
+
+        if (!teacher && !formData.password) {
+            setError('كلمة المرور مطلوبة للمدرس الجديد.');
             return;
         }
-        if (!formData.grades || formData.grades.length === 0) {
-            addToast("الرجاء تحديد صف دراسي واحد على الأقل.", ToastType.ERROR);
-            return;
+
+        const saveData: TeacherModalSaveData = { 
+            name: formData.name,
+            subject: formData.subject,
+            imageUrl: formData.imageUrl,
+            phone: formData.phone,
+            password: formData.password,
+            teachingLevels: selectedLevels,
+            teachingGrades: selectedGrades,
+        };
+        if(teacher) {
+            saveData.id = teacher.id;
         }
-        onSave(formData as Teacher);
+        onSave(saveData);
     };
 
-    const CheckboxLabel: React.FC<{ label: string, checked: boolean, onChange: (e: React.ChangeEvent<HTMLInputElement>) => void }> = ({ label, checked, onChange }) => (
-        <label className={`flex items-center space-x-2 space-x-reverse p-2.5 rounded-lg border cursor-pointer transition-colors ${checked ? 'bg-purple-500/10 border-purple-500/50' : 'bg-[var(--bg-tertiary)] border-[var(--border-primary)] hover:bg-[var(--border-primary)]'}`}>
-            <input type="checkbox" checked={checked} onChange={onChange} className="form-checkbox h-5 w-5 rounded text-purple-600 bg-[var(--bg-secondary)] border-[var(--border-primary)] focus:ring-purple-500" />
-            <span className={`text-sm font-semibold ${checked ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>{label}</span>
-        </label>
-    );
-
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={teacher?.id ? 'تعديل بيانات المعلم' : 'إضافة معلم جديد'}>
+        <Modal isOpen={isOpen} onClose={onClose} title={teacher ? 'تعديل بيانات المدرس' : 'إضافة مدرس جديد'}>
             <form onSubmit={handleSubmit} className="space-y-6">
-                <fieldset>
-                    <legend className="text-sm font-semibold text-[var(--text-secondary)] mb-2">المعلومات الأساسية</legend>
-                    <div className="space-y-4 p-4 bg-[var(--bg-tertiary)] rounded-lg border border-[var(--border-primary)]">
-                        <div>
-                            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">اسم المعلم</label>
-                            <input name="name" value={formData.name || ''} onChange={handleChange} required className="w-full p-2 rounded-md bg-[var(--bg-secondary)] border border-[var(--border-primary)]" />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">المادة الأساسية</label>
-                            <input name="subject" value={formData.subject || ''} onChange={handleChange} required className="w-full p-2 rounded-md bg-[var(--bg-secondary)] border border-[var(--border-primary)]" />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">صورة المعلم</label>
-                            {formData.imageUrl && <img src={formData.imageUrl} alt="معاينة" className="w-24 h-24 object-cover rounded-full border-2 border-[var(--border-primary)] mb-2" />}
-                            <input type="file" accept="image/*" onChange={handleImageUpload} className="w-full text-sm text-[var(--text-secondary)] file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"/>
-                        </div>
+                <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 -mr-4 pl-1">
+                    <div>
+                        <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">اسم المدرس</label>
+                        <input name="name" value={formData.name} onChange={handleChange} required className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)]" />
                     </div>
-                </fieldset>
-
-                 <fieldset>
-                    <legend className="text-sm font-semibold text-[var(--text-secondary)] mb-2">النطاق التدريسي</legend>
-                    <div className="space-y-4 p-4 bg-[var(--bg-tertiary)] rounded-lg border border-[var(--border-primary)]">
-                        <div>
-                            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">المراحل الدراسية</label>
-                            <div className="flex gap-4">
-                                <CheckboxLabel label="الإعدادية" checked={formData.levels?.includes('Middle') || false} onChange={e => handleLevelChange('Middle', e.target.checked)} />
-                                <CheckboxLabel label="الثانوية" checked={formData.levels?.includes('Secondary') || false} onChange={e => handleLevelChange('Secondary', e.target.checked)} />
-                            </div>
-                        </div>
-
-                        {formData.levels?.includes('Middle') && (
+                     <div>
+                        <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">رقم هاتف المدرس (للدخول)</label>
+                        <input name="phone" value={formData.phone} onChange={handleChange} required className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-left" placeholder="01xxxxxxxxx" maxLength={11}/>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">كلمة المرور</label>
+                        <input name="password" type="password" value={formData.password} onChange={handleChange} required={!teacher} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)]" placeholder={teacher ? "اتركها فارغة لعدم التغيير" : "كلمة مرور قوية"} />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">المادة الأساسية</label>
+                        <input name="subject" value={formData.subject} onChange={handleChange} required className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)]" />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">صورة المدرس</label>
+                        {formData.imageUrl && <img src={formData.imageUrl} alt="Preview" className="w-24 h-24 rounded-full object-cover mb-2" />}
+                        <input type="file" accept="image/*" onChange={handleImageUpload} className="w-full text-sm text-[var(--text-secondary)] file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"/>
+                    </div>
+                     <div className="pt-4 border-t border-[var(--border-primary)]">
+                        <h3 className="text-md font-semibold text-[var(--text-primary)] mb-3">التخصص الدراسي</h3>
+                        <div className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">الصفوف الإعدادية</label>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                    {middleSchoolGrades.map(grade => <CheckboxLabel key={grade.id} label={grade.ordinal} checked={formData.grades?.includes(grade.id) || false} onChange={e => handleGradeChange(grade.id, e.target.checked)} />)}
+                                <p className="block text-sm font-medium text-[var(--text-secondary)] mb-2">المراحل الدراسية</p>
+                                <div className="flex space-x-4 space-x-reverse">
+                                    <Checkbox label="المرحلة الإعدادية" name="level_middle" checked={selectedLevels.includes('Middle')} onChange={e => handleLevelChange('Middle', e.target.checked)} />
+                                    <Checkbox label="المرحلة الثانوية" name="level_secondary" checked={selectedLevels.includes('Secondary')} onChange={e => handleLevelChange('Secondary', e.target.checked)} />
                                 </div>
                             </div>
-                        )}
-                        {formData.levels?.includes('Secondary') && (
-                            <div>
-                                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">الصفوف الثانوية</label>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                    {secondarySchoolGrades.map(grade => <CheckboxLabel key={grade.id} label={grade.ordinal} checked={formData.grades?.includes(grade.id) || false} onChange={e => handleGradeChange(grade.id, e.target.checked)} />)}
+
+                            {selectedLevels.includes('Middle') && (
+                                <div className="p-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md">
+                                    <p className="text-sm font-medium text-[var(--text-secondary)] mb-2">الصفوف الإعدادية</p>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-2 gap-y-1">
+                                        {middleSchoolGrades.map(grade => <Checkbox key={grade.id} label={grade.ordinal} name={`grade_${grade.id}`} checked={selectedGrades.includes(grade.id)} onChange={e => handleGradeChange(grade.id, e.target.checked)} />)}
+                                    </div>
                                 </div>
-                            </div>
-                        )}
+                            )}
+                            {selectedLevels.includes('Secondary') && (
+                                <div className="p-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md">
+                                    <p className="text-sm font-medium text-[var(--text-secondary)] mb-2">الصفوف الثانوية</p>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-2 gap-y-1">
+                                        {secondarySchoolGrades.map(grade => <Checkbox key={grade.id} label={grade.ordinal} name={`grade_${grade.id}`} checked={selectedGrades.includes(grade.id)} onChange={e => handleGradeChange(grade.id, e.target.checked)} />)}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </fieldset>
+                </div>
+
+                {error && <p className="text-red-500 text-sm">{error}</p>}
 
                 <div className="flex justify-end pt-4">
                     <button type="submit" className="px-5 py-2 font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700">حفظ</button>
@@ -163,141 +183,141 @@ const TeacherModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (da
     );
 };
 
-const TeacherAssignmentsModal: React.FC<{ isOpen: boolean; onClose: () => void; teacher: Teacher | null }> = ({ isOpen, onClose, teacher }) => {
-    const assignments = useMemo(() => {
-        if (!teacher) return [];
-        return getUnitsForTeacher(teacher.id);
-    }, [teacher]);
-
-    if (!teacher) return null;
-
+const TeacherCard: React.FC<{ teacher: Teacher; onEdit: () => void; onDelete: () => void; }> = ({ teacher, onEdit, onDelete }) => {
+    const levelMap: Record<'Middle' | 'Secondary', string> = {
+        'Middle': 'إعدادي',
+        'Secondary': 'ثانوي'
+    };
+    
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={`المواد المسندة إلى ${teacher.name}`}>
-            {assignments.length > 0 ? (
-                <div className="space-y-3 max-h-80 overflow-y-auto">
-                    {assignments.map((assignment, index) => (
-                        <div key={index} className="bg-[var(--bg-tertiary)] p-3 rounded-lg flex items-center space-x-3 space-x-reverse">
-                            <BookOpenIcon className="w-5 h-5 text-[var(--text-secondary)] flex-shrink-0" />
-                            <div>
-                                <p className="font-semibold text-sm text-[var(--text-primary)]">{assignment.unitTitle}</p>
-                                <p className="text-xs text-[var(--text-secondary)]">{assignment.gradeName}</p>
-                            </div>
-                        </div>
-                    ))}
+        <div className="bg-[var(--bg-secondary)] rounded-2xl shadow-lg border border-[var(--border-primary)] p-6 transition-all duration-300 transform hover:-translate-y-1.5 hover:shadow-purple-500/10 hover:border-purple-500/50">
+            <div className="flex items-start justify-between">
+                <div className="flex items-center space-x-4 space-x-reverse">
+                    <img src={teacher.imageUrl} alt={teacher.name} className="w-20 h-20 rounded-full object-cover border-4 border-[var(--bg-tertiary)]"/>
+                    <div>
+                        <h3 className="text-xl font-bold text-[var(--text-primary)]">{teacher.name}</h3>
+                        <p className="text-[var(--text-secondary)]">{teacher.subject}</p>
+                    </div>
                 </div>
-            ) : (
-                <p className="text-center text-[var(--text-secondary)] py-8">لم يتم إسناد أي مواد لهذا المعلم بعد.</p>
-            )}
-        </Modal>
+                <div className="flex-shrink-0 flex items-center gap-2">
+                    <button onClick={onEdit} className="p-2 text-[var(--text-secondary)] hover:text-yellow-400 transition-colors"><PencilIcon className="w-5 h-5"/></button>
+                    <button onClick={onDelete} className="p-2 text-[var(--text-secondary)] hover:text-red-500 transition-colors"><TrashIcon className="w-5 h-5"/></button>
+                </div>
+            </div>
+            <div className="mt-4 pt-4 border-t border-[var(--border-primary)]">
+                <h4 className="text-sm font-semibold text-[var(--text-secondary)] mb-2">التخصص</h4>
+                <div className="flex flex-wrap gap-2">
+                    {(teacher.teachingLevels && teacher.teachingLevels.length > 0) ? (
+                        teacher.teachingLevels.map(level => (
+                            <span key={level} className="px-3 py-1 text-xs font-bold rounded-full bg-purple-500/10 text-purple-400">{levelMap[level]}</span>
+                        ))
+                    ) : (
+                        <span className="text-xs text-[var(--text-secondary)]">لم يحدد</span>
+                    )}
+                </div>
+            </div>
+        </div>
     );
-}
-
-const TeacherCard: React.FC<{ teacher: Teacher; onEdit: () => void; onDelete: () => void; onViewAssignments: () => void; }> = ({ teacher, onEdit, onDelete, onViewAssignments }) => (
-    <div className="teacher-card">
-        <div className="teacher-card-img-wrapper">
-            <img src={teacher.imageUrl} alt={teacher.name} className="teacher-card-img" />
-        </div>
-        <div className="p-4 text-center">
-            <h3 className="text-lg font-bold text-[var(--text-primary)]">{teacher.name}</h3>
-            <p className="text-sm text-[var(--text-secondary)]">{teacher.subject}</p>
-             <div className="flex justify-center gap-2 mt-2 mb-4">
-                {teacher.levels.includes('Middle') && <span className="text-xs px-2 py-1 bg-sky-500/10 text-sky-400 rounded-full">إعدادي</span>}
-                {teacher.levels.includes('Secondary') && <span className="text-xs px-2 py-1 bg-purple-500/10 text-purple-400 rounded-full">ثانوي</span>}
-            </div>
-            <div className="space-y-2">
-                <button onClick={onViewAssignments} className="w-full text-center text-sm py-2 px-3 rounded-md bg-purple-600/10 text-purple-400 hover:bg-purple-600/20 transition-colors flex items-center justify-center space-x-2 space-x-reverse">
-                    <CollectionIcon className="w-4 h-4" />
-                    <span>عرض المواد</span>
-                </button>
-                <div className="flex gap-2">
-                    <button onClick={onEdit} className="flex-1 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] text-yellow-400 rounded-md transition-colors text-sm font-semibold">تعديل</button>
-                    <button onClick={onDelete} className="flex-1 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] text-red-500 rounded-md transition-colors text-sm font-semibold">حذف</button>
-                </div>
-            </div>
-        </div>
-    </div>
-);
+};
 
 
 const TeacherManagementView: React.FC = () => {
     const [dataVersion, setDataVersion] = useState(0);
+    const [modalState, setModalState] = useState<{ type: 'add' | 'edit' | 'delete' | null, teacher: Teacher | null }>({ type: null, teacher: null });
     const { addToast } = useToast();
-    const [modalState, setModalState] = useState<{ type: 'add' | 'edit' | 'delete' | 'viewAssignments' | null; data: Partial<Teacher> | null }>({ type: null, data: null });
-
-    const teachers = useMemo(() => getTeachers(), [dataVersion]);
-    const refreshData = useCallback(() => setDataVersion(v => v + 1), []);
     
-    const closeModal = () => setModalState({ type: null, data: null });
+    const teachers = useMemo(() => getTeachers(), [dataVersion]);
+    
+    const refreshData = useCallback(() => setDataVersion(v => v + 1), []);
 
-    const handleSave = (teacherData: Omit<Teacher, 'id'> | Teacher) => {
-        if ('id' in teacherData && teacherData.id) {
-            updateTeacher(teacherData as Teacher);
-            addToast('تم تحديث بيانات المعلم بنجاح!', ToastType.SUCCESS);
-        } else {
-            addTeacher(teacherData);
-            addToast('تمت إضافة المعلم بنجاح!', ToastType.SUCCESS);
+    const handleSave = (data: TeacherModalSaveData) => {
+        let result: { error?: string; [key: string]: any } | undefined;
+    
+        if (data.id) { // Editing
+            const { id, name, subject, imageUrl, teachingLevels, teachingGrades, phone, password } = data;
+            const teacherData: Teacher & { phone: string; password?: string } = { id, name, subject, imageUrl, teachingLevels, teachingGrades, phone, password };
+            
+            if (!teacherData.password) {
+                delete teacherData.password;
+            }
+            result = updateTeacher(teacherData);
+        } else { // Adding
+            const { name, subject, imageUrl, teachingLevels, teachingGrades, phone, password } = data;
+            if (!password) { // This should be caught by form validation but is a safeguard.
+                addToast('كلمة المرور مطلوبة للمدرس الجديد.', ToastType.ERROR);
+                return;
+            }
+            const teacherData = { name, subject, imageUrl, teachingLevels, teachingGrades, phone, password };
+            result = addTeacher(teacherData);
         }
-        refreshData();
-        closeModal();
-    };
-
-    const handleDelete = () => {
-        if (modalState.data?.id) {
-            deleteTeacher(modalState.data.id);
-            addToast('تم حذف المعلم بنجاح.', ToastType.SUCCESS);
+        
+        if (result?.error) {
+            addToast(result.error, ToastType.ERROR);
+        } else {
+            addToast(data.id ? 'تم تحديث بيانات المدرس بنجاح.' : 'تمت إضافة المدرس بنجاح.', ToastType.SUCCESS);
             refreshData();
             closeModal();
         }
     };
     
+    const handleDelete = () => {
+        if (modalState.teacher) {
+            deleteTeacher(modalState.teacher.id);
+            addToast('تم حذف المدرس بنجاح.', ToastType.SUCCESS);
+            refreshData();
+            closeModal();
+        }
+    };
+
+    const openModal = (type: 'add' | 'edit' | 'delete', teacher: Teacher | null = null) => {
+        setModalState({ type, teacher });
+    };
+
+    const closeModal = () => setModalState({ type: null, teacher: null });
+
     return (
-        <div>
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold text-[var(--text-primary)]">إدارة المعلمين</h1>
-                <button onClick={() => setModalState({ type: 'add', data: null })} className="flex items-center text-sm px-4 py-2.5 bg-purple-600 hover:bg-purple-700 rounded-lg text-white font-semibold transition-colors shadow-md">
-                    <PlusIcon className="w-5 h-5 ml-2"/> إضافة معلم جديد
+        <div className="fade-in">
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-8 gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold text-[var(--text-primary)]">إدارة المدرسين</h1>
+                    <p className="text-[var(--text-secondary)] mt-1">إضافة وتعديل بيانات المدرسين وتخصصاتهم.</p>
+                </div>
+                <button onClick={() => openModal('add')} className="flex items-center justify-center space-x-2 space-x-reverse px-5 py-2.5 font-semibold bg-purple-600 hover:bg-purple-700 rounded-lg text-white transition-all shadow-lg shadow-purple-500/20 transform hover:scale-105">
+                    <PlusIcon className="w-5 h-5"/> 
+                    <span>إضافة مدرس جديد</span>
                 </button>
             </div>
             
-            {teachers.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+             {teachers.length > 0 ? (
+                <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-6">
                     {teachers.map(teacher => (
-                        <TeacherCard 
-                            key={teacher.id} 
-                            teacher={teacher} 
-                            onEdit={() => setModalState({ type: 'edit', data: teacher })}
-                            onDelete={() => setModalState({ type: 'delete', data: teacher })}
-                            onViewAssignments={() => setModalState({ type: 'viewAssignments', data: teacher })}
-                        />
+                        <TeacherCard key={teacher.id} teacher={teacher} onEdit={() => openModal('edit', teacher)} onDelete={() => openModal('delete', teacher)} />
                     ))}
                 </div>
             ) : (
-                <div className="text-center p-12 bg-[var(--bg-secondary-opaque)] rounded-xl border-2 border-dashed border-[var(--border-primary)]">
-                    <UsersSolidIcon className="w-16 h-16 mx-auto text-[var(--text-secondary)]/30 mb-4" />
-                    <p className="text-[var(--text-secondary)]">لم يتم إضافة أي معلمين بعد. ابدأ بإضافة معلم جديد.</p>
+                <div className="text-center py-20 bg-[var(--bg-secondary)] rounded-xl border-2 border-dashed border-[var(--border-primary)]">
+                     <UserCircleIcon className="w-20 h-20 mx-auto text-[var(--text-secondary)] opacity-20 mb-4" />
+                    <h3 className="font-bold text-lg text-[var(--text-primary)]">لا يوجد مدرسون بعد</h3>
+                    <p className="text-[var(--text-secondary)] mt-1">ابدأ بإضافة أول مدرس إلى المنصة.</p>
                 </div>
             )}
 
-            <TeacherModal 
+            <TeacherModal
                 isOpen={modalState.type === 'add' || modalState.type === 'edit'}
                 onClose={closeModal}
                 onSave={handleSave}
-                teacher={modalState.data}
+                teacher={modalState.teacher}
             />
 
-            <ConfirmationModal 
-                isOpen={modalState.type === 'delete'}
-                onClose={closeModal}
-                onConfirm={handleDelete}
-                title="تأكيد حذف المعلم"
-                message={`هل أنت متأكد من رغبتك في حذف المعلم "${modalState.data?.name}"؟ سيتم فك ربطه من جميع المواد المسندة إليه.`}
-            />
-
-            <TeacherAssignmentsModal
-                isOpen={modalState.type === 'viewAssignments'}
-                onClose={closeModal}
-                teacher={modalState.data as Teacher | null}
-            />
+            <Modal isOpen={modalState.type === 'delete'} onClose={closeModal} title="تأكيد الحذف">
+                <p className="text-[var(--text-secondary)] mb-6">
+                    هل أنت متأكد من رغبتك في حذف المدرس <span className="font-bold text-[var(--text-primary)]">{modalState.teacher?.name}</span>؟
+                </p>
+                <div className="flex justify-end space-x-3 space-x-reverse">
+                    <button onClick={closeModal} className="px-4 py-2 rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] transition-colors">إلغاء</button>
+                    <button onClick={handleDelete} className="px-4 py-2 rounded-md bg-red-600 hover:bg-red-700 transition-colors text-white">نعم، قم بالحذف</button>
+                </div>
+            </Modal>
         </div>
     );
 };

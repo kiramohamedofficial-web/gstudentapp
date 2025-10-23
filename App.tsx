@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { User, Role } from './types';
-import { initData, getUserByCredentials, addActivityLog, addUser } from './services/storageService';
+import { User, Role, Theme } from './types';
+import { initData, getUserByCredentials, addActivityLog, addUser, validateSubscriptionCode, registerAndRedeemCode } from './services/storageService';
 import LoginScreen from './components/auth/LoginScreen';
 import StudentDashboard from './components/student/StudentDashboard';
 import AdminDashboard from './components/admin/AdminDashboard';
+import TeacherDashboard from './components/teacher/TeacherDashboard'; // Import TeacherDashboard
 import Loader from './components/common/Loader';
 import { ToastContainer } from './components/common/Toast';
 import { useToast } from './useToast';
@@ -16,7 +17,8 @@ const App: React.FC = () => {
   const [authError, setAuthError] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [preLoginView, setPreLoginView] = useState<'welcome' | 'login' | 'register'>('welcome');
-  const [registrationCode, setRegistrationCode] = useState<string | undefined>();
+  const [theme, setTheme] = useState<Theme>('dark');
+  const [codeToRegister, setCodeToRegister] = useState<string | null>(null);
   const { addToast } = useToast();
 
   useEffect(() => {
@@ -26,12 +28,22 @@ const App: React.FC = () => {
       if (storedUser) {
         setCurrentUser(JSON.parse(storedUser));
       }
+      const storedTheme = localStorage.getItem('theme') as Theme | null;
+      if (storedTheme) {
+        setTheme(storedTheme);
+      }
     } catch (error) {
       console.error("Initialization failed:", error);
     } finally {
       setIsLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
 
   const handleLogin = useCallback((identifier: string, password: string): void => {
     const user = getUserByCredentials(identifier, password);
@@ -44,23 +56,36 @@ const App: React.FC = () => {
       setAuthError('رقم الهاتف/البريد الإلكتروني أو كلمة المرور غير صحيحة.');
     }
   }, []);
-
-  const handleRegister = useCallback((userData: Omit<User, 'id' | 'role' | 'subscriptionId'>, code?: string): void => {
-      const { user, error } = addUser(userData, code && code.trim() ? code.trim() : undefined);
-      if (user) {
-          setCurrentUser(user);
-          localStorage.setItem('currentUser', JSON.stringify(user));
+  
+  const handleCodeLogin = useCallback((code: string): void => {
+      const { valid, error } = validateSubscriptionCode(code);
+      if (valid) {
+          setCodeToRegister(code);
+          setPreLoginView('register');
           setAuthError('');
-          addToast(`مرحباً بك ${user.name}! تم إنشاء حسابك بنجاح.`, 'success');
-          if (code) {
-            addToast('تم تفعيل اشتراكك بنجاح!', 'success');
-          }
       } else {
-          setAuthError(error || 'حدث خطأ غير متوقع أثناء إنشاء الحساب.');
+          setAuthError(error || 'الكود غير صالح أو تم استخدامه.');
+      }
+  }, []);
+
+  const handleRegister = useCallback((userData: Omit<User, 'id' | 'role' | 'subscriptionId'>): void => {
+      const result = codeToRegister
+          ? registerAndRedeemCode(userData, codeToRegister)
+          : addUser(userData);
+
+      if (result.user) {
+          setCurrentUser(result.user);
+          localStorage.setItem('currentUser', JSON.stringify(result.user));
+          setAuthError('');
+          addToast(`مرحباً بك ${result.user.name}! تم إنشاء حسابك بنجاح.`, 'success');
+          setCodeToRegister(null);
+      } else {
+          setAuthError(result.error || 'حدث خطأ غير متوقع أثناء إنشاء الحساب.');
           // Navigate back to register screen to show the error
           setPreLoginView('register');
       }
-  }, [addToast]);
+  }, [addToast, codeToRegister]);
+
 
   const handleLogout = useCallback((): void => {
     if (currentUser) {
@@ -69,24 +94,25 @@ const App: React.FC = () => {
     setCurrentUser(null);
     localStorage.removeItem('currentUser');
     setPreLoginView('welcome');
+    setCodeToRegister(null);
   }, [currentUser]);
 
   const handleNavigateToLogin = () => {
     setAuthError('');
-    setRegistrationCode(undefined);
     setPreLoginView('login');
+    setCodeToRegister(null);
   };
   
-  const handleNavigateToRegister = (code?: string) => {
+  const handleNavigateToRegister = () => {
     setAuthError('');
-    setRegistrationCode(code);
     setPreLoginView('register');
+    setCodeToRegister(null);
   };
 
   const handleNavigateToWelcome = () => {
     setAuthError('');
-    setRegistrationCode(undefined);
     setPreLoginView('welcome');
+    setCodeToRegister(null);
   };
 
   const renderContent = () => {
@@ -104,9 +130,9 @@ const App: React.FC = () => {
         case 'welcome':
           return <WelcomeScreen onNavigateToLogin={handleNavigateToLogin} onNavigateToRegister={handleNavigateToRegister} />;
         case 'login':
-          return <LoginScreen onLogin={handleLogin} error={authError} onBack={handleNavigateToWelcome} onNavigateToRegister={handleNavigateToRegister} />;
+          return <LoginScreen onLogin={handleLogin} onCodeLogin={handleCodeLogin} error={authError} onBack={handleNavigateToWelcome} onNavigateToRegister={handleNavigateToRegister} />;
         case 'register':
-          return <RegistrationScreen onRegister={handleRegister} error={authError} onBack={handleNavigateToLogin} registrationCode={registrationCode} />;
+          return <RegistrationScreen onRegister={handleRegister} error={authError} onBack={handleNavigateToLogin} code={codeToRegister} />;
         default:
            return <WelcomeScreen onNavigateToLogin={handleNavigateToLogin} onNavigateToRegister={handleNavigateToRegister}/>;
       }
@@ -115,8 +141,10 @@ const App: React.FC = () => {
     return (
       <ScreenSecurity>
         {currentUser.role === Role.ADMIN
-          ? <AdminDashboard user={currentUser} onLogout={handleLogout} />
-          : <StudentDashboard user={currentUser} onLogout={handleLogout} />
+          ? <AdminDashboard user={currentUser} onLogout={handleLogout} theme={theme} setTheme={setTheme} />
+          : currentUser.role === Role.TEACHER
+          ? <TeacherDashboard user={currentUser} onLogout={handleLogout} theme={theme} setTheme={setTheme} />
+          : <StudentDashboard user={currentUser} onLogout={handleLogout} theme={theme} setTheme={setTheme} />
         }
       </ScreenSecurity>
     );

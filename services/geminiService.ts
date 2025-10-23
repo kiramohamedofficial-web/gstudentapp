@@ -1,6 +1,5 @@
-
-import { GoogleGenAI, Type } from "@google/genai";
-import { Grade, GeneratorFormState, Question, WeakArea } from '../types';
+import { GoogleGenAI } from "@google/genai";
+import { Grade } from '../types';
 
 // Per coding guidelines, the API key is sourced directly from process.env.API_KEY
 // and is assumed to be pre-configured and valid.
@@ -55,138 +54,51 @@ export const getAIExplanation = async (
   }
 };
 
-const questionSchema = {
-  type: Type.OBJECT,
-  properties: {
-    question_id: { type: Type.STRING, description: "Unique identifier, e.g., ARA-12-MCQ-0001" },
-    subject: { type: Type.STRING },
-    stream: { type: Type.STRING, description: "Should be 'Literary' or 'Scientific'" },
-    grade: { type: Type.INTEGER, description: "Should be 12" },
-    curriculum_ref: { type: Type.STRING, description: "Reference to the curriculum topic, e.g., Arabic-2025/Unit1" },
-    type: { type: Type.STRING, description: "MCQ | ShortAnswer | LongAnswer" },
-    difficulty: { type: Type.STRING, description: "easy | medium | hard" },
-    bloom_level: { type: Type.STRING, description: "remember|understand|apply|analyze|evaluate|create" },
-    time_allocated_sec: { type: Type.INTEGER },
-    marks: { type: Type.INTEGER },
-    stem: { type: Type.STRING, description: "The question text itself, in Arabic." },
-    options: {
-      type: Type.ARRAY,
-      description: "Required for MCQ type. An array of 4 option objects.",
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          id: { type: Type.STRING, description: "A, B, C, or D" },
-          text: { type: Type.STRING, description: "The option text, in Arabic." },
-        },
-        required: ['id', 'text']
-      }
-    },
-    answer_key: { type: Type.STRING, description: "For MCQ, the ID of the correct option (e.g., 'B'). For other types, the full answer text." },
-    rationale: { type: Type.STRING, description: "Explanation for the correct answer, in Arabic." },
-    tags: {
-      type: Type.ARRAY,
-      items: {
-        type: Type.STRING
-      },
-      description: "Relevant keywords."
-    },
-  },
-  required: ['question_id', 'subject', 'stream', 'grade', 'curriculum_ref', 'type', 'difficulty', 'bloom_level', 'time_allocated_sec', 'marks', 'stem', 'answer_key', 'rationale', 'tags'],
-};
+const CHAT_SYSTEM_INSTRUCTION = `أنت "مساعد Gstudent الذكي"، مساعد ذكاء اصطناعي ودود ومفيد للطلاب في المرحلتين الإعدادية والثانوية في مصر. مهمتك هي مساعدة الطلاب على فهم موادهم الدراسية. حافظ على إجاباتك موجزة ومفيدة وباللغة العربية الفصحى المبسطة. تجنب الردود الطويلة جداً ما لم يطلب منك ذلك.`;
 
-export const generateQuestions = async (formState: GeneratorFormState): Promise<Question[]> => {
+export type ChatMode = 'normal' | 'fast' | 'thinking';
+
+export const getChatbotResponseStream = async (
+  history: { role: 'user' | 'model'; parts: { text: string }[] }[],
+  newMessage: string,
+  mode: ChatMode
+) => {
   if (!process.env.API_KEY) {
-    throw new Error("Gemini API key is not configured.");
-  }
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
-  const { subject, topic, questionCount, mcqPercentage, difficulty } = formState;
-
-  const prompt = `
-    You are an expert curriculum designer for the Egyptian Thanaweya Amma (Grade 12) for the year 2025, literary stream.
-    Your task is to generate ${questionCount} high-quality exam questions in ARABIC.
-
-    **Instructions:**
-    1. **Subject:** ${subject}
-    2. **Topic:** ${topic}
-    3. **Total Questions:** ${questionCount}
-    4. **Question Type Distribution:** Approximately ${mcqPercentage}% of questions should be Multiple Choice (MCQ). The rest can be Short Answer.
-    5. **Difficulty Distribution:** Distribute the questions according to this profile: ${difficulty.easy}% easy, ${difficulty.medium}% medium, ${difficulty.hard}% hard.
-    6. **MCQ Rules:** For MCQ questions, provide 4 distinct options (A, B, C, D). One option must be clearly correct.
-    7. **Language:** All content (stem, options, rationale) MUST be in ARABIC.
-    8. **Context:** The questions must be relevant to the Egyptian curriculum and culture for 12th-grade literary stream students.
-    9. **Format:** Return a JSON array of question objects adhering strictly to the provided schema.
-  `;
-
-  try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: questionSchema
-        },
-      },
-    });
-
-    const jsonText = response.text.trim();
-    const generatedQuestions = JSON.parse(jsonText);
-
-    if (!Array.isArray(generatedQuestions)) {
-      throw new Error("API did not return a valid array of questions.");
-    }
-    return generatedQuestions as Question[];
-  } catch (error) {
-    console.error("Error generating questions from Gemini:", error);
-    throw new Error("Failed to parse or receive valid data from the AI. Please check the console for details.");
-  }
-};
-
-export const getAIStudyPlan = async (
-  userName: string,
-  gradeName: string,
-  weakAreas: WeakArea[]
-): Promise<string> => {
-  if (!process.env.API_KEY) {
-    return "عذرًا، خدمة المرشد الذكي غير متاحة حاليًا بسبب مشكلة في الإعدادات.";
+    throw new Error("مفتاح API غير متوفر. لا يمكن استخدام المساعد الذكي.");
   }
 
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-  const weakAreasString = weakAreas
-    .map(area => `- مادة "${area.unitTitle}", درس "${area.lessonTitle}" (الدرجة: ${area.score}%)`)
-    .join('\n');
+  const modelMap: Record<ChatMode, string> = {
+    normal: 'gemini-2.5-flash',
+    fast: 'gemini-2.5-flash-lite',
+    thinking: 'gemini-2.5-pro',
+  };
+
+  const configMap: Record<ChatMode, any> = {
+    normal: {},
+    fast: {},
+    thinking: { thinkingConfig: { thinkingBudget: 32768 } },
+  };
+
+  const model = modelMap[mode];
+  const config = {
+    ...configMap[mode],
+    systemInstruction: CHAT_SYSTEM_INSTRUCTION
+  };
   
-  const prompt = `
-    أنت خبير إرشادي أكاديمي متخصص في مساعدة طلاب المرحلة الثانوية والإعدادية في مصر. اسمك "المرشد الذكي".
-    مهمتك هي إنشاء خطة مذاكرة مخصصة ومشجعة للطالب "${userName}" في "${gradeName}".
-
-    لقد قمنا بتحليل أداء الطالب ووجدنا أنه يواجه بعض الصعوبات في المواضيع التالية:
-    ${weakAreasString}
-
-    بناءً على هذه المعلومات، قم بإنشاء خطة مذاكرة واضحة ومفصلة في شكل نقاط.
-    
-    يجب أن تتضمن الخطة ما يلي:
-    1.  مقدمة قصيرة ومحفزة تخاطب الطالب باسمه.
-    2.  قائمة بالمواضيع التي يجب التركيز عليها، مرتبة حسب الأولوية (من الأكثر صعوبة إلى الأقل).
-    3.  لكل موضوع، قدم خطوتين أو ثلاث خطوات عملية ومحددة للمراجعة. على سبيل المثال: "إعادة مشاهدة فيديو الشرح"، "حل 5 مسائل إضافية من كتاب التدريبات"، "تلخيص المفاهيم الأساسية في نقاط".
-    4.  نصيحة عامة للمذاكرة الفعالة.
-    5.  خاتمة إيجابية ومشجعة.
-
-    استخدم تنسيق Markdown البسيط (عناوين باستخدام #، قوائم نقطية باستخدام - أو *).
-    حافظ على نبرة إيجابية وداعمة. يجب أن تكون الخطة باللغة العربية.
-  `;
+  const contents = [...history, { role: 'user', parts: [{ text: newMessage }] }];
 
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
+    const responseStream = await ai.models.generateContentStream({
+      model,
+      contents,
+      config,
     });
-    return response.text;
-  } catch (error: unknown) {
-    console.error("Gemini API Error for Study Plan:", error);
-    return "عذراً، حدث خطأ أثناء إنشاء خطتك الدراسية. يرجى المحاولة مرة أخرى.";
+    return responseStream;
+  } catch (error) {
+    console.error("Gemini Chat API Error:", error);
+    // Re-throw a more user-friendly error
+    throw new Error("حدث خطأ أثناء التواصل مع المساعد الذكي. يرجى المحاولة مرة أخرى.");
   }
 };

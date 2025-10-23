@@ -1,11 +1,12 @@
-
-
 export enum Role {
   STUDENT = 'student',
   ADMIN = 'admin',
+  TEACHER = 'teacher',
 }
 
-export type StudentView = 'home' | 'grades' | 'subscription' | 'profile' | 'results' | 'studyPlan' | 'teachers';
+export type StudentView = 'home' | 'grades' | 'subscription' | 'profile' | 'teachers' | 'courses' | 'singleSubjectSubscription' | 'comprehensiveSubscription' | 'results' | 'smartPlan' | 'chatbot' | 'askTheProf';
+export type TeacherView = 'dashboard' | 'content' | 'subscriptions' | 'profile' | 'questionBank';
+
 
 export interface User {
   id: string;
@@ -15,20 +16,21 @@ export interface User {
   password: string; // Replaces 'code'
   guardianPhone: string;
   grade: number;
-  track?: 'Scientific' | 'Literary'; // For 3rd year secondary students
+  track?: 'Scientific' | 'Literary' | 'Science' | 'Math'; // For 2nd & 3rd year secondary students
   role: Role;
+  subscriptionId?: string;
+  teacherId?: string; // Links user to a teacher profile
 }
 
 export interface Subscription {
   id: string;
   userId: string;
-  itemId: string; // unitId, courseId, or a special platform-wide ID
-  itemName: string; // For display, e.g. "الجبر وحساب المثلثات"
-  itemType: 'unit' | 'course' | 'platform';
   plan: 'Monthly' | 'Quarterly' | 'Annual' | 'SemiAnnually';
   startDate: string;
   endDate: string;
   status: 'Active' | 'Expired';
+  teacherId?: string;
+  unitId?: string;
 }
 
 export enum LessonType {
@@ -50,22 +52,15 @@ export interface Lesson {
 
   timeLimit?: number; // in minutes, for exams
   passingScore?: number; // percentage from 0 to 100
-}
-
-export interface Teacher {
-    id: string;
-    name: string;
-    subject: string;
-    imageUrl: string;
-    levels: ('Middle' | 'Secondary')[];
-    grades: number[];
+  dueDate?: string;
 }
 
 export interface Unit {
   id: string;
-  teacherId?: string;
   title: string;
   lessons: Lesson[];
+  teacherId: string;
+  track?: 'Scientific' | 'Literary' | 'Science' | 'Math' | 'All';
 }
 
 export interface Semester {
@@ -90,13 +85,13 @@ export interface ActivityLog {
   details: string;
 }
 
-export interface PrepaidCode {
-  code: string;
-  teacherId: string;
-  plan: 'Monthly' | 'Annual';
+export interface AccessToken {
+  token: string;
+  gradeId: number;
+  semesterId: string;
+  unitId: string;
+  lessonId: string;
   isUsed: boolean;
-  usedByUserId?: string;
-  usedAt?: string;
   createdAt: string;
 }
 
@@ -104,16 +99,14 @@ export interface SubscriptionRequest {
   id: string;
   userId: string;
   userName: string;
-  itemId: string; // unitId, courseId, or a special platform-wide ID
-  itemName: string;
-  itemType: 'unit' | 'course' | 'platform';
   plan: 'Monthly' | 'Quarterly' | 'Annual' | 'SemiAnnually';
   paymentFromNumber: string;
   status: 'Pending' | 'Approved' | 'Rejected';
   createdAt: string;
+  subjectName?: string;
+  unitId?: string;
 }
 
-// FIX: Add StudentQuestion interface
 export interface StudentQuestion {
   id: string;
   userId: string;
@@ -136,15 +129,25 @@ export interface ToastMessage {
   type: ToastType;
 }
 
+export interface Teacher {
+    id: string;
+    name: string;
+    subject: string;
+    imageUrl: string;
+    teachingLevels?: ('Middle' | 'Secondary')[];
+    teachingGrades?: number[];
+}
+
 export interface Course {
   id: string; // could be unit id or a special course id
-  teacherId?: string;
   title: string;
   subtitle: string;
+  teacherId: string;
   coverImage: string;
   fileCount: number;
   videoCount: number;
   quizCount: number;
+  price: number;
 }
 
 export interface Book {
@@ -188,8 +191,23 @@ export interface PlatformSettings {
   contactYoutubeUrl: string;
 }
 
-// FIX: Export the 'Theme' type to be used for theme switching.
 export type Theme = 'dark' | 'light' | 'gold' | 'pink';
+
+export interface SubscriptionCode {
+    code: string;
+    teacherId: string;
+    durationDays: number;
+    maxUses: number;
+    timesUsed: number;
+    usedByUserIds: string[];
+    createdAt: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'model';
+  content: string;
+}
 
 
 declare global {
@@ -208,93 +226,5 @@ declare global {
     };
     // Custom property to handle multiple player instances loading the API
     onYouTubeIframeAPIReadyCallbacks?: (() => void)[];
-  }
-}
-
-// --- Types for AI Question Generator ---
-
-// FIX: Define and export the Subject enum here to break the circular dependency.
-export enum Subject {
-  ARABIC = 'اللغة العربية',
-  HISTORY = 'التاريخ',
-  GEOGRAPHY = 'الجغرافيا',
-  NATIONAL_EDUCATION = 'التربية الوطنية',
-  ENGLISH = 'اللغة الإنجليزية',
-  FRENCH = 'اللغة الفرنسية',
-}
-
-export enum QuestionType {
-  MCQ = 'MCQ',
-  ShortAnswer = 'ShortAnswer',
-  LongAnswer = 'LongAnswer',
-}
-
-export enum Difficulty {
-  Easy = 'easy',
-  Medium = 'medium',
-  Hard = 'hard',
-}
-
-export enum BloomLevel {
-  Remember = 'remember',
-  Understand = 'understand',
-  Apply = 'apply',
-  Analyze = 'analyze',
-  Evaluate = 'evaluate',
-  Create = 'create',
-}
-
-export interface QuestionOption {
-  id: string; // 'A', 'B', 'C', 'D'
-  text: string;
-}
-
-export interface Question {
-  question_id: string;
-  subject: string;
-  stream: string;
-  grade: number;
-  curriculum_ref: string;
-  type: QuestionType;
-  difficulty: Difficulty;
-  bloom_level: BloomLevel;
-  time_allocated_sec: number;
-  marks: number;
-  stem: string; // The question itself
-  options?: QuestionOption[];
-  answer_key: string;
-  rationale: string;
-  tags: string[];
-}
-
-export interface GeneratorFormState {
-  subject: Subject;
-  topic: string;
-  questionCount: number;
-  mcqPercentage: number;
-  difficulty: {
-    easy: number;
-    medium: number;
-    hard: number;
-  };
-}
-
-export interface WeakArea {
-    lessonTitle: string;
-    unitTitle: string;
-    score: number;
-}
-
-export interface Notification {
-  id: string;
-  userId: string;
-  title: string;
-  message: string;
-  type: 'subscription' | 'content' | 'general';
-  isRead: boolean;
-  createdAt: string;
-  itemId?: string; // To link to a specific item like a subscription
-  link?: {
-    view: StudentView;
   }
 }

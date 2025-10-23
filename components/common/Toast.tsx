@@ -11,9 +11,9 @@ const toastIcons: Record<ToastType, React.FC<{className?: string}>> = {
 };
 
 const toastStyles: Record<ToastType, string> = {
-    [ToastType.SUCCESS]: 'bg-green-600/80 border-green-500 text-white',
-    [ToastType.ERROR]: 'bg-red-600/80 border-red-500 text-white',
-    [ToastType.INFO]: 'bg-blue-600/80 border-blue-500 text-white',
+    [ToastType.SUCCESS]: 'bg-green-500/80 text-white',
+    [ToastType.ERROR]: 'bg-red-500/80 text-white',
+    [ToastType.INFO]: 'bg-blue-500/80 text-white',
 };
 
 const Toast: React.FC<{ toast: ToastMessage; onDismiss: (id: string) => void }> = ({ toast, onDismiss }) => {

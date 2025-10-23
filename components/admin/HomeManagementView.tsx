@@ -2,10 +2,10 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { Course, Book, ToastType } from '../../types';
 import { 
     getFeaturedCourses, addFeaturedCourse, updateFeaturedCourse, deleteFeaturedCourse,
-    getFeaturedBooks, addFeaturedBook, updateFeaturedBook, deleteFeaturedBook
+    getFeaturedBooks, addFeaturedBook, updateFeaturedBook, deleteFeaturedBook, getTeachers
 } from '../../services/storageService';
 import Modal from '../common/Modal';
-import { PlusIcon, PencilIcon, TrashIcon } from '../common/Icons';
+import { PlusIcon, PencilIcon, TrashIcon, BookBookmarkIcon, TemplateIcon } from '../common/Icons';
 import { useToast } from '../../useToast';
 
 const ConfirmationModal: React.FC<{ isOpen: boolean; onClose: () => void; onConfirm: () => void; title: string; message: string; }> = ({ isOpen, onClose, onConfirm, title, message }) => (
@@ -57,9 +57,11 @@ const HomeManagementView: React.FC = () => {
     const { addToast } = useToast();
     const [modalState, setModalState] = useState<{ type: string | null; data: any }>({ type: null, data: {} });
     const [formData, setFormData] = useState<any>({});
+    const [activeTab, setActiveTab] = useState<'courses' | 'books'>('courses');
 
     const courses = useMemo(() => getFeaturedCourses(), [dataVersion]);
     const books = useMemo(() => getFeaturedBooks(), [dataVersion]);
+    const teachers = useMemo(() => getTeachers(), []);
 
     const refreshData = useCallback(() => setDataVersion(v => v + 1), []);
     
@@ -72,15 +74,16 @@ const HomeManagementView: React.FC = () => {
         setFormData({});
     };
 
-    const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value, type } = e.target;
-        setFormData((prev: any) => ({ ...prev, [name]: type === 'number' ? Number(value) : value }));
+        // @ts-ignore
+        const isNumber = e.target.type === 'number';
+        setFormData((prev: any) => ({ ...prev, [name]: isNumber ? Number(value) : value }));
     };
      const handleImageChange = (name: string, value: string) => {
         setFormData((prev: any) => ({ ...prev, [name]: value }));
     };
 
-    // Generic Handlers
     const handleSave = () => {
         const { type, data } = modalState;
         switch(type) {
@@ -106,91 +109,92 @@ const HomeManagementView: React.FC = () => {
     };
 
 
-    return (
-        <div>
-            <h1 className="text-3xl font-bold mb-6 text-[var(--text-primary)]">إدارة الصفحة الرئيسية</h1>
-            
-            {/* Featured Courses Section */}
-            <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-md border border-[var(--border-primary)] mb-8">
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold text-[var(--text-primary)]">الكورسات المميزة</h2>
-                    <button onClick={() => openModal('add-course')} className="flex items-center text-sm px-3 py-2 bg-purple-600 hover:bg-purple-700 rounded-md text-white transition-colors">
-                        <PlusIcon className="w-5 h-5 ml-1"/> إضافة كورس
-                    </button>
+    const renderCourses = () => (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {courses.map(course => (
+                <div key={course.id} className="bg-[var(--bg-tertiary)] rounded-xl shadow-md border border-[var(--border-primary)] flex flex-col overflow-hidden">
+                    <img src={course.coverImage} alt={course.title} className="w-full h-40 object-cover" />
+                    <div className="p-4 flex-grow flex flex-col">
+                        <h3 className="font-bold text-lg text-[var(--text-primary)]">{course.title}</h3>
+                        <p className="text-sm text-[var(--text-secondary)] flex-grow">{course.subtitle}</p>
+                        <div className="flex justify-end gap-2 mt-4">
+                            <button onClick={() => openModal('edit-course', course)} className="p-2 text-yellow-500 hover:bg-yellow-500/10 rounded-md"><PencilIcon className="w-5 h-5"/></button>
+                            <button onClick={() => openModal('delete-course', course)} className="p-2 text-red-500 hover:bg-red-500/10 rounded-md"><TrashIcon className="w-5 h-5"/></button>
+                        </div>
+                    </div>
                 </div>
-                 <div className="overflow-x-auto">
-                    <table className="w-full text-right">
-                        <thead>
-                            <tr className="border-b border-[var(--border-primary)] text-sm text-[var(--text-secondary)]">
-                                <th className="p-2">الغلاف</th>
-                                <th className="p-2">العنوان</th>
-                                <th className="p-2">العنوان الفرعي</th>
-                                <th className="p-2 text-center">الإجراءات</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {courses.map(c => (
-                                <tr key={c.id} className="border-b border-[var(--border-primary)]/50">
-                                    <td className="p-2"><img src={c.coverImage} alt={c.title} className="w-24 h-14 rounded-md object-cover"/></td>
-                                    <td className="p-2 font-semibold">{c.title}</td>
-                                    <td className="p-2 text-[var(--text-secondary)]">{c.subtitle}</td>
-                                    <td className="p-2 text-center">
-                                        <button onClick={() => openModal('edit-course', c)} className="text-yellow-500 hover:text-yellow-400 p-1"><PencilIcon className="w-5 h-5"/></button>
-                                        <button onClick={() => openModal('delete-course', c)} className="text-red-500 hover:text-red-400 p-1 mr-2"><TrashIcon className="w-5 h-5"/></button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+            ))}
+        </div>
+    );
+    
+    const renderBooks = () => (
+         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {books.map(book => (
+                <div key={book.id} className="bg-[var(--bg-tertiary)] rounded-xl shadow-md border border-[var(--border-primary)] flex flex-col overflow-hidden p-4">
+                     <img src={book.coverImage} alt={book.title} className="w-full h-56 object-contain rounded-md mb-4"/>
+                     <div className="flex-grow flex flex-col">
+                         <h3 className="font-bold text-lg text-[var(--text-primary)]">{book.title}</h3>
+                        <p className="text-sm text-[var(--text-secondary)] flex-grow">{book.teacherName}</p>
+                         <div className="flex justify-end gap-2 mt-4">
+                            <button onClick={() => openModal('edit-book', book)} className="p-2 text-yellow-500 hover:bg-yellow-500/10 rounded-md"><PencilIcon className="w-5 h-5"/></button>
+                            <button onClick={() => openModal('delete-book', book)} className="p-2 text-red-500 hover:bg-red-500/10 rounded-md"><TrashIcon className="w-5 h-5"/></button>
+                        </div>
+                     </div>
                 </div>
-            </div>
+            ))}
+        </div>
+    );
 
-            {/* Featured Books Section */}
-            <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-md border border-[var(--border-primary)]">
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold text-[var(--text-primary)]">الكتب والملازم</h2>
-                    <button onClick={() => openModal('add-book')} className="flex items-center text-sm px-3 py-2 bg-purple-600 hover:bg-purple-700 rounded-md text-white transition-colors">
-                        <PlusIcon className="w-5 h-5 ml-1"/> إضافة كتاب
-                    </button>
+
+    return (
+        <div className="fade-in">
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-8 gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold text-[var(--text-primary)]">إدارة الصفحة الرئيسية</h1>
+                    <p className="text-[var(--text-secondary)] mt-1">التحكم في الكورسات والكتب التي تظهر في صفحة الترحيب.</p>
                 </div>
-                 <div className="overflow-x-auto">
-                    <table className="w-full text-right">
-                        <thead>
-                            <tr className="border-b border-[var(--border-primary)] text-sm text-[var(--text-secondary)]">
-                                <th className="p-2">الغلاف</th>
-                                <th className="p-2">العنوان</th>
-                                <th className="p-2">اسم المدرس</th>
-                                <th className="p-2">السعر</th>
-                                <th className="p-2 text-center">الإجراءات</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {books.map(b => (
-                                <tr key={b.id} className="border-b border-[var(--border-primary)]/50">
-                                    <td className="p-2"><img src={b.coverImage} alt={b.title} className="w-14 h-20 rounded-md object-contain bg-gray-100 p-1"/></td>
-                                    <td className="p-2 font-semibold">{b.title}</td>
-                                    <td className="p-2 text-[var(--text-secondary)]">{b.teacherName}</td>
-                                    <td className="p-2 text-[var(--text-secondary)]">{b.price} ج.م</td>
-                                    <td className="p-2 text-center">
-                                        <button onClick={() => openModal('edit-book', b)} className="text-yellow-500 hover:text-yellow-400 p-1"><PencilIcon className="w-5 h-5"/></button>
-                                        <button onClick={() => openModal('delete-book', b)} className="text-red-500 hover:text-red-400 p-1 mr-2"><TrashIcon className="w-5 h-5"/></button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                <button 
+                    onClick={() => openModal(activeTab === 'courses' ? 'add-course' : 'add-book')} 
+                    className="flex items-center justify-center space-x-2 space-x-reverse px-5 py-2.5 font-semibold bg-purple-600 hover:bg-purple-700 rounded-lg text-white transition-all shadow-lg shadow-purple-500/20 transform hover:scale-105"
+                >
+                    <PlusIcon className="w-5 h-5"/> 
+                    <span>{activeTab === 'courses' ? 'إضافة كورس' : 'إضافة كتاب'}</span>
+                </button>
             </div>
             
-            {/* Modals */}
+            <div className="mb-6 border-b border-[var(--border-primary)] flex space-x-4 space-x-reverse">
+                <button onClick={() => setActiveTab('courses')} className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold transition-colors duration-200 relative ${activeTab === 'courses' ? 'text-purple-400' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}>
+                   <TemplateIcon className="w-5 h-5" /> الكورسات المميزة
+                   {activeTab === 'courses' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-purple-500 rounded-full"></div>}
+                </button>
+                 <button onClick={() => setActiveTab('books')} className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold transition-colors duration-200 relative ${activeTab === 'books' ? 'text-purple-400' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}>
+                   <BookBookmarkIcon className="w-5 h-5" /> الكتب والملازم
+                   {activeTab === 'books' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-purple-500 rounded-full"></div>}
+                </button>
+            </div>
+            
+            <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)]">
+                {activeTab === 'courses' ? renderCourses() : renderBooks()}
+            </div>
+            
             <Modal isOpen={['add-course', 'edit-course'].includes(modalState.type || '')} onClose={closeModal} title={modalState.type === 'add-course' ? 'إضافة كورس جديد' : 'تعديل كورس'}>
                 <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="space-y-4">
                     <FormInput label="العنوان" name="title" value={formData.title || ''} onChange={handleFormChange} />
                     <FormInput label="العنوان الفرعي" name="subtitle" value={formData.subtitle || ''} onChange={handleFormChange} />
+                    <div>
+                        <label htmlFor="teacherId" className="block text-sm font-medium text-[var(--text-secondary)] mb-1">المدرس</label>
+                        <select name="teacherId" id="teacherId" value={formData.teacherId || ''} onChange={handleFormChange} required className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)] focus:ring-purple-500 focus:border-purple-500">
+                            <option value="">اختر المدرس</option>
+                            {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                        </select>
+                    </div>
                     <ImageUploadInput label="صورة الغلاف" name="coverImage" value={formData.coverImage || ''} onChange={handleImageChange} />
-                    <FormInput label="عدد الملفات" name="fileCount" type="number" value={formData.fileCount ?? 0} onChange={handleFormChange} />
-                    <FormInput label="عدد الفيديوهات" name="videoCount" type="number" value={formData.videoCount ?? 0} onChange={handleFormChange} />
-                    <FormInput label="عدد الاختبارات" name="quizCount" type="number" value={formData.quizCount ?? 0} onChange={handleFormChange} />
+                    <FormInput label="السعر" name="price" type="number" value={formData.price ?? 0} onChange={handleFormChange} />
+                    <div className="grid grid-cols-3 gap-4">
+                        <FormInput label="ملفات" name="fileCount" type="number" value={formData.fileCount ?? 0} onChange={handleFormChange} />
+                        <FormInput label="فيديوهات" name="videoCount" type="number" value={formData.videoCount ?? 0} onChange={handleFormChange} />
+                        <FormInput label="اختبارات" name="quizCount" type="number" value={formData.quizCount ?? 0} onChange={handleFormChange} />
+                    </div>
                     <div className="flex justify-end pt-4"><button type="submit" className="px-5 py-2 font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700">حفظ</button></div>
                 </form>
             </Modal>
@@ -206,13 +210,7 @@ const HomeManagementView: React.FC = () => {
                 </form>
             </Modal>
 
-            <ConfirmationModal
-                isOpen={modalState.type?.startsWith('delete-') || false}
-                onClose={closeModal}
-                onConfirm={handleDelete}
-                title="تأكيد الحذف"
-                message={`هل أنت متأكد من رغبتك في حذف هذا العنصر؟ لا يمكن التراجع عن هذا الإجراء.`}
-            />
+            <ConfirmationModal isOpen={modalState.type?.startsWith('delete-') || false} onClose={closeModal} onConfirm={handleDelete} title="تأكيد الحذف" message={`هل أنت متأكد من رغبتك في حذف هذا العنصر؟ لا يمكن التراجع عن هذا الإجراء.`}/>
         </div>
     );
 };

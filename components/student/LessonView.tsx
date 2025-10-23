@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Lesson, LessonType, Grade, User } from '../../types';
+import { Lesson, LessonType, Grade, User, StudentView } from '../../types';
 import { getAIExplanation } from '../../services/geminiService';
 import Modal from '../common/Modal';
-import { SparklesIcon, ChevronLeftIcon, ChevronRightIcon, DocumentTextIcon } from '../common/Icons';
+import { SparklesIcon, ChevronLeftIcon, ChevronRightIcon, DocumentTextIcon, ArrowLeftIcon, LockClosedIcon } from '../common/Icons';
 import { useToast } from '../../useToast';
 import QuizTaker from './QuizTaker';
 import CustomYouTubePlayer from './CustomYouTubePlayer';
+import { getSubscriptionByUserId } from '../../services/storageService';
 
 interface LessonViewProps {
   lesson: Lesson;
@@ -13,9 +14,10 @@ interface LessonViewProps {
   grade: Grade;
   user: User;
   onLessonComplete: (lessonId: string) => void;
+  onNavigate: (view: StudentView) => void;
 }
 
-const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, grade, user, onLessonComplete }) => {
+const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, grade, user, onLessonComplete, onNavigate }) => {
     const [isHelpModalOpen, setHelpModalOpen] = useState(false);
     const [aiQuestion, setAiQuestion] = useState('');
     const [aiResponse, setAiResponse] = useState('');
@@ -30,11 +32,12 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, grade, user, on
         setCurrentLesson(lesson);
     }, [lesson]);
 
-    useEffect(() => {
-        if (currentLesson.type === LessonType.SUMMARY) {
-            onLessonComplete(currentLesson.id);
-        }
-    }, [currentLesson, onLessonComplete]);
+    const subscription = useMemo(() => getSubscriptionByUserId(user.id), [user.id]);
+
+    const hasActiveSubscription = useMemo(() => {
+        if (!subscription || subscription.status !== 'Active') return false;
+        return new Date(subscription.endDate) >= new Date();
+    }, [subscription]);
 
     const subjectTitle = useMemo(() => {
         for (const semester of grade.semesters) {
@@ -88,6 +91,35 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, grade, user, on
     }, [aiResponse, displayedResponse]);
 
     const renderContent = () => {
+        if (currentLesson.type === LessonType.EXPLANATION && !hasActiveSubscription) {
+            return (
+                <div className="relative w-full max-w-4xl mx-auto aspect-video bg-gradient-to-br from-[rgba(var(--bg-secondary-rgb),0.5)] to-[rgba(var(--bg-primary-rgb),0.5)] rounded-2xl shadow-2xl border border-purple-500/30 flex flex-col items-center justify-center p-8 text-center overflow-hidden backdrop-blur-lg">
+                    {/* Glows */}
+                    <div className="absolute -top-1/4 -right-1/4 w-72 h-72 bg-purple-600/30 rounded-full filter blur-3xl animate-blob"></div>
+                    <div className="absolute -bottom-1/4 -left-1/4 w-72 h-72 bg-sky-600/30 rounded-full filter blur-3xl animate-blob animation-delay-4000"></div>
+                    
+                    <div className="relative z-10 flex flex-col items-center">
+                        <div className="p-4 bg-gray-700/50 rounded-full mb-6 border-2 border-gray-600 inline-block">
+                            <LockClosedIcon className="w-12 h-12 text-purple-400" />
+                        </div>
+                        <h2 className="text-3xl font-extrabold text-white mb-3">محتوى حصري للمشتركين</h2>
+                        <p className="text-gray-300 mb-8 max-w-lg mx-auto">
+                            للوصول إلى هذا الدرس وجميع مميزات المنصة، يرجى تفعيل اشتراكك. استثمر في مستقبلك اليوم!
+                        </p>
+                        <button 
+                            onClick={() => onNavigate('subscription')}
+                            className="inline-flex items-center justify-center group px-8 py-4 font-bold text-white bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg 
+                                       hover:from-purple-700 hover:to-blue-700 focus:outline-none focus:ring-4 focus:ring-purple-500/50
+                                       transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-purple-500/40"
+                        >
+                            <span>الذهاب إلى صفحة الاشتراك</span>
+                            <ArrowLeftIcon className="w-6 h-6 mr-3 transition-transform duration-300 group-hover:-translate-x-1" />
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
         switch (currentLesson.type) {
             case LessonType.EXPLANATION:
                 if(!currentLesson.content) {

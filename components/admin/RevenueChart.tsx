@@ -13,15 +13,16 @@ const chartData = [
 const RevenueChart: React.FC = () => {
   const chartWidth = 500;
   const chartHeight = 200;
-  const padding = 30;
+  const paddingY = 30;
+  const paddingX = 10;
 
-  const maxX = chartWidth - padding;
-  const maxY = chartHeight - padding;
+  const maxX = chartWidth - paddingX;
+  const maxY = chartHeight - paddingY;
 
-  const maxRevenue = Math.max(...chartData.map(d => d.revenue));
+  const maxRevenue = Math.max(...chartData.map(d => d.revenue)) * 1.1; // Add 10% buffer
   
-  const getX = (index: number) => padding + (index / (chartData.length - 1)) * (maxX - padding);
-  const getY = (revenue: number) => maxY - (revenue / maxRevenue) * (maxY - padding);
+  const getX = (index: number) => paddingX + (index / (chartData.length - 1)) * (maxX - paddingX);
+  const getY = (revenue: number) => maxY - (revenue / maxRevenue) * (maxY - paddingY);
 
   const linePath = chartData
     .map((d, i) => `${i === 0 ? 'M' : 'L'} ${getX(i)} ${getY(d.revenue)}`)
@@ -33,22 +34,18 @@ const RevenueChart: React.FC = () => {
     <div className="w-full h-64">
       <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="w-full h-full">
         {/* Y-axis labels and grid lines */}
-        {[0, 0.5, 1].map(tick => (
-          <g key={tick} className="text-xs text-[var(--text-secondary)]">
-            <text x="5" y={getY(maxRevenue * tick) + 4} fill="currentColor">
-              {Math.round(maxRevenue * (1 - tick))}
-            </text>
-            <line
-              x1={padding}
-              y1={getY(maxRevenue * tick)}
-              x2={maxX}
-              y2={getY(maxRevenue * tick)}
-              stroke="var(--border-primary)"
-              strokeWidth="1"
-              strokeDasharray="3"
-            />
-          </g>
-        ))}
+        {[0, 0.25, 0.5, 0.75, 1].map(tick => {
+          const y = getY(maxRevenue * tick);
+          if (y > maxY) return null;
+          return (
+            <g key={tick} className="text-xs text-[var(--text-secondary)]">
+              <text x="5" y={y + 4} fill="currentColor" style={{ direction: 'ltr' }}>
+                {Math.round(maxRevenue * (1-tick))}
+              </text>
+              <line x1={paddingX + 20} y1={y} x2={maxX} y2={y} stroke="var(--border-primary)" strokeWidth="1" strokeDasharray="3, 5" />
+            </g>
+          )
+        })}
 
         {/* X-axis labels */}
         {chartData.map((d, i) => (
@@ -57,38 +54,33 @@ const RevenueChart: React.FC = () => {
           </text>
         ))}
 
-        {/* Gradient for area fill */}
         <defs>
           <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#a855f7" stopOpacity="0.4" />
-            <stop offset="100%" stopColor="#a855f7" stopOpacity="0" />
+            <stop offset="0%" stopColor="#a855f7" stopOpacity="0.3" />
+            <stop offset="100%" stopColor="#ec4899" stopOpacity="0" />
           </linearGradient>
+           <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#a855f7" />
+                <stop offset="100%" stopColor="#ec4899" />
+            </linearGradient>
+            <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+                <feMerge>
+                    <feMergeNode in="coloredBlur"/>
+                    <feMergeNode in="SourceGraphic"/>
+                </feMerge>
+            </filter>
         </defs>
 
-        {/* Area fill path */}
         <path d={areaPath} fill="url(#areaGradient)" />
 
-        {/* Line path */}
-        <path
-          d={linePath}
-          fill="none"
-          stroke="#a855f7"
-          strokeWidth="3"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
+        <path d={linePath} fill="none" stroke="url(#lineGradient)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
 
-        {/* Data points */}
         {chartData.map((d, i) => (
-          <circle
-            key={i}
-            cx={getX(i)}
-            cy={getY(d.revenue)}
-            r="5"
-            fill="var(--bg-secondary)"
-            stroke="#a855f7"
-            strokeWidth="2"
-          />
+            <g key={i}>
+                <circle cx={getX(i)} cy={getY(d.revenue)} r="8" fill="#a855f7" fillOpacity="0.2" />
+                <circle cx={getX(i)} cy={getY(d.revenue)} r="4" fill="var(--bg-secondary)" stroke="url(#lineGradient)" strokeWidth="2" />
+            </g>
         ))}
       </svg>
     </div>
