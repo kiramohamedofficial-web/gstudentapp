@@ -136,7 +136,6 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
                         setIsPlaying(playerState === window.YT.PlayerState.PLAYING);
                         if (playerState === window.YT.PlayerState.ENDED) {
                             onLessonCompleteRef.current(videoId);
-                            onAutoPlayNextRef.current();
                         }
                     },
                     onPlaybackQualityChange: (event: any) => {
@@ -219,7 +218,6 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
     };
     const handleSetQuality = (quality: string) => {
         playerRef.current?.setPlaybackQuality(quality);
-        setCurrentQuality(quality);
         setQualityMenuOpen(false);
     }
     

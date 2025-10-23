@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BookBookmarkIcon, ArrowRightIcon, UserCircleIcon, KeyIcon, QrcodeIcon } from '../common/Icons';
+import { ArrowRightIcon, UserCircleIcon, KeyIcon, QrcodeIcon } from '../common/Icons';
 
 interface LoginScreenProps {
   onLogin: (identifier: string, password: string) => void;
@@ -38,10 +38,15 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onCodeLogin, error, 
         className="relative z-10 p-8 space-y-6 w-full max-w-md bg-[rgba(var(--bg-secondary-rgb),0.6)] backdrop-blur-lg border border-[var(--border-primary)] rounded-2xl shadow-2xl"
       >
         <div className="text-center fade-in flex flex-col items-center">
-          <div className="w-24 h-24 bg-black/20 rounded-full flex items-center justify-center mb-4 border-2 border-white/10">
-            <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
-                <BookBookmarkIcon className="w-9 h-9 text-white transform -translate-y-0.5"/>
-            </div>
+          <div className="w-24 h-24 bg-black/20 rounded-full flex items-center justify-center mb-4 border-2 border-white/10 p-1">
+            <video 
+              src="https://k.top4top.io/m_35833aj8j0.mp4" 
+              autoPlay 
+              loop 
+              muted 
+              playsInline 
+              className="w-full h-full rounded-full object-cover"
+            />
           </div>
           <h1 className="text-4xl font-extrabold text-[var(--text-primary)] tracking-tight">
             تسجيل الدخول
