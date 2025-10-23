@@ -234,10 +234,18 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
             containerRef.current?.requestFullscreen();
         }
     };
-    const handleSetQuality = (quality: string) => {
-        playerRef.current?.setPlaybackQuality(quality);
+    const handleSetQuality = useCallback((quality: string) => {
+        const player = playerRef.current;
+        if (player && typeof player.getCurrentTime === 'function' && typeof player.seekTo === 'function') {
+            const currentTime = player.getCurrentTime();
+            player.setPlaybackQuality(quality);
+            // This is a common workaround. `setPlaybackQuality` is a suggestion,
+            // and sometimes the player needs a "nudge" to apply it. Seeking
+            // to the current time forces it to re-evaluate the stream buffer.
+            player.seekTo(currentTime, true);
+        }
         setQualityMenuOpen(false);
-    }
+    }, []);
     
     useEffect(() => {
         if (isPlaying) hideControls();
