@@ -247,7 +247,6 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
     };
     const handleSetQuality = (quality: string) => {
         playerRef.current?.setPlaybackQuality(quality);
-        setCurrentQuality(quality); // Optimistically update
         setQualityMenuOpen(false);
     }
     
