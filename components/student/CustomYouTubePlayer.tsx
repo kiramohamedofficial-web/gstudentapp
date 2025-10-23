@@ -73,6 +73,7 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
     const playerRef = useRef<any>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const qualityMenuRef = useRef<HTMLDivElement>(null);
+    const qualityButtonRef = useRef<HTMLButtonElement>(null);
     const hideControlsTimeoutRef = useRef<number | null>(null);
     const qualityLevelsLoaded = useRef(false);
 
@@ -169,28 +170,16 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
             playerRef.current?.destroy();
         };
     }, [videoId]);
-    
-    useEffect(() => {
-        const qualityInterval = setInterval(() => {
-            if (playerRef.current && typeof playerRef.current.getPlaybackQuality === 'function') {
-                const newQuality = playerRef.current.getPlaybackQuality();
-                // Update state only if quality has actually changed to prevent re-renders
-                setCurrentQuality(prevQuality => {
-                    if (newQuality && newQuality !== prevQuality) {
-                        return newQuality;
-                    }
-                    return prevQuality;
-                });
-            }
-        }, 1000); // Poll every second
-
-        return () => clearInterval(qualityInterval);
-    }, []); // Run only once
 
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            if (qualityMenuRef.current && !qualityMenuRef.current.contains(event.target as Node)) {
+            if (
+                qualityMenuRef.current && 
+                !qualityMenuRef.current.contains(event.target as Node) &&
+                qualityButtonRef.current &&
+                !qualityButtonRef.current.contains(event.target as Node)
+            ) {
                 setQualityMenuOpen(false);
             }
         };
@@ -306,9 +295,9 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
                         </div>
                         <span className="yt-time-display">{formatTime(currentTime)} / {formatTime(duration)}</span>
                         <div className="flex items-center gap-2">
-                             <div className="relative" ref={qualityMenuRef}>
+                             <div className="relative">
                                 {isQualityMenuOpen && availableQualities.length > 1 && (
-                                    <div className="yt-quality-menu fade-in-up">
+                                    <div ref={qualityMenuRef} className="yt-quality-menu fade-in-up">
                                         {availableQualities.map(q => (
                                             <button 
                                                 key={q} 
@@ -320,7 +309,7 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
                                         ))}
                                     </div>
                                 )}
-                                <button onClick={() => setQualityMenuOpen(p => !p)} className="yt-control-button text-sm">
+                                <button ref={qualityButtonRef} onClick={() => setQualityMenuOpen(p => !p)} className="yt-control-button text-sm">
                                     <span className="font-semibold text-amber-300">{getQualityLabel(currentQuality)}</span>
                                     <CogIcon className="w-5 h-5" />
                                 </button>
