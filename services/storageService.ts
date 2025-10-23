@@ -22,7 +22,16 @@ import { DEMO_ADMIN_IDENTIFIER, DEMO_ADMIN_PASSWORD, DEMO_STUDENT_IDENTIFIER, DE
 const DAILY_CHAT_LIMIT = 50;
 
 // --- New Data Stores ---
-const teachers: Teacher[] = [];
+const teachers: Teacher[] = [
+  {
+    id: 't_eng_01',
+    name: 'أستاذ اللغة الإنجليزية',
+    subject: 'اللغة الإنجليزية',
+    imageUrl: 'https://i.ibb.co/bJCmnz5/teacher1.png',
+    teachingLevels: ['Middle'],
+    teachingGrades: [7, 8, 9]
+  }
+];
 
 // --- Curriculum Data Generation ---
 
@@ -37,7 +46,9 @@ const createSubjects = (subjects: {title: string, teacherId: string, track?: Uni
 }));
 
 // --- Subject Lists ---
-const middle_school_subjects: { title: string; teacherId: string; track?: Unit['track'] }[] = [];
+const middle_school_subjects: { title: string; teacherId: string; track?: Unit['track'] }[] = [
+    { title: 'اللغة الإنجليزية', teacherId: 't_eng_01' }
+];
 
 const sec_1_subjects: { title: string; teacherId: string; track?: Unit['track'] }[] = [];
 
@@ -60,7 +71,22 @@ const grades: Grade[] = [
   {
     id: 7, name: 'الصف الأول الإعدادي', ordinal: '1st', level: 'Middle', levelAr: 'الإعدادي',
     semesters: [
-      { id: 'sem1_7', title: 'الفصل الدراسي الأول', units: createSubjects(middle_school_subjects, 7, '1') },
+      { id: 'sem1_7', title: 'الفصل الدراسي الأول', units: [
+          {
+            id: 'unit_7_1_eng_0',
+            title: 'اللغة الإنجليزية',
+            teacherId: 't_eng_01',
+            track: 'All',
+            lessons: [
+              {
+                id: 'l_1720000000000',
+                title: 'شرح الدرس الأول',
+                type: LessonType.EXPLANATION,
+                content: 'D2EAR6gcGcQ',
+              }
+            ]
+          }
+      ] },
       { id: 'sem2_7', title: 'الفصل الدراسي الثاني', units: createSubjects(middle_school_subjects, 7, '2') }
     ],
   },
