@@ -43,7 +43,7 @@ const ScreenSecurity: React.FC<{ children: React.ReactNode }> = ({ children }) =
   }, []);
   
   return (
-    <div className="relative secure-content">
+    <div className="relative secure-content h-full w-full">
       {isBlocked && (
         <div 
             className="fixed inset-0 z-[1000] bg-black/90 backdrop-blur-sm flex items-center justify-center text-white text-center p-8 fade-in" 

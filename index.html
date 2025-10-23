@@ -370,7 +370,10 @@
   .progress-bar-gradient { background: var(--accent-gradient); }
 
   /* Screen Security */
-  .secure-content { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  .secure-content, .secure-content * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; pointer-events: none; }
+  .secure-content button, .secure-content input, .secure-content a, .secure-content textarea, .secure-content [role="button"] { pointer-events: auto; }
+  .yt-player-container, .yt-player-container * { pointer-events: auto; }
+
   @media print {
     body > #root > * { display: none !important; }
     body::before {
@@ -407,6 +410,11 @@
     height: 100%;
     border: 0;
   }
+  .yt-click-shield {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+  }
   .yt-center-play-button {
     position: absolute;
     top: 50%;
@@ -422,6 +430,7 @@
     justify-content: center;
     border: 2px solid white;
     transition: all 0.2s ease;
+    pointer-events: auto; /* Ensure this button is always clickable */
   }
   .yt-center-play-button:hover {
     background-color: rgba(var(--accent-primary-rgb), 0.8);

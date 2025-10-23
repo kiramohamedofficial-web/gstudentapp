@@ -259,12 +259,14 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
     const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
     
     return (
-        <div ref={containerRef} className="yt-player-container" onMouseMove={handleMouseMove} onMouseLeave={hideControls}>
+        <div ref={containerRef} className="yt-player-container">
             {!isReady && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-20">
                     <Loader />
                 </div>
             )}
+            
+            <div className="yt-click-shield" onClick={handlePlayPause} onMouseMove={handleMouseMove} onMouseLeave={hideControls}></div>
 
             {!isPlaying && isReady && (
                 <button className="yt-center-play-button" onClick={handlePlayPause}>
