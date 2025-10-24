@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Grade } from '../../types';
+import { Grade } from '../../types';
 import { createClient } from '@supabase/supabase-js';
 import { ArrowRightIcon, SparklesIcon } from '../common/Icons';
 
@@ -112,7 +112,6 @@ const RegistrationScreen: React.FC<RegistrationScreenProps> = ({ onRegister, err
 
     const handleNext = () => {
         setFormError('');
-        const phoneRegex = /^01[0125]\d{8}$/;
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
         if (!formData.name.trim() || !formData.email.trim() || !formData.phone.trim() || !formData.guardianPhone.trim() || !formData.password.trim()) {
@@ -135,11 +134,11 @@ const RegistrationScreen: React.FC<RegistrationScreenProps> = ({ onRegister, err
         const studentPhoneForValidation = normalizePhoneNumber(formData.phone);
         const guardianPhoneForValidation = normalizePhoneNumber(formData.guardianPhone);
         
-        if (!phoneRegex.test(studentPhoneForValidation)) {
+        if (!studentPhoneForValidation) {
             setFormError('الرجاء إدخال رقم هاتف مصري صحيح (مثل 01012345678).');
             return;
         }
-        if (!phoneRegex.test(guardianPhoneForValidation)) {
+        if (!guardianPhoneForValidation) {
             setFormError('الرجاء إدخال رقم هاتف ولي أمر مصري صحيح.');
             return;
         }
@@ -177,13 +176,13 @@ const RegistrationScreen: React.FC<RegistrationScreenProps> = ({ onRegister, err
         <div className="flex items-center justify-center min-h-screen p-4 relative overflow-hidden cosmic-flow-background">
             <button
                 onClick={onBack}
-                className="absolute top-6 left-6 z-20 flex items-center space-x-2 space-x-reverse text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors duration-200 group"
+                className="absolute top-6 right-6 z-20 flex items-center space-x-2 space-x-reverse text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors duration-200 group"
             >
-                <ArrowRightIcon className="w-5 h-5 transition-transform duration-300 group-hover:-translate-x-1" />
                 <span>العودة لتسجيل الدخول</span>
+                <ArrowRightIcon className="w-5 h-5 transition-transform duration-300 group-hover:translate-x-1" />
             </button>
 
-            <div className="relative z-10 p-8 w-full max-w-lg bg-[rgba(var(--bg-secondary-rgb),0.6)] backdrop-blur-lg border border-[var(--border-primary)] rounded-2xl shadow-2xl">
+            <div className="relative z-10 p-8 w-full max-w-lg bg-[var(--bg-secondary)] backdrop-blur-lg border border-[var(--border-primary)] rounded-2xl shadow-2xl">
                 <h1 className="text-3xl md:text-4xl font-extrabold text-center mb-2 text-[var(--text-primary)]">
                     إنشاء حساب جديد
                 </h1>
@@ -196,66 +195,78 @@ const RegistrationScreen: React.FC<RegistrationScreenProps> = ({ onRegister, err
                     </div>
                 )}
 
-                 <div className="flex items-center justify-center mb-8">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${step >= 1 ? 'border-[var(--accent-primary)] bg-[rgba(var(--accent-primary-rgb),0.2)] text-[var(--text-accent)] font-bold' : 'border-[var(--border-primary)] bg-[var(--bg-tertiary)] text-[var(--text-secondary)]'}`}>1</div>
-                    <div className={`flex-1 h-1 mx-2 transition-all duration-300 rounded-full ${step > 1 ? 'bg-[var(--accent-primary)]' : 'bg-[var(--bg-tertiary)]'}`}></div>
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${step >= 2 ? 'border-[var(--accent-primary)] bg-[rgba(var(--accent-primary-rgb),0.2)] text-[var(--text-accent)] font-bold' : 'border-[var(--border-primary)] bg-[var(--bg-tertiary)] text-[var(--text-secondary)]'}`}>2</div>
+                <div className="flex items-center w-full max-w-xs mx-auto my-8">
+                    <div className={`flex items-center justify-center w-10 h-10 rounded-full font-bold text-lg z-10 transition-colors duration-500 ${step >= 2 ? 'bg-indigo-600 text-white' : 'bg-gray-700 text-gray-400'}`}>2</div>
+                    <div className="flex-1 h-1 bg-gray-700 relative">
+                        <div className={`absolute top-0 left-0 h-full bg-indigo-600 transition-all duration-500`} style={{ width: step > 1 ? '100%' : '0%' }}></div>
+                    </div>
+                    <div className="flex items-center justify-center w-10 h-10 rounded-full font-bold text-lg bg-indigo-600 text-white z-10">1</div>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className={step === 1 ? 'fade-in' : 'hidden'}>
-                        <div className="space-y-4">
+                    {step === 1 && (
+                        <div className="fade-in space-y-4">
                             <input name="name" type="text" placeholder="الاسم الثلاثي" value={formData.name} onChange={handleChange} required className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-[var(--accent-primary)]" />
                             <input name="email" type="email" placeholder="البريد الإلكتروني" value={formData.email} onChange={handleChange} required className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-[var(--accent-primary)]" />
                             <PhoneInput name="phone" placeholder="رقم الطالب" value={formData.phone} onChange={handleChange} required />
                             <PhoneInput name="guardianPhone" placeholder="رقم ولي الامر" value={formData.guardianPhone} onChange={handleChange} required />
                             <input name="password" type="password" placeholder="كلمة المرور (6 أحرف على الأقل)" value={formData.password} onChange={handleChange} required className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-[var(--accent-primary)]" />
                             <input name="confirmPassword" type="password" placeholder="تأكيد كلمة المرور" value={formData.confirmPassword} onChange={handleChange} required className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-[var(--accent-primary)]" />
-                        </div>
-                        {formError && <p className="text-red-500 text-sm mt-2">{formError}</p>}
-                        <button type="button" onClick={handleNext} className="mt-6 w-full py-3.5 font-bold text-white bg-[var(--accent-primary)] hover:brightness-110 rounded-lg transition-transform transform hover:scale-105 shadow-lg shadow-[0_10px_20px_-10px_rgba(var(--accent-primary-rgb),0.4)]">
-                            التالي
-                        </button>
-                    </div>
-
-                    <div className={step === 2 ? 'fade-in' : 'hidden'}>
-                        <div className="space-y-4">
-                            <select name="level" value={formData.level} onChange={handleChange} required className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-[var(--accent-primary)] appearance-none text-right">
-                                <option value="">اختر المرحلة الدراسية</option>
-                                <option value="Middle">المرحلة الإعدادية</option>
-                                <option value="Secondary">المرحلة الثانوية</option>
-                            </select>
                             
-                            {formData.level && (
-                                <select name="grade" value={formData.grade} onChange={handleChange} required className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-[var(--accent-primary)] appearance-none text-right">
-                                    <option value="">اختر الصف الدراسي</option>
-                                    {gradesForLevel.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-                                </select>
-                            )}
+                            {(formError || error) && <p className="text-red-400 text-sm mt-2 text-center">{formError || error}</p>}
                             
-                            {formData.grade === '11' && (
-                                <div className="p-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg"><p className="text-right text-sm text-[var(--text-secondary)] mb-2">اختر الشعبة</p><div className="flex gap-4">
-                                    <label className={`flex-1 text-center py-2 rounded-md cursor-pointer transition-colors ${formData.track === 'Scientific' ? 'bg-[var(--accent-primary)] text-white shadow' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)]'}`}><input type="radio" name="track" value="Scientific" checked={formData.track === 'Scientific'} onChange={handleChange} className="sr-only" />علمي</label>
-                                    <label className={`flex-1 text-center py-2 rounded-md cursor-pointer transition-colors ${formData.track === 'Literary' ? 'bg-[var(--accent-primary)] text-white shadow' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)]'}`}><input type="radio" name="track" value="Literary" checked={formData.track === 'Literary'} onChange={handleChange} className="sr-only" />أدبي</label>
-                                </div></div>
-                            )}
-
-                            {formData.grade === '12' && (
-                                <div className="p-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg"><p className="text-right text-sm text-[var(--text-secondary)] mb-2">اختر الشعبة</p><div className="flex gap-2">
-                                    <label className={`flex-1 text-center py-2 rounded-md cursor-pointer transition-colors ${formData.track === 'Science' ? 'bg-[var(--accent-primary)] text-white shadow' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)]'}`}><input type="radio" name="track" value="Science" checked={formData.track === 'Science'} onChange={handleChange} className="sr-only" />علمي علوم</label>
-                                    <label className={`flex-1 text-center py-2 rounded-md cursor-pointer transition-colors ${formData.track === 'Math' ? 'bg-[var(--accent-primary)] text-white shadow' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)]'}`}><input type="radio" name="track" value="Math" checked={formData.track === 'Math'} onChange={handleChange} className="sr-only" />علمي رياضيات</label>
-                                    <label className={`flex-1 text-center py-2 rounded-md cursor-pointer transition-colors ${formData.track === 'Literary' ? 'bg-[var(--accent-primary)] text-white shadow' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)]'}`}><input type="radio" name="track" value="Literary" checked={formData.track === 'Literary'} onChange={handleChange} className="sr-only" />أدبي</label>
-                                </div></div>
-                            )}
-                        </div>
-                        {(formError || error) && <p className="text-red-500 text-sm mt-2">{formError || error}</p>}
-                        <div className="mt-6 flex gap-4">
-                            <button type="button" onClick={() => setStep(1)} className="w-1/3 py-3.5 font-bold bg-[var(--bg-tertiary)] text-[var(--text-secondary)] rounded-lg hover:bg-[var(--border-primary)]">السابق</button>
-                            <button type="submit" disabled={isLoading} className="w-2/3 py-3.5 font-bold text-white bg-green-600 hover:bg-green-700 rounded-lg transition-transform transform hover:scale-105 shadow-lg shadow-green-500/20 disabled:opacity-60">
-                                {isLoading ? 'جاري الإنشاء...' : 'إنشاء الحساب'}
+                            <button type="button" onClick={handleNext} className="mt-6 w-full py-3.5 font-bold text-white bg-[var(--accent-primary)] hover:brightness-110 rounded-lg transition-transform transform hover:scale-105 shadow-lg shadow-[0_10px_20px_-10px_rgba(var(--accent-primary-rgb),0.4)]">
+                                التالي
                             </button>
                         </div>
-                    </div>
+                    )}
+
+                    {step === 2 && (
+                        <div className="fade-in">
+                            <div className="p-4 rounded-lg border border-indigo-500/50 bg-indigo-500/10 mb-6 flex items-center space-x-4 space-x-reverse">
+                                <div className="w-6 h-6 rounded-full border-2 border-indigo-400 flex items-center justify-center flex-shrink-0">
+                                    <div className="w-2 h-2 rounded-full bg-indigo-400"></div>
+                                </div>
+                                <h2 className="font-bold text-lg text-indigo-300">اختر الصف الدراسي</h2>
+                            </div>
+                            <div className="space-y-4">
+                                <select name="level" value={formData.level} onChange={handleChange} required className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-[var(--accent-primary)] appearance-none text-right">
+                                    <option value="">اختر المرحلة الدراسية</option>
+                                    <option value="Middle">المرحلة الإعدادية</option>
+                                    <option value="Secondary">المرحلة الثانوية</option>
+                                </select>
+                                
+                                {formData.level && (
+                                    <select name="grade" value={formData.grade} onChange={handleChange} required className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-[var(--accent-primary)] appearance-none text-right">
+                                        <option value="">اختر الصف الدراسي</option>
+                                        {gradesForLevel.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                                    </select>
+                                )}
+                                
+                                {formData.grade === '11' && (
+                                    <div className="p-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg"><p className="text-right text-sm text-[var(--text-secondary)] mb-2">اختر الشعبة</p><div className="flex gap-4">
+                                        <label className={`flex-1 text-center py-2 rounded-md cursor-pointer transition-colors ${formData.track === 'Scientific' ? 'bg-[var(--accent-primary)] text-white shadow' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)]'}`}><input type="radio" name="track" value="Scientific" checked={formData.track === 'Scientific'} onChange={handleChange} className="sr-only" />علمي</label>
+                                        <label className={`flex-1 text-center py-2 rounded-md cursor-pointer transition-colors ${formData.track === 'Literary' ? 'bg-[var(--accent-primary)] text-white shadow' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)]'}`}><input type="radio" name="track" value="Literary" checked={formData.track === 'Literary'} onChange={handleChange} className="sr-only" />أدبي</label>
+                                    </div></div>
+                                )}
+
+                                {formData.grade === '12' && (
+                                    <div className="p-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg"><p className="text-right text-sm text-[var(--text-secondary)] mb-2">اختر الشعبة</p><div className="flex gap-2">
+                                        <label className={`flex-1 text-center py-2 rounded-md cursor-pointer transition-colors ${formData.track === 'Science' ? 'bg-[var(--accent-primary)] text-white shadow' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)]'}`}><input type="radio" name="track" value="Science" checked={formData.track === 'Science'} onChange={handleChange} className="sr-only" />علمي علوم</label>
+                                        <label className={`flex-1 text-center py-2 rounded-md cursor-pointer transition-colors ${formData.track === 'Math' ? 'bg-[var(--accent-primary)] text-white shadow' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)]'}`}><input type="radio" name="track" value="Math" checked={formData.track === 'Math'} onChange={handleChange} className="sr-only" />علمي رياضيات</label>
+                                        <label className={`flex-1 text-center py-2 rounded-md cursor-pointer transition-colors ${formData.track === 'Literary' ? 'bg-[var(--accent-primary)] text-white shadow' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)]'}`}><input type="radio" name="track" value="Literary" checked={formData.track === 'Literary'} onChange={handleChange} className="sr-only" />أدبي</label>
+                                    </div></div>
+                                )}
+                            </div>
+                            {(formError || error) && <p className="text-red-400 text-sm mt-2 text-center">{formError || error}</p>}
+                            <div className="mt-6 flex gap-4">
+                                <button type="button" onClick={() => setStep(1)} className="w-1/3 py-3.5 font-bold bg-[#212121] text-white rounded-lg hover:bg-gray-800 transition-colors">السابق</button>
+                                <button type="submit" disabled={isLoading} className="w-2/3 py-3.5 font-bold text-white bg-green-600 hover:bg-green-700 rounded-lg transition-transform transform hover:scale-105 shadow-lg shadow-green-500/20 disabled:opacity-60 disabled:cursor-not-allowed">
+                                    {isLoading ? 'جاري الإنشاء...' : 'إنشاء الحساب'}
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </form>
             </div>
         </div>

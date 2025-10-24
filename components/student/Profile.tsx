@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { User, ToastType, Theme } from '../../types';
 import { getGradeById, getSubscriptionByUserId, getUserProgress } from '../../services/storageService';
-import { CheckCircleIcon, ClockIcon, CreditCardIcon, KeyIcon, LogoutIcon } from '../common/Icons';
+import { CheckCircleIcon, ClockIcon, CreditCardIcon, KeyIcon, LogoutIcon, SparklesIcon, TemplateIcon } from '../common/Icons';
 import Modal from '../common/Modal';
 import { useToast } from '../../useToast';
-import { THEMES } from '../../constants';
+import ThemeSelectionModal from '../common/ThemeSelectionModal';
 
 interface ProfileProps {
   user: User;
@@ -62,10 +62,28 @@ const CircularProgress: React.FC<{ progress: number }> = ({ progress }) => {
   );
 };
 
+const getEvaluation = (progress: number) => {
+    if (progress >= 90) {
+        return { level: 'ممتاز', description: 'أداء استثنائي! استمر في هذا التفوق.', color: 'text-cyan-400', Icon: SparklesIcon };
+    }
+    if (progress >= 75) {
+        return { level: 'متفوق', description: 'مجهود رائع ومستوى متقدم. أنت في الطليعة!', color: 'text-green-400', Icon: SparklesIcon };
+    }
+    if (progress >= 50) {
+        return { level: 'مجتهد', description: 'عمل جيد ومثابرة واضحة. استمر في التقدم!', color: 'text-blue-400', Icon: CheckCircleIcon };
+    }
+    if (progress >= 25) {
+        return { level: 'جيد', description: 'بداية جيدة، يمكنك تحقيق المزيد بالمواظبة.', color: 'text-yellow-400', Icon: CheckCircleIcon };
+    }
+    return { level: 'يحتاج لمجهود', description: 'لا تقلق، كل رحلة تبدأ بخطوة. ابدأ الآن!', color: 'text-red-400', Icon: ClockIcon };
+};
+
+
 const Profile: React.FC<ProfileProps> = ({ user, onLogout, theme, setTheme }) => {
   const grade = useMemo(() => getGradeById(user.grade), [user.grade]);
   const subscription = useMemo(() => getSubscriptionByUserId(user.id), [user.id]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
   const { addToast } = useToast();
 
   const { totalLessons, completedLessons, progress } = useMemo(() => {
@@ -79,10 +97,12 @@ const Profile: React.FC<ProfileProps> = ({ user, onLogout, theme, setTheme }) =>
     return { totalLessons: total, completedLessons: completed, progress: prog };
   }, [grade, user.id]);
   
+  const evaluation = useMemo(() => getEvaluation(progress), [progress]);
+
   const handleChangeCode = (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
       addToast("تم تغيير كلمة المرور بنجاح (محاكاة).", ToastType.SUCCESS);
-      setIsModalOpen(false);
+      setIsPasswordModalOpen(false);
   };
 
   return (
@@ -122,26 +142,55 @@ const Profile: React.FC<ProfileProps> = ({ user, onLogout, theme, setTheme }) =>
                 </div>
                 </div>
             </div>
+
+            <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-md border border-[var(--border-primary)]">
+                <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-4">تقييم الأداء</h3>
+                <div className="flex items-center gap-4">
+                    <div className={`p-3 rounded-lg bg-[rgba(var(--accent-primary-rgb),0.1)]`}>
+                        <evaluation.Icon className={`w-10 h-10 ${evaluation.color}`} />
+                    </div>
+                    <div>
+                        <p className={`text-xl font-bold ${evaluation.color}`}>{evaluation.level}</p>
+                        <p className="text-sm text-[var(--text-secondary)]">{evaluation.description}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-md border border-[var(--border-primary)]">
+                <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-4">البيانات الشخصية</h3>
+                <ul className="space-y-3 text-sm">
+                    <li className="flex justify-between items-center border-b border-[var(--border-primary)] pb-3">
+                        <span className="font-semibold text-[var(--text-secondary)]">الاسم الكامل</span>
+                        <span className="font-medium text-[var(--text-primary)]">{user.name}</span>
+                    </li>
+                    <li className="flex justify-between items-center border-b border-[var(--border-primary)] pb-3">
+                        <span className="font-semibold text-[var(--text-secondary)]">البريد الإلكتروني</span>
+                        <span className="font-medium text-[var(--text-primary)]">{user.email}</span>
+                    </li>
+                    <li className="flex justify-between items-center border-b border-[var(--border-primary)] pb-3">
+                        <span className="font-semibold text-[var(--text-secondary)]">رقم الهاتف</span>
+                        <span className="font-medium text-[var(--text-primary)] text-left" dir="ltr">{user.phone}</span>
+                    </li>
+                    <li className="flex justify-between items-center">
+                        <span className="font-semibold text-[var(--text-secondary)]">رقم ولي الأمر</span>
+                        <span className="font-medium text-[var(--text-primary)] text-left" dir="ltr">{user.guardianPhone}</span>
+                    </li>
+                </ul>
+            </div>
         </div>
 
         <div className="lg:col-span-1 space-y-8">
             <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-md border border-[var(--border-primary)]">
-                <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-4">تغيير السمة</h2>
-                <div className="grid grid-cols-2 gap-3">
-                    {THEMES.map(t => (
-                        <button key={t.id} onClick={() => setTheme(t.id)} className={`p-1.5 text-sm font-semibold rounded-lg border-2 transition-colors ${theme === t.id ? 'border-[var(--accent-primary)]' : 'border-transparent'}`}>
-                            {t.id === 'dark' && <div className="w-full py-5 rounded-md bg-[#141414] text-white border border-white/10"><span>{t.name}</span></div>}
-                            {t.id === 'light' && <div className="w-full py-5 rounded-md bg-gray-100 text-black border border-black/10"><span>{t.name}</span></div>}
-                            {t.id === 'gold' && <div className="w-full py-5 rounded-md bg-[#1F1C19] text-[#F0E6D8] border border-[#D4AF37]/20"><span>{t.name}</span></div>}
-                            {t.id === 'pink' && <div className="w-full py-5 rounded-md bg-[#231923] text-[#FCE7F3] border border-[#EC4899]/20"><span>{t.name}</span></div>}
-                        </button>
-                    ))}
-                </div>
+                <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-4">إعدادات المظهر</h2>
+                <button onClick={() => setIsThemeModalOpen(true)} className="w-full flex items-center justify-center p-3 rounded-lg text-[var(--text-primary)] bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] transition-colors duration-200 space-x-3 space-x-reverse">
+                    <TemplateIcon className="w-5 h-5 text-purple-400" />
+                    <span>تغيير السمة</span>
+                </button>
             </div>
             <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-md border border-[var(--border-primary)]">
                 <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-4">إجراءات الحساب</h2>
                 <div className="space-y-3">
-                    <button onClick={() => setIsModalOpen(true)} className="w-full flex items-center justify-center p-3 rounded-lg text-[var(--text-secondary)] bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] hover:text-[var(--text-primary)] transition-colors duration-200 space-x-3 space-x-reverse">
+                    <button onClick={() => setIsPasswordModalOpen(true)} className="w-full flex items-center justify-center p-3 rounded-lg text-[var(--text-secondary)] bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] hover:text-[var(--text-primary)] transition-colors duration-200 space-x-3 space-x-reverse">
                         <KeyIcon className="w-5 h-5" />
                         <span>تغيير كلمة المرور</span>
                     </button>
@@ -154,7 +203,7 @@ const Profile: React.FC<ProfileProps> = ({ user, onLogout, theme, setTheme }) =>
         </div>
       </div>
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="تغيير كلمة المرور">
+      <Modal isOpen={isPasswordModalOpen} onClose={() => setIsPasswordModalOpen(false)} title="تغيير كلمة المرور">
           <form onSubmit={handleChangeCode} className="space-y-4">
               <div>
                   <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">كلمة المرور الحالية</label>
@@ -175,6 +224,13 @@ const Profile: React.FC<ProfileProps> = ({ user, onLogout, theme, setTheme }) =>
               </div>
           </form>
       </Modal>
+      
+      <ThemeSelectionModal 
+        isOpen={isThemeModalOpen}
+        onClose={() => setIsThemeModalOpen(false)}
+        currentTheme={theme}
+        setTheme={setTheme}
+      />
     </div>
   );
 };

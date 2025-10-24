@@ -22,6 +22,7 @@ import PlatformSettingsView from './PlatformSettingsView';
 import AdminSettingsView from './AdminSettingsView';
 import TeacherManagementView from './TeacherManagementView';
 import QuestionBankView from './QuestionBankView';
+import SystemHealthView from './SystemHealthView';
 
 interface AdminDashboardProps {
   user: User;
@@ -30,7 +31,7 @@ interface AdminDashboardProps {
   setTheme: (theme: Theme) => void;
 }
 
-type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'content' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'accountSettings' | 'teachers';
+type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'content' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers';
 
 const StatCard: React.FC<{ title: string; value: string; icon: React.FC<{ className?: string; }>; delay: number; onClick?: () => void; }> = ({ title, value, icon: Icon, delay, onClick }) => (
     <div 
@@ -253,6 +254,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
       case 'tools': return <QrCodeGeneratorView />;
       case 'questionBank': return <QuestionBankView />;
       case 'platformSettings': return <PlatformSettingsView user={user} />;
+      case 'systemHealth': return <SystemHealthView />;
       case 'accountSettings': return <AdminSettingsView user={user} theme={theme} setTheme={setTheme} onLogout={onLogout} />;
       case 'dashboard':
       default:

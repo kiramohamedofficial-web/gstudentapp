@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { User, Theme, ToastType } from '../../types';
-import { THEMES } from '../../constants';
-import { LogoutIcon, KeyIcon } from '../common/Icons';
+import { LogoutIcon, KeyIcon, TemplateIcon } from '../common/Icons';
 import { useToast } from '../../useToast';
 import Modal from '../common/Modal';
+import ThemeSelectionModal from '../common/ThemeSelectionModal';
 
 const ChangePasswordModal: React.FC<{ isOpen: boolean, onClose: () => void }> = ({ isOpen, onClose }) => {
     const { addToast } = useToast();
@@ -44,59 +44,68 @@ interface AdminSettingsViewProps {
 }
 
 const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({ user, theme, setTheme, onLogout }) => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
+
   return (
     <div className="fade-in">
-      <h1 className="text-3xl font-bold mb-6 text-[var(--text-primary)]">إعدادات الحساب</h1>
+      <h1 className="text-3xl font-bold text-[var(--text-primary)]">إعدادات الحساب</h1>
+      <p className="mt-1 text-[var(--text-secondary)] mb-8">إدارة ملفك الشخصي، وتخصيص المظهر، والتحكم في أمان حسابك.</p>
       
-      <div className="space-y-8 max-w-4xl mx-auto">
-        <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)]">
-            <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-6">الملف الشخصي</h2>
-            <div className="flex items-center space-x-4 space-x-reverse">
-                <div className="h-16 w-16 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-2xl">{user.name.charAt(0)}</div>
-                <div>
-                    <p className="text-lg font-bold text-[var(--text-primary)]">{user.name}</p>
-                    <p className="text-[var(--text-secondary)]">المدير</p>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+        {/* Left Column */}
+        <div className="lg:col-span-1 space-y-8">
+            <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)]">
+                <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-6">الملف الشخصي</h2>
+                <div className="flex flex-col items-center text-center">
+                    <div className="h-24 w-24 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-4xl mb-4 shadow-lg">{user.name.charAt(0)}</div>
+                    <p className="text-xl font-bold text-[var(--text-primary)]">{user.name}</p>
+                    <p className="text-sm text-[var(--text-secondary)]">{user.email}</p>
+                    <span className="mt-3 px-3 py-1 text-xs font-semibold rounded-full bg-purple-500/10 text-purple-400">المدير العام</span>
                 </div>
             </div>
-        </div>
-        
-        <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)]">
-            <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-6">تغيير السمة</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                {THEMES.map(t => (
-                    <button key={t.id} onClick={() => setTheme(t.id)} title={t.name} className={`p-1.5 rounded-lg transition-all duration-300 ${theme === t.id ? 'ring-2 ring-offset-2 ring-offset-[var(--bg-secondary)] ring-[var(--accent-primary)]' : ''}`}>
-                      {t.id === 'dark' && <div className="w-full h-20 rounded-md bg-[#141414] flex items-center justify-center text-white border border-white/10"><span>{t.name}</span></div>}
-                      {t.id === 'light' && <div className="w-full h-20 rounded-md bg-gray-100 flex items-center justify-center text-black border border-black/10"><span>{t.name}</span></div>}
-                      {t.id === 'gold' && <div className="w-full h-20 rounded-md bg-[#1F1C19] flex items-center justify-center text-[#F0E6D8] border border-[#D4AF37]/20"><span>{t.name}</span></div>}
-                      {t.id === 'pink' && <div className="w-full h-20 rounded-md bg-[#231923] flex items-center justify-center text-[#FCE7F3] border border-[#EC4899]/20"><span>{t.name}</span></div>}
+
+            <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)]">
+                <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-4">إجراءات الحساب</h2>
+                <div className="space-y-3">
+                    <button onClick={() => setIsPasswordModalOpen(true)} className="w-full flex items-center justify-between p-3 rounded-lg text-[var(--text-primary)] bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] transition-colors duration-200 group">
+                        <div className="flex items-center space-x-3 space-x-reverse">
+                            <KeyIcon className="w-5 h-5 text-[var(--text-secondary)] group-hover:text-purple-400 transition-colors" />
+                            <span>تغيير كلمة المرور</span>
+                        </div>
                     </button>
-                ))}
+                    <button onClick={onLogout} className="w-full flex items-center justify-between p-3 rounded-lg text-red-500 bg-red-500/10 hover:bg-red-500/20 transition-colors duration-200 group">
+                         <div className="flex items-center space-x-3 space-x-reverse">
+                            <LogoutIcon className="w-5 h-5" />
+                            <span>تسجيل الخروج</span>
+                        </div>
+                    </button>
+                </div>
             </div>
         </div>
 
-        <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)]">
-            <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-6">الأمان</h2>
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 bg-[var(--bg-tertiary)] rounded-lg">
-                <div>
-                    <h3 className="font-semibold text-[var(--text-primary)]">كلمة المرور</h3>
-                    <p className="text-sm text-[var(--text-secondary)]">يوصى بتغيير كلمة المرور بشكل دوري.</p>
-                </div>
-                 <button onClick={() => setIsModalOpen(true)} className="w-full sm:w-auto flex items-center justify-center space-x-2 space-x-reverse px-4 py-2 text-sm font-semibold bg-purple-600/20 text-purple-300 hover:bg-purple-600/40 rounded-lg transition-colors">
-                    <KeyIcon className="w-4 h-4" />
-                    <span>تغيير</span>
+        {/* Right Column */}
+        <div className="lg:col-span-2">
+            <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)]">
+                <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-2 flex items-center gap-2">
+                    <TemplateIcon className="w-6 h-6 text-purple-400"/>
+                    خصص مظهر لوحة التحكم
+                </h2>
+                <p className="text-[var(--text-secondary)] mb-8">اختر السمة التي تناسب ذوقك وتريح عينيك أثناء العمل.</p>
+                <button onClick={() => setIsThemeModalOpen(true)} className="w-full flex items-center justify-center p-4 rounded-lg text-[var(--text-primary)] bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] transition-colors duration-200 space-x-3 space-x-reverse text-lg">
+                    <TemplateIcon className="w-6 h-6 text-purple-400" />
+                    <span>فتح قائمة السمات</span>
                 </button>
             </div>
         </div>
-        
-        <div className="text-center pt-4">
-            <button onClick={onLogout} className="inline-flex items-center justify-center space-x-3 space-x-reverse px-6 py-3 font-semibold rounded-lg text-red-400 bg-red-500/10 hover:bg-red-500/20 hover:text-red-300 transition-colors duration-200">
-                <LogoutIcon className="w-5 h-5" />
-                <span>تسجيل الخروج</span>
-            </button>
-        </div>
       </div>
-      <ChangePasswordModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      <ChangePasswordModal isOpen={isPasswordModalOpen} onClose={() => setIsPasswordModalOpen(false)} />
+      <ThemeSelectionModal 
+        isOpen={isThemeModalOpen}
+        onClose={() => setIsThemeModalOpen(false)}
+        currentTheme={theme}
+        setTheme={setTheme}
+      />
     </div>
   );
 };

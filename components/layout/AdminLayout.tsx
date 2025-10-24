@@ -1,9 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { User } from '../../types';
-import { CollectionIcon, QrcodeIcon, CreditCardIcon, HomeIcon, XIcon, TemplateIcon, CogIcon, LogoutIcon, UsersIcon, UserCircleIcon, BellIcon, QuestionMarkCircleIcon } from '../common/Icons';
+import { CollectionIcon, QrcodeIcon, CreditCardIcon, HomeIcon, XIcon, TemplateIcon, CogIcon, LogoutIcon, UsersIcon, UserCircleIcon, BellIcon, QuestionMarkCircleIcon, ShieldCheckIcon } from '../common/Icons';
 import { getPendingSubscriptionRequestCount } from '../../services/storageService';
 
-type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'content' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'accountSettings' | 'teachers';
+type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'content' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers';
 
 interface AdminLayoutProps {
   user: User;
@@ -23,6 +23,7 @@ const navItems = [
     { id: 'tools', label: 'أكواد الاشتراكات', icon: QrcodeIcon },
     { id: 'questionBank', label: 'بنك الأسئلة', icon: QuestionMarkCircleIcon },
     { id: 'platformSettings', label: 'إعدادات المنصة', icon: CogIcon },
+    { id: 'systemHealth', label: 'الأمان والصحة', icon: ShieldCheckIcon },
     { id: 'accountSettings', label: 'إعدادات الحساب', icon: UserCircleIcon },
 ];
 
