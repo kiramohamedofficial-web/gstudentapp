@@ -56,12 +56,13 @@ const MoviePlayerView: React.FC<{ movie: Movie; onBack: () => void }> = ({ movie
             width="100%" 
             height="100%" 
             allowFullScreen
+            sandbox="allow-scripts allow-same-origin allow-fullscreen"
             className="absolute top-0 left-0"
           ></iframe>
         </div>
       ) : (
         <div className="aspect-video rounded-lg bg-black flex items-center justify-center text-center text-gray-400">
-          <p>عذراً، محتوى الفيلم غير متوفر حالياً.</p>
+          <p>عذرًا، محتوى الفيلم غير متوفر حاليًا.</p>
         </div>
       )}
     </div>
