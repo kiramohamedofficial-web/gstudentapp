@@ -12,7 +12,7 @@ import CoursesStore from './CoursesStore';
 import SingleSubjectSubscription from './SingleSubjectSubscription';
 import ComprehensiveSubscription from './ComprehensiveSubscription';
 import ResultsView from './ResultsView';
-import { SparklesIcon, ArrowRightIcon } from '../common/Icons';
+import { SparklesIcon, ArrowRightIcon, ShieldCheckIcon } from '../common/Icons';
 import ChatbotView from './ChatbotView';
 import AskTheProfView from './AskTheProfView';
 import AdhkarView from './AdhkarView';
@@ -46,7 +46,7 @@ const MoviePlayerView: React.FC<{ movie: Movie; onBack: () => void }> = ({ movie
       </button>
       <h2 className="text-2xl font-bold mb-4">{movie.title}</h2>
       {movie.embedSrc ? (
-        <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-black border border-[var(--border-primary)]">
+        <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-black border border-[var(--border-primary)] group">
           <iframe 
             src={movie.embedSrc} 
             frameBorder="0" 
@@ -56,9 +56,14 @@ const MoviePlayerView: React.FC<{ movie: Movie; onBack: () => void }> = ({ movie
             width="100%" 
             height="100%" 
             allowFullScreen
-            sandbox="allow-scripts allow-same-origin allow-fullscreen"
+            sandbox="allow-scripts allow-fullscreen"
+            allow="fullscreen"
             className="absolute top-0 left-0"
           ></iframe>
+           <div className="absolute top-3 right-3 z-10 flex items-center gap-2 bg-black/40 text-green-400 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+             <ShieldCheckIcon className="w-4 h-4"/>
+             <span>مشاهدة آمنة</span>
+          </div>
         </div>
       ) : (
         <div className="aspect-video rounded-lg bg-black flex items-center justify-center text-center text-gray-400">
