@@ -56,7 +56,6 @@ const MoviePlayerView: React.FC<{ movie: Movie; onBack: () => void }> = ({ movie
             width="100%" 
             height="100%" 
             allowFullScreen
-            sandbox="allow-scripts allow-fullscreen"
             allow="fullscreen"
             className="absolute top-0 left-0"
           ></iframe>
