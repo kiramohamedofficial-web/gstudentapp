@@ -15,6 +15,7 @@ import ResultsView from './ResultsView';
 import { SparklesIcon } from '../common/Icons';
 import ChatbotView from './ChatbotView';
 import AskTheProfView from './AskTheProfView';
+import AdhkarView from './AdhkarView';
 
 interface StudentDashboardProps {
   user: User;
@@ -82,6 +83,8 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
         return <ChatbotView user={user} subscription={subscription} onNavigate={setActiveView} />;
       case 'askTheProf':
         return <AskTheProfView user={user} />;
+      case 'adhkar':
+        return <AdhkarView />;
       case 'courses':
         return <CoursesStore />;
       case 'teachers':

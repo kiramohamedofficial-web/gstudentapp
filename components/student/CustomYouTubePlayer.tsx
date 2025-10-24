@@ -5,40 +5,40 @@ import Loader from '../common/Loader';
 // Global promise to load YouTube API script only once
 let youtubeApiPromise: Promise<void> | null = null;
 const loadYouTubeApi = (): Promise<void> => {
-    if (youtubeApiPromise) return youtubeApiPromise;
+    if (youtubeApiPromise) {
+        return youtubeApiPromise;
+    }
+
     youtubeApiPromise = new Promise((resolve) => {
-        if (window.YT && window.YT.Player) return resolve();
-        
-        // Handle cases where the script is already on the page but API is not yet ready
-        if (document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
-             const interval = setInterval(() => {
-                if (window.YT && window.YT.Player) {
-                    clearInterval(interval);
-                    resolve();
-                }
-            }, 100);
+        // If API is already ready, resolve immediately.
+        if (window.YT && window.YT.Player) {
+            resolve();
             return;
         }
-        
+
+        // If the script is already being loaded, just add our resolver to the callback queue.
+        if (window.onYouTubeIframeAPIReadyCallbacks) {
+            window.onYouTubeIframeAPIReadyCallbacks.push(resolve);
+            return;
+        }
+
+        // Otherwise, we are the first to load the script.
+        window.onYouTubeIframeAPIReadyCallbacks = [resolve];
+        window.onYouTubeIframeAPIReady = () => {
+            window.onYouTubeIframeAPIReadyCallbacks?.forEach(cb => cb());
+            // Clear the callbacks after they've been called.
+            window.onYouTubeIframeAPIReadyCallbacks = [];
+        };
+
         const tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
         const firstScriptTag = document.getElementsByTagName('script')[0];
         firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
-        
-        window.onYouTubeIframeAPIReady = () => {
-             if(window.onYouTubeIframeAPIReadyCallbacks) {
-                window.onYouTubeIframeAPIReadyCallbacks.forEach(cb => cb());
-             }
-             resolve();
-        };
-
-        if (!window.onYouTubeIframeAPIReadyCallbacks) {
-            window.onYouTubeIframeAPIReadyCallbacks = [];
-        }
-        window.onYouTubeIframeAPIReadyCallbacks.push(resolve);
     });
+
     return youtubeApiPromise;
 };
+
 
 const formatTime = (seconds: number): string => {
     const date = new Date(0);
@@ -239,9 +239,6 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
         if (player && typeof player.getCurrentTime === 'function' && typeof player.seekTo === 'function') {
             const currentTime = player.getCurrentTime();
             player.setPlaybackQuality(quality);
-            // This is a common workaround. `setPlaybackQuality` is a suggestion,
-            // and sometimes the player needs a "nudge" to apply it. Seeking
-            // to the current time forces it to re-evaluate the stream buffer.
             player.seekTo(currentTime, true);
         }
         setQualityMenuOpen(false);
@@ -317,10 +314,12 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
                                         ))}
                                     </div>
                                 )}
-                                <button ref={qualityButtonRef} onClick={() => setQualityMenuOpen(p => !p)} className="yt-control-button text-sm">
-                                    <span className="font-semibold text-amber-300">{getQualityLabel(currentQuality)}</span>
-                                    <CogIcon className="w-5 h-5" />
-                                </button>
+                                {availableQualities.length > 1 && (
+                                    <button ref={qualityButtonRef} onClick={() => setQualityMenuOpen(p => !p)} className="yt-control-button text-sm">
+                                        <span className="font-semibold text-amber-300">{getQualityLabel(currentQuality)}</span>
+                                        <CogIcon className="w-5 h-5" />
+                                    </button>
+                                )}
                              </div>
                              <button onClick={handleFullscreen} className="yt-control-button">
                                 <ArrowsExpandIcon className="w-5 h-5" />

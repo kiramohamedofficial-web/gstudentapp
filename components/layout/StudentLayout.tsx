@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { User, StudentView, Subscription, Theme } from '../../types';
-import { HomeIcon, UserCircleIcon, CreditCardIcon, UsersIcon, LogoutIcon, TemplateIcon, XIcon, SparklesIcon, ChartBarIcon, BrainIcon, BellIcon, CogIcon, QuestionMarkCircleIcon } from '../common/Icons';
+import { HomeIcon, UserCircleIcon, CreditCardIcon, UsersIcon, LogoutIcon, TemplateIcon, XIcon, SparklesIcon, ChartBarIcon, BrainIcon, BellIcon, CogIcon, QuestionMarkCircleIcon, MoonIcon } from '../common/Icons';
 
 interface StudentLayoutProps {
   user: User;
@@ -43,6 +43,7 @@ const navItems = [
     { id: 'smartPlan', label: 'الخطة الذكية', icon: SparklesIcon },
     { id: 'chatbot', label: 'المساعد الذكي', icon: ChatbotIcon },
     { id: 'askTheProf', label: 'اسأل البروف', icon: QuestionMarkCircleIcon },
+    { id: 'adhkar', label: 'أذكار الصباح والمساء', icon: MoonIcon },
     { id: 'grades', label: 'المنهج الدراسي', icon: CurriculumIcon },
     { id: 'teachers', label: 'المدرسون', icon: UsersIcon },
     { id: 'courses', label: 'الكورسات', icon: CoursesIcon },
