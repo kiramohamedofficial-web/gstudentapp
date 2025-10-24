@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getAllGrades, getPlatformSettings, getTeachers, initData } from '../../services/storageService';
-import { Grade, PlatformSettings, Teacher } from '../../types';
+import { getAllGrades, getPlatformSettings, initData } from '../../services/storageService';
+import { Grade, PlatformSettings } from '../../types';
 import { AtomIcon, ArrowLeftIcon, PhoneIcon, YoutubeIcon, FacebookIcon, SparklesIcon, ChartBarIcon, VideoCameraIcon, BrainIcon, BookOpenIcon, ArrowRightIcon, MenuIcon, XIcon } from '../common/Icons';
 
 interface WelcomeScreenProps {
@@ -50,19 +50,36 @@ const CosmicFlowBackground: React.FC = () => (
     <div className="fixed top-0 left-0 right-0 bottom-0 cosmic-flow-background z-[-1]"></div>
 );
 
-const HeroSection: React.FC<{ onNavigateToRegister: () => void; settings: PlatformSettings; }> = ({ onNavigateToRegister, settings }) => (
-    <section className="relative container mx-auto px-6 pt-32 pb-16 md:py-40 text-center">
-        <div className="absolute inset-x-0 top-0 h-[500px] bg-gradient-to-b from-[rgba(var(--accent-primary-rgb),0.15)] to-transparent blur-3xl -translate-y-1/2"></div>
-        <div className="relative z-10">
-            <h1 className="text-4xl md:text-6xl font-black leading-tight mb-4 fade-in gradient-text">{settings.heroTitle}</h1>
-            <p className="text-lg md:text-xl text-[var(--text-secondary)] mb-8 max-w-3xl mx-auto fade-in fade-in-delay-1">{settings.heroSubtitle}</p>
-            <button onClick={onNavigateToRegister} className="inline-flex items-center justify-center group px-8 py-4 font-bold text-white bg-[var(--accent-primary)] rounded-lg hover:brightness-110 focus:outline-none focus:ring-4 focus:ring-[rgba(var(--accent-primary-rgb),0.5)] transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-[0_15px_30px_-10px_rgba(var(--accent-primary-rgb),0.4)] pulse-btn fade-in fade-in-delay-2">
-                <span>{settings.heroButtonText}</span>
-                <ArrowLeftIcon className="w-6 h-6 mr-3 transition-transform duration-300 group-hover:-translate-x-1" />
-            </button>
-        </div>
-    </section>
-);
+const HeroSection: React.FC<{ onNavigateToRegister: () => void; settings: PlatformSettings; }> = ({ onNavigateToRegister, settings }) => {
+    const titleParts = settings.heroTitle.split(' ');
+    const firstPart = titleParts.length > 1 ? titleParts[0] : settings.heroTitle;
+    const secondPart = titleParts.length > 1 ? titleParts.slice(1).join(' ') : '';
+    
+    return (
+        <section className="relative container mx-auto px-6 pt-32 pb-16 md:py-40 flex flex-col items-center">
+            <div className="absolute inset-x-0 top-0 h-[500px] bg-gradient-to-b from-[rgba(var(--accent-primary-rgb),0.15)] to-transparent blur-3xl -translate-y-1/2 z-[-1]"></div>
+            
+            <div className="relative z-10 text-center">
+                <h1 className="text-5xl md:text-7xl font-black leading-tight tracking-tight mb-6 fade-in">
+                    <span className="block text-[var(--text-primary)]">{firstPart}</span>
+                    {secondPart && <span className="block gradient-text">{secondPart}</span>}
+                </h1>
+                <p className="text-lg md:text-xl text-[var(--text-secondary)] mb-10 max-w-2xl mx-auto fade-in fade-in-delay-1">{settings.heroSubtitle}</p>
+                <button onClick={onNavigateToRegister} className="inline-flex items-center justify-center group px-8 py-4 font-bold text-white bg-[var(--accent-primary)] rounded-lg hover:brightness-110 focus:outline-none focus:ring-4 focus:ring-[rgba(var(--accent-primary-rgb),0.5)] transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-[0_15px_30px_-10px_rgba(var(--accent-primary-rgb),0.4)] pulse-btn fade-in fade-in-delay-2">
+                    <span>{settings.heroButtonText}</span>
+                    <ArrowLeftIcon className="w-6 h-6 mr-3 transition-transform duration-300 group-hover:-translate-x-1" />
+                </button>
+            </div>
+            
+            <img 
+                src="https://d.top4top.io/p_3584t5zwf3.png" 
+                alt="Platform Logo" 
+                className="relative z-10 mt-16 w-64 h-64 md:w-80 md:h-80 object-contain animate-float"
+            />
+        </section>
+    );
+};
+
 
 const StatCard: React.FC<{ value: string; label: string; icon: React.FC<{className?: string}>; delay: number }> = ({ value, label, icon: Icon, delay }) => (
     <div className="stat-card p-6 rounded-2xl text-center shadow-lg fade-in flex flex-col items-center justify-center h-full" style={{ animationDelay: `${delay}ms` }}>
@@ -155,28 +172,6 @@ const DetailedFeaturesSection: React.FC<{ settings: PlatformSettings }> = ({ set
         </section>
     );
 };
-
-const TeachersSection: React.FC = () => {
-    const teachers = React.useMemo(() => getTeachers(), []);
-    if (teachers.length === 0) return null;
-
-    return (
-        <section className="py-20">
-            <div className="container mx-auto px-6 text-center">
-                <h2 className="text-3xl md:text-4xl font-bold mb-12">تعرف على أفضل المدرسين</h2>
-                <div className="flex flex-wrap justify-center gap-8 md:gap-12">
-                    {teachers.slice(0, 5).map((teacher, index) => (
-                        <div key={teacher.id} className="fade-in text-center group" style={{ animationDelay: `${index * 100}ms` }}>
-                            <img src={teacher.imageUrl} alt={teacher.name} className="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-[var(--bg-tertiary)] group-hover:border-[var(--accent-primary)] transition-all duration-300 shadow-lg"/>
-                            <h3 className="font-bold text-lg text-[var(--text-primary)]">{teacher.name}</h3>
-                            <p className="text-sm text-[var(--text-secondary)]">{teacher.subject}</p>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        </section>
-    );
-}
 
 const CallToActionSection: React.FC<{ onNavigateToLogin: () => void; onNavigateToRegister: () => void; }> = ({ onNavigateToLogin, onNavigateToRegister }) => (
     <section className="pb-20">
@@ -331,7 +326,6 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onNavigateToLogin, onNavi
                 <HeroSection onNavigateToRegister={onNavigateToRegister} settings={settings} />
                 <StatsSection />
                 <DetailedFeaturesSection settings={settings} />
-                <TeachersSection />
                 <CallToActionSection onNavigateToLogin={onNavigateToLogin} onNavigateToRegister={onNavigateToRegister} />
                 <GradesSection onNavigateToLogin={onNavigateToLogin} />
             </main>
