@@ -1,3 +1,4 @@
+
 import { createClient, Session, User as SupabaseUser } from '@supabase/supabase-js';
 import {
   User,
@@ -131,52 +132,35 @@ export const signIn = async (email: string, password: string) => {
 export const signUp = async (userData: Omit<User, 'id' | 'role' | 'subscriptionId' | 'email'> & { email: string, password?: string }) => {
     const { email, password, name, phone, guardianPhone, grade, track } = userData;
     
-    if(!password) throw new Error("Password is required for sign up.");
+    if(!password) {
+        return { data: null, error: { message: "Password is required for sign up." } };
+    };
 
-    // Step 1: Sign up the user in Supabase Auth.
-    const { data: authData, error: authError } = await supabaseCore.auth.signUp({
+    const { data, error } = await supabaseCore.auth.signUp({
         email,
         password,
+        options: {
+            data: {
+                name: name,
+                phone: phone,
+                guardian_phone: guardianPhone,
+                grade_id: grade,
+                track: track,
+                role: 'student'
+            }
+        }
     });
 
-    if (authError) {
-        return { data: authData, error: authError };
+    if (error) {
+        if (error.message.includes('User already registered')) {
+            return { data: null, error: { message: 'هذا البريد الإلكتروني مسجل بالفعل.' } };
+        }
+        if (error.message.includes('Password should be at least')) {
+            return { data: null, error: { message: 'يجب أن تتكون كلمة المرور من 6 أحرف على الأقل.' } };
+        }
     }
 
-    if (!authData.user) {
-        return { data: authData, error: new Error('فشل إنشاء الحساب، لم يتم إرجاع بيانات المستخدم.') };
-    }
-
-    // Step 2: Create the user's profile in the public 'users' table.
-    // This is crucial because the app's onAuthStateChange handler depends on getProfile() finding this record.
-    const { error: profileError } = await supabaseCore
-        .from('users')
-        .insert({
-            id: authData.user.id,
-            name,
-            phone,
-            guardian_phone: guardianPhone,
-            grade_id: grade,
-            track,
-            role: 'student'
-        });
-    
-    if (profileError) {
-        console.error("CRITICAL: Failed to create user profile after sign up:", JSON.stringify(profileError, null, 2));
-        // Return a user-friendly error. The user account in 'auth.users' exists, but they can't log in.
-        return { 
-            data: authData, 
-            error: { 
-                ...profileError,
-                message: `تم إنشاء حسابك ولكن فشل إعداد الملف الشخصي. يرجى التواصل مع الدعم الفني.`
-            } 
-        };
-    }
-
-    // Return the original response from signUp. If email confirmation is disabled, this contains the session
-    // which will trigger onAuthStateChange and log the user in. If it's enabled, session is null,
-    // and the user will need to confirm their email, which is the expected Supabase behavior.
-    return { data: authData, error: null };
+    return { data, error };
 };
 
 
@@ -196,9 +180,8 @@ export const onAuthStateChange = (callback: (session: Session | null) => void) =
 };
 
 export const getProfile = async (userId: string): Promise<Omit<User, 'email'> | null> => {
-    // FIX: Query the 'users' table instead of 'profiles' to match the user's existing database schema.
     const { data, error } = await supabaseCore
-        .from('users') // Changed from 'profiles'
+        .from('users')
         .select('*')
         .eq('id', userId)
         .single();
@@ -217,7 +200,7 @@ export const getProfile = async (userId: string): Promise<Omit<User, 'email'> | 
         guardianPhone: data.guardian_phone,
         grade: data.grade_id,
         track: data.track,
-        role: data.role as Role, // Assuming the role is stored directly in the users table
+        role: data.role as Role,
     };
 };
 
@@ -476,6 +459,7 @@ export const validateSubscriptionCode = (code: string): { valid: boolean; error?
     if (foundCode.timesUsed >= foundCode.maxUses) return { valid: false, error: 'هذا الكود تم استخدامه بالكامل.' };
     return { valid: true };
 };
+
 export const registerAndRedeemCode = async (userData: any, code: string): Promise<{ user: User | null; error: string | null }> => {
     const coreData = getCoreData();
     const codeIndex = (coreData.subscriptionCodes || []).findIndex(c => c.code === code.trim());
@@ -510,6 +494,7 @@ export const registerAndRedeemCode = async (userData: any, code: string): Promis
     
     return { user: { ...profile, email: newUser.email! }, error: null };
 };
+
 export const getPlatformSettings = (): PlatformSettings => getCoreData().platformSettings;
 export const updatePlatformSettings = (settings: PlatformSettings): void => modifyCoreData(coreData => { coreData.platformSettings = settings; });
 export const addQuizAttempt = (attemptData: Omit<QuizAttempt, 'id'>): void => {
@@ -539,7 +524,6 @@ export const incrementChatUsage = (userId: string): void => {
 
 // Functions to be refactored
 export const getAllUsers = async (): Promise<User[]> => {
-    // FIX: This function now fetches both profile data and auth data to ensure a complete User object.
     const { data: profiles, error: profileError } = await supabaseCore
         .from('users')
         .select('*');
@@ -558,7 +542,6 @@ export const getAllUsers = async (): Promise<User[]> => {
     if (authError) {
          console.error("Error fetching all auth users (requires admin privileges):", authError);
          // Fallback: return profiles without email if auth user list fails
-        // FIX: Add null check for profiles and type `p` as `any` to prevent type errors.
         return (profiles || []).map((p: any) => ({
             id: p.id,
             name: p.name,
@@ -573,13 +556,11 @@ export const getAllUsers = async (): Promise<User[]> => {
 
     const authUserMap = new Map(authData.users.map(u => [u.id, u]));
 
-    // FIX: Add null check for profiles and type `p` as `any` to prevent type errors.
     return (profiles || []).map((p: any) => {
         const authUser = authUserMap.get(p.id);
         return {
             id: p.id,
             name: p.name,
-            // FIX: Cast `authUser` to safely access the `email` property, which was being inferred as `unknown`.
             email: (authUser as { email?: string })?.email || '',
             phone: p.phone,
             guardianPhone: p.guardian_phone,
@@ -600,7 +581,6 @@ export const updateUser = async (updatedUser: Partial<User> & { id: string }) =>
     if (track !== undefined) profileUpdate.track = track;
     
     if (Object.keys(profileUpdate).length === 0) {
-        // FIX: Ensure the returned error object has a valid structure.
         const error = new Error("No data to update.");
         return { data: null, error: { ...error, message: error.message } };
     }
@@ -641,3 +621,20 @@ export const updateFeaturedBook = (updatedBook: Book): void => modifyCoreData(c 
 export const deleteFeaturedBook = (bookId: string): void => modifyCoreData(c => { c.featuredBooks = c.featuredBooks.filter(x => x.id !== bookId); });
 export const getFeaturedBooks = (): Book[] => getCoreData().featuredBooks || [];
 export const generateAccessToken = (gradeId: number, semesterId: string, unitId: string, lessonId: string): string => { return "" };
+
+// Fetches a flat list of grades for UI selection, directly from the database.
+// This is to be used in contexts like registration where the full curriculum data is not needed,
+// avoiding potential race conditions with the app's caching mechanism.
+export const getGradesForSelection = async (): Promise<Pick<Grade, 'id' | 'name' | 'level'>[]> => {
+    const { data, error } = await supabaseCore
+        .from('grades')
+        .select('id, name, level')
+        .order('id');
+    
+    if (error) {
+        console.error('Error fetching grades for selection:', error);
+        return [];
+    }
+    // The `level` in the database should match 'Middle' or 'Secondary'
+    return data as Pick<Grade, 'id' | 'name' | 'level'>[];
+};

@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { User, StudentView, Subscription, Theme } from '../../types';
-import { HomeIcon, UserCircleIcon, CreditCardIcon, UsersIcon, LogoutIcon, TemplateIcon, XIcon, SparklesIcon, ChartBarIcon, BrainIcon, BellIcon, CogIcon, QuestionMarkCircleIcon, MoonIcon } from '../common/Icons';
+import { HomeIcon, UserCircleIcon, CreditCardIcon, UsersIcon, LogoutIcon, TemplateIcon, XIcon, SparklesIcon, ChartBarIcon, BrainIcon, BellIcon, CogIcon, QuestionMarkCircleIcon, MoonIcon, VideoCameraIcon } from '../common/Icons';
 
 interface StudentLayoutProps {
   user: User;
@@ -38,19 +38,6 @@ const ChatbotIcon: React.FC<{ className?: string }> = ({ className }) => (
     <img src="https://b.top4top.io/p_3583ycfjf2.png" alt="المساعد الذكي" className={className} />
 );
 
-const navItems = [
-    { id: 'home', label: 'الرئيسية', icon: HomeIcon },
-    { id: 'smartPlan', label: 'الخطة الذكية', icon: SparklesIcon },
-    { id: 'chatbot', label: 'المساعد الذكي', icon: ChatbotIcon },
-    { id: 'askTheProf', label: 'اسأل البروف', icon: QuestionMarkCircleIcon },
-    { id: 'adhkar', label: 'أذكار الصباح والمساء', icon: MoonIcon },
-    { id: 'grades', label: 'المنهج الدراسي', icon: CurriculumIcon },
-    { id: 'teachers', label: 'المدرسون', icon: UsersIcon },
-    { id: 'courses', label: 'الكورسات', icon: CoursesIcon },
-    { id: 'results', label: 'الواجبات والنتائج', icon: ChartBarIcon },
-    { id: 'subscription', label: 'الاشتراك', icon: CreditCardIcon },
-];
-
 const bottomNavItems = [
     { id: 'home', label: 'الرئيسية', icon: HomeIcon },
     { id: 'grades', label: 'المنهج', icon: CurriculumIcon },
@@ -81,7 +68,7 @@ const SubscriptionStatusCard: React.FC<{ subscription: Subscription; onNavClick:
     );
 };
 
-const NavContent: React.FC<{ activeView: string; onNavClick: (view: StudentView) => void; onLogout: () => void; subscription: Subscription | null; }> = ({ activeView, onNavClick, onLogout, subscription }) => (
+const NavContent: React.FC<{ navItems: any[]; activeView: string; onNavClick: (view: StudentView) => void; onLogout: () => void; subscription: Subscription | null; }> = ({ navItems, activeView, onNavClick, onLogout, subscription }) => (
     <div className="flex flex-col flex-1 overflow-y-auto">
         <nav className="mt-2 flex-grow p-4 space-y-1.5">{navItems.map((item) => <NavButton key={item.id} onClick={() => onNavClick(item.id as StudentView)} label={item.label} icon={item.icon} isActive={activeView === item.id} />)}</nav>
         {subscription && subscription.status === 'Active' && (<SubscriptionStatusCard subscription={subscription} onNavClick={() => onNavClick('subscription')} />)}
@@ -102,6 +89,20 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ user, onLogout, children,
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
     const profileMenuRef = useRef<HTMLDivElement>(null);
     const notificationsRef = useRef<HTMLDivElement>(null);
+
+    const navItems = useMemo(() => [
+        { id: 'home', label: 'الرئيسية', icon: HomeIcon },
+        { id: 'smartPlan', label: 'الخطة الذكية', icon: SparklesIcon },
+        { id: 'chatbot', label: 'المساعد الذكي', icon: ChatbotIcon },
+        { id: 'askTheProf', label: 'اسأل البروف', icon: QuestionMarkCircleIcon },
+        { id: 'adhkar', label: 'أذكار الصباح والمساء', icon: MoonIcon },
+        { id: 'cartoonMovies', label: 'افلام كرتون', icon: VideoCameraIcon },
+        { id: 'grades', label: 'المنهج الدراسي', icon: CurriculumIcon },
+        { id: 'teachers', label: 'المدرسون', icon: UsersIcon },
+        { id: 'courses', label: 'الكورسات', icon: CoursesIcon },
+        { id: 'results', label: 'الواجبات والنتائج', icon: ChartBarIcon },
+        { id: 'subscription', label: 'الاشتراك', icon: CreditCardIcon },
+    ], []);
 
     const mockNotifications = [
         { id: 1, text: "تم إضافة واجب جديد في مادة الفيزياء.", time: "منذ 5 دقائق" },
@@ -127,7 +128,7 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ user, onLogout, children,
                 <div className="flex items-center space-x-2 space-x-reverse"><img src="https://h.top4top.io/p_3583m5j8t0.png" alt="Gstudent Logo" className="w-8 h-8" /><h1 className="text-2xl font-bold gradient-text">Gstudent</h1></div>
             </div>
             <div className="w-full h-px bg-[var(--border-primary)] flex-shrink-0"></div>
-            <NavContent activeView={activeView} onNavClick={onNavClick} onLogout={onLogout} subscription={subscription} />
+            <NavContent navItems={navItems} activeView={activeView} onNavClick={onNavClick} onLogout={onLogout} subscription={subscription} />
         </aside>
 
         <div className="flex-1 flex flex-col overflow-hidden rounded-2xl">
@@ -191,7 +192,7 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ user, onLogout, children,
                </div>
               <button onClick={() => setIsMobileNavOpen(false)} className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"><XIcon className="w-6 h-6" /></button>
             </div>
-            <NavContent activeView={activeView} onNavClick={(v) => { onNavClick(v); setIsMobileNavOpen(false); }} onLogout={() => { onLogout(); setIsMobileNavOpen(false); }} subscription={subscription} />
+            <NavContent navItems={navItems} activeView={activeView} onNavClick={(v) => { onNavClick(v); setIsMobileNavOpen(false); }} onLogout={() => { onLogout(); setIsMobileNavOpen(false); }} subscription={subscription} />
           </div>
         </div>
       )}
