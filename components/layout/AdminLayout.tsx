@@ -142,9 +142,9 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ user, onLogout, children, onN
             {/* Centered Logo */}
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
                 <img
-                    src="https://l.top4top.io/p_3583m3alu0.png"
+                    src="https://b.top4top.io/p_3584fktwq0.png"
                     alt="Platform Logo"
-                    className="h-[76px] object-contain"
+                    className="h-[74px] object-contain"
                 />
             </div>
             <div className="md:hidden">

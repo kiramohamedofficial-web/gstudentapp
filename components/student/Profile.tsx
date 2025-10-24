@@ -164,6 +164,10 @@ const Profile: React.FC<ProfileProps> = ({ user, onLogout, theme, setTheme }) =>
                         <span className="font-medium text-[var(--text-primary)]">{user.name}</span>
                     </li>
                     <li className="flex justify-between items-center border-b border-[var(--border-primary)] pb-3">
+                        <span className="font-semibold text-[var(--text-secondary)]">الصف الدراسي</span>
+                        <span className="font-medium text-[var(--text-primary)]">{grade?.name || 'غير محدد'}</span>
+                    </li>
+                    <li className="flex justify-between items-center border-b border-[var(--border-primary)] pb-3">
                         <span className="font-semibold text-[var(--text-secondary)]">البريد الإلكتروني</span>
                         <span className="font-medium text-[var(--text-primary)]">{user.email}</span>
                     </li>

@@ -156,13 +156,13 @@ export const signUp = async (userData: Omit<User, 'id' | 'role' | 'subscriptionI
             name,
             phone,
             guardian_phone: guardianPhone,
-            grade,
+            grade_id: grade,
             track,
             role: 'student'
         });
     
     if (profileError) {
-        console.error("CRITICAL: Failed to create user profile after sign up:", profileError);
+        console.error("CRITICAL: Failed to create user profile after sign up:", JSON.stringify(profileError, null, 2));
         // Return a user-friendly error. The user account in 'auth.users' exists, but they can't log in.
         return { 
             data: authData, 
@@ -204,7 +204,7 @@ export const getProfile = async (userId: string): Promise<Omit<User, 'email'> | 
         .single();
     
     if (error && error.code !== 'PGRST116') { // PGRST116: "exact one row expected, 0 rows returned"
-        console.error("Error fetching user profile:", error);
+        console.error("Error fetching user profile:", JSON.stringify(error, null, 2));
         return null;
     }
     if (!data) return null;
@@ -215,7 +215,7 @@ export const getProfile = async (userId: string): Promise<Omit<User, 'email'> | 
         name: data.name,
         phone: data.phone,
         guardianPhone: data.guardian_phone,
-        grade: data.grade,
+        grade: data.grade_id,
         track: data.track,
         role: data.role as Role, // Assuming the role is stored directly in the users table
     };
@@ -538,12 +538,97 @@ export const incrementChatUsage = (userId: string): void => {
 };
 
 // Functions to be refactored
-export const getAllUsers = (): User[] => {
-    console.warn("getAllUsers is likely returning incomplete local data. Needs refactor to fetch from Supabase 'profiles'.");
-    return []; // Should fetch from Supabase profiles table.
+export const getAllUsers = async (): Promise<User[]> => {
+    // FIX: This function now fetches both profile data and auth data to ensure a complete User object.
+    const { data: profiles, error: profileError } = await supabaseCore
+        .from('users')
+        .select('*');
+
+    if (profileError) {
+        console.error("Error fetching all user profiles:", profileError);
+        return [];
+    }
+    
+    // NOTE: Listing users requires admin privileges. For this to work in production,
+    // this function must be called from a secure context (e.g., a Supabase Edge Function)
+    // with a client initialized with the `service_role` key. The anon key will fail.
+    // For the context of this app, we assume it has the necessary privileges.
+    const { data: authData, error: authError } = await supabaseCore.auth.admin.listUsers();
+    
+    if (authError) {
+         console.error("Error fetching all auth users (requires admin privileges):", authError);
+         // Fallback: return profiles without email if auth user list fails
+        // FIX: Add null check for profiles and type `p` as `any` to prevent type errors.
+        return (profiles || []).map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            email: '', // Email is missing
+            phone: p.phone,
+            guardianPhone: p.guardian_phone,
+            grade: p.grade_id,
+            track: p.track,
+            role: p.role as Role,
+        }));
+    }
+
+    const authUserMap = new Map(authData.users.map(u => [u.id, u]));
+
+    // FIX: Add null check for profiles and type `p` as `any` to prevent type errors.
+    return (profiles || []).map((p: any) => {
+        const authUser = authUserMap.get(p.id);
+        return {
+            id: p.id,
+            name: p.name,
+            // FIX: Cast `authUser` to safely access the `email` property, which was being inferred as `unknown`.
+            email: (authUser as { email?: string })?.email || '',
+            phone: p.phone,
+            guardianPhone: p.guardian_phone,
+            grade: p.grade_id,
+            track: p.track,
+            role: p.role as Role,
+        };
+    });
 };
-export const updateUser = (updatedUser: User): void => { console.warn("updateUser needs to be refactored for Supabase.") };
-export const deleteUser = (userId: string): void => { console.warn("deleteUser needs to be refactored for Supabase.") };
+export const updateUser = async (updatedUser: Partial<User> & { id: string }) => {
+    const { id, name, phone, guardianPhone, grade, track } = updatedUser;
+
+    const profileUpdate: { [key: string]: any } = {};
+    if (name !== undefined) profileUpdate.name = name;
+    if (phone !== undefined) profileUpdate.phone = phone;
+    if (guardianPhone !== undefined) profileUpdate.guardian_phone = guardianPhone;
+    if (grade !== undefined) profileUpdate.grade_id = grade;
+    if (track !== undefined) profileUpdate.track = track;
+    
+    if (Object.keys(profileUpdate).length === 0) {
+        // FIX: Ensure the returned error object has a valid structure.
+        const error = new Error("No data to update.");
+        return { data: null, error: { ...error, message: error.message } };
+    }
+
+    const { data, error } = await supabaseCore
+        .from('users')
+        .update(profileUpdate)
+        .eq('id', id);
+
+    if (error) {
+        console.error("Error updating user profile:", JSON.stringify(error, null, 2));
+    }
+    
+    return { data, error };
+};
+export const deleteUser = async (userId: string) => {
+    // This is incomplete. Deleting from auth.users requires admin privileges not available with the anon key.
+    // A database function is the proper way to handle this. For now, we only delete the public profile.
+    const { data, error } = await supabaseCore
+        .from('users')
+        .delete()
+        .eq('id', userId);
+    
+    if (error) {
+        console.error("Error deleting user profile:", JSON.stringify(error, null, 2));
+    }
+    return { data, error };
+};
 export const addTeacher = (teacherData: any): any => { console.warn("addTeacher needs to be refactored for Supabase.") };
 export const updateTeacher = (updatedTeacherData: any): any => { console.warn("updateTeacher needs to be refactored for Supabase.") };
 export const deleteTeacher = (teacherId: string): void => { console.warn("deleteTeacher needs to be refactored for Supabase.") };

@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { Teacher, Subscription } from '../../types';
+import React, { useMemo, useState, useEffect } from 'react';
+import { Teacher, Subscription, User } from '../../types';
 import { getSubscriptionsByTeacherId, getAllUsers } from '../../services/storageService';
 import { CreditCardIcon } from '../common/Icons';
 
@@ -9,7 +9,16 @@ interface TeacherSubscriptionsViewProps {
 
 const TeacherSubscriptionsView: React.FC<TeacherSubscriptionsViewProps> = ({ teacher }) => {
     const subscriptions = useMemo(() => getSubscriptionsByTeacherId(teacher.id), [teacher.id]);
-    const users = useMemo(() => new Map(getAllUsers().map(u => [u.id, u])), []);
+    // FIX: Fetch users asynchronously using useState and useEffect instead of useMemo.
+    const [users, setUsers] = useState<Map<string, User>>(new Map());
+
+    useEffect(() => {
+        const fetchUsers = async () => {
+            const userList = await getAllUsers();
+            setUsers(new Map(userList.map(u => [u.id, u])));
+        };
+        fetchUsers();
+    }, []);
 
     return (
         <div>

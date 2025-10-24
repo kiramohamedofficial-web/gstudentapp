@@ -34,10 +34,12 @@ const TeacherModal: React.FC<{
     const secondarySchoolGrades = useMemo(() => allGrades.filter(g => g.level === 'Secondary').sort((a,b) => a.id - b.id), [allGrades]);
 
     React.useEffect(() => {
-        if (isOpen) {
+        // FIX: Use an async function within useEffect to correctly await `getAllUsers`.
+        const loadTeacherData = async () => {
             setError('');
             if (teacher) {
-                const teacherUser = getAllUsers().find(u => u.teacherId === teacher.id);
+                const allUsers = await getAllUsers();
+                const teacherUser = allUsers.find(u => u.teacherId === teacher.id);
                 setFormData({
                     name: teacher.name || '',
                     subject: teacher.subject || '',
@@ -52,6 +54,10 @@ const TeacherModal: React.FC<{
                 setSelectedLevels([]);
                 setSelectedGrades([]);
             }
+        };
+
+        if (isOpen) {
+            loadTeacherData();
         }
     }, [teacher, isOpen]);
 

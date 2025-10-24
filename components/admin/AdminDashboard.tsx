@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { User, ActivityLog, Grade, Theme } from '../../types';
 import AdminLayout from '../layout/AdminLayout';
 import SubscriptionManagementView from './FinancialView';
@@ -23,6 +23,8 @@ import AdminSettingsView from './AdminSettingsView';
 import TeacherManagementView from './TeacherManagementView';
 import QuestionBankView from './QuestionBankView';
 import SystemHealthView from './SystemHealthView';
+import Loader from '../common/Loader';
+
 
 interface AdminDashboardProps {
   user: User;
@@ -64,9 +66,20 @@ const calculateStudentProgress = (user: User, allGrades: Grade[]): number => {
 const StudentManagementView: React.FC<{ onViewDetails: (user: User) => void }> = ({ onViewDetails }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [gradeFilter, setGradeFilter] = useState('');
+    const [allUsers, setAllUsers] = useState<User[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
 
-    const allUsers = useMemo(() => getAllUsers().filter(u => u.role === 'student'), []);
     const allGrades = useMemo(() => getAllGrades(), []);
+    
+    useEffect(() => {
+        const fetchUsers = async () => {
+            setIsLoading(true);
+            const users = await getAllUsers();
+            setAllUsers(users.filter(u => u.role === 'student'));
+            setIsLoading(false);
+        };
+        fetchUsers();
+    }, []);
 
     const filteredUsers = useMemo(() => {
         return allUsers
@@ -91,6 +104,10 @@ const StudentManagementView: React.FC<{ onViewDetails: (user: User) => void }> =
             name: allGrades.find(grade => grade.id === parseInt(g))?.name || `الصف ${g}`
         }));
     }, [allUsers, allGrades]);
+
+    if (isLoading) {
+        return <div className="flex justify-center items-center h-64"><Loader /></div>;
+    }
 
     return (
         <div className="fade-in">
@@ -161,15 +178,29 @@ const StudentManagementView: React.FC<{ onViewDetails: (user: User) => void }> =
 
 
 const MainDashboard: React.FC<{ onNavigate: (view: AdminView) => void }> = ({ onNavigate }) => {
-    const allUsers = useMemo(() => getAllUsers(), []);
-    const students = useMemo(() => allUsers.filter(u => u.role === 'student'), [allUsers]);
+    const [students, setStudents] = useState<User[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            const users = await getAllUsers();
+            setStudents(users.filter(u => u.role === 'student'));
+            setIsLoading(false);
+        };
+        fetchData();
+    }, []);
+
     const teachers = useMemo(() => getTeachers(), []);
     const latestUsers = useMemo(() => [...students].reverse().slice(0, 5), [students]);
-    const subscriptions = useMemo(() => getAllSubscriptions(), []);
+    const subscriptions = useMemo(() => getAllSubscriptions(), [students]); // re-calc if students change
     const activityLogs = useMemo(() => getActivityLogs().slice(0, 5), []);
     const pendingRequestsCount = useMemo(() => getPendingSubscriptionRequestCount(), []);
     
     const activeSubscriptions = subscriptions.filter(s => s.status === 'Active').length;
+
+    if (isLoading) {
+        return <div className="flex justify-center items-center h-64"><Loader /></div>;
+    }
 
     return (
         <div className="fade-in">

@@ -139,7 +139,7 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ user, onLogout, children,
               </div>
               {/* Centered Logo */}
               <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-                  <img src="https://l.top4top.io/p_3583m3alu0.png" alt="Platform Logo" className="h-[76px] object-contain" />
+                  <img src="https://b.top4top.io/p_3584fktwq0.png" alt="Platform Logo" className="h-[74px] object-contain" />
               </div>
               <div className="flex items-center space-x-2 md:space-x-3 space-x-reverse">
                   {/* Notifications */}

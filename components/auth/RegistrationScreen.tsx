@@ -166,7 +166,7 @@ const RegistrationScreen: React.FC<RegistrationScreenProps> = ({ onRegister, err
             phone: `+2${normalizePhoneNumber(formData.phone)}`,
             guardianPhone: `+2${normalizePhoneNumber(formData.guardianPhone)}`,
             grade: parseInt(formData.grade, 10),
-            track: (formData.grade === '11' || formData.grade === '12') ? (formData.track as any) : undefined,
+            track: (formData.grade === '11' || formData.grade === '12') ? (formData.track as any) : null,
         };
         await onRegister(registrationData);
         setIsLoading(false);

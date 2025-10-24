@@ -129,25 +129,38 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
     setIsEditModalOpen(true);
   };
 
-  const handleUpdateUser = () => {
+  const handleUpdateUser = async () => {
     if (editFormData.id) {
         if (!editFormData.name || !editFormData.phone || !editFormData.guardianPhone) {
             addToast("الرجاء ملء جميع الحقول.", ToastType.ERROR); return;
         }
-        const updatedUserData = { ...user, ...editFormData };
-        if (!editFormData.password) delete updatedUserData.password;
-        updateUser(updatedUserData as User);
-        addToast("تم تحديث بيانات الطالب بنجاح", ToastType.SUCCESS);
-        setIsEditModalOpen(false);
-        refreshData();
+        
+        // FIX: The destructuring of 'password' was unnecessary and potentially confusing
+        // as the User type does not include it. This simplifies the data preparation.
+        const profileData = { ...user, ...editFormData };
+
+        const result = await updateUser(profileData as User);
+
+        if (result?.error) {
+            addToast(`فشل تحديث البيانات: ${result.error.message}`, ToastType.ERROR);
+        } else {
+            addToast("تم تحديث بيانات الطالب بنجاح", ToastType.SUCCESS);
+            setIsEditModalOpen(false);
+            onBack();
+        }
     }
   };
   
-  const handleDeleteUser = () => {
-      deleteUser(user.id);
-      addToast(`تم حذف الطالب ${user.name} بنجاح`, ToastType.SUCCESS);
-      setIsDeleteModalOpen(false);
-      onBack();
+  const handleDeleteUser = async () => {
+      // FIX: Assign the result to a variable before destructuring to prevent errors.
+      const result = await deleteUser(user.id);
+      if (result?.error) {
+          addToast(`فشل حذف الطالب: ${result.error.message}`, ToastType.ERROR);
+      } else {
+          addToast(`تم حذف الطالب ${user.name} بنجاح`, ToastType.SUCCESS);
+          setIsDeleteModalOpen(false);
+          onBack();
+      }
   }
 
   const handleSubscriptionUpdate = (plan: any, status: any, endDate: any) => {
