@@ -1,5 +1,5 @@
-import React, { useMemo, useState, useEffect } from 'react';
-import { getAllGrades, getPlatformSettings, getTeachers } from '../../services/storageService';
+import React, { useState, useEffect, useMemo } from 'react';
+import { getAllGrades, getPlatformSettings, getTeachers, initData } from '../../services/storageService';
 import { Grade, PlatformSettings, Teacher } from '../../types';
 import { AtomIcon, ArrowLeftIcon, PhoneIcon, YoutubeIcon, FacebookIcon, SparklesIcon, ChartBarIcon, VideoCameraIcon, BrainIcon, BookOpenIcon, ArrowRightIcon, MenuIcon, XIcon } from '../common/Icons';
 
@@ -157,7 +157,7 @@ const DetailedFeaturesSection: React.FC<{ settings: PlatformSettings }> = ({ set
 };
 
 const TeachersSection: React.FC = () => {
-    const teachers = useMemo(() => getTeachers(), []);
+    const teachers = React.useMemo(() => getTeachers(), []);
     if (teachers.length === 0) return null;
 
     return (
@@ -242,8 +242,19 @@ const GradeCard: React.FC<{ grade: Grade; gradient: string; delay: number; onCli
     );
 };
 
-const GradesSection: React.FC<{ grades: Grade[], onNavigateToLogin: () => void }> = ({ grades, onNavigateToLogin }) => {
+const GradesSection: React.FC<{ onNavigateToLogin: () => void }> = ({ onNavigateToLogin }) => {
     const [selectedLevel, setSelectedLevel] = useState<'Middle' | 'Secondary' | null>(null);
+    const [grades, setGrades] = useState<Grade[]>([]);
+
+    useEffect(() => {
+        // This effect ensures that grade data is loaded whenever this section is interacted with,
+        // solving potential race conditions on initial app load.
+        const loadAllGrades = async () => {
+            await initData();
+            setGrades(getAllGrades());
+        };
+        loadAllGrades();
+    }, [selectedLevel]);
 
     const middleSchoolGrades = grades.filter(g => g.level === 'Middle').sort((a, b) => a.id - b.id);
     const secondarySchoolGrades = grades.filter(g => g.level === 'Secondary').sort((a, b) => a.id - b.id);
@@ -306,7 +317,6 @@ const Footer: React.FC<{ settings: PlatformSettings }> = ({ settings }) => (
 const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onNavigateToLogin, onNavigateToRegister }) => {
     const [settings, setSettings] = useState<PlatformSettings | null>(null);
     const [isNavOpen, setIsNavOpen] = useState(false);
-    const grades = useMemo(() => getAllGrades(), []);
     
     useEffect(() => { setSettings(getPlatformSettings()); }, []);
     
@@ -323,7 +333,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onNavigateToLogin, onNavi
                 <DetailedFeaturesSection settings={settings} />
                 <TeachersSection />
                 <CallToActionSection onNavigateToLogin={onNavigateToLogin} onNavigateToRegister={onNavigateToRegister} />
-                <GradesSection grades={grades} onNavigateToLogin={onNavigateToLogin} />
+                <GradesSection onNavigateToLogin={onNavigateToLogin} />
             </main>
             <AnimatedWaves />
             <Footer settings={settings} />

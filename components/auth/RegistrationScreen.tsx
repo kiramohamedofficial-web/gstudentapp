@@ -1,10 +1,10 @@
-import React, { useState, useMemo } from 'react';
-import { User } from '../../types';
-import { getAllGrades } from '../../services/storageService';
+import React, { useState, useEffect } from 'react';
+import { User, Grade } from '../../types';
+import { createClient } from '@supabase/supabase-js';
 import { ArrowRightIcon, SparklesIcon } from '../common/Icons';
 
 interface RegistrationScreenProps {
-    onRegister: (userData: Omit<User, 'id' | 'role' | 'subscriptionId'>) => void;
+    onRegister: (userData: any) => Promise<void>;
     error: string;
     onBack: () => void;
     code: string | null;
@@ -32,19 +32,24 @@ const PhoneInput: React.FC<{ name: string; placeholder: string; value: string; o
 const normalizePhoneNumber = (phone: string): string => {
     const trimmed = phone.trim();
     if (trimmed.startsWith('0') && trimmed.length === 11) {
-        return trimmed; // keep leading '0' for validation
+        return trimmed;
     }
-    // Handles cases where user might enter 10 digits directly
     if (trimmed.length === 10) {
-        return `0${trimmed}`; // add leading '0'
+        return `0${trimmed}`;
     }
-    return ''; // Return empty for invalid formats to fail regex
+    return '';
 };
+
+const supabaseUrl = 'https://csipsaucwcuserhfrehn.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNzaXBzYXVjd2N1c2VyaGZyZWhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEyOTQwMTgsImV4cCI6MjA3Njg3MDAxOH0.FJu12ARvbqG0ny0D9d1Jje3BxXQ-q33gjx7JSH26j1w';
+const supabase = createClient(supabaseUrl, supabaseKey);
+
 
 const RegistrationScreen: React.FC<RegistrationScreenProps> = ({ onRegister, error, onBack, code }) => {
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState({
         name: '',
+        email: '',
         phone: '',
         guardianPhone: '',
         password: '',
@@ -54,8 +59,38 @@ const RegistrationScreen: React.FC<RegistrationScreenProps> = ({ onRegister, err
         track: '',
     });
     const [formError, setFormError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    
+    type GradeForSelect = Pick<Grade, 'id' | 'name' | 'level'>;
+    const [allGrades, setAllGrades] = useState<GradeForSelect[]>([]);
+    const [gradesForLevel, setGradesForLevel] = useState<GradeForSelect[]>([]);
 
-    const allGrades = useMemo(() => getAllGrades(), []);
+    useEffect(() => {
+        const fetchGrades = async () => {
+             const { data, error } = await supabase
+                .from('grades')
+                .select('id, name, level')
+                .order('id', { ascending: true });
+            
+            if (error) {
+                console.error("Error fetching grades:", error);
+                setFormError("حدث خطأ في تحميل الصفوف الدراسية. يرجى المحاولة مرة أخرى.");
+            } else {
+                setAllGrades(data || []);
+            }
+        };
+        fetchGrades();
+    }, []);
+
+    useEffect(() => {
+        if (formData.level) {
+            const filtered = allGrades.filter(g => g.level === formData.level);
+            setGradesForLevel(filtered);
+        } else {
+            setGradesForLevel([]);
+        }
+    }, [formData.level, allGrades]);
+
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
@@ -64,30 +99,44 @@ const RegistrationScreen: React.FC<RegistrationScreenProps> = ({ onRegister, err
             const numericValue = value.replace(/[^0-9]/g, '');
             setFormData(prev => ({ ...prev, [name]: numericValue }));
         } else {
-            setFormData(prev => ({ ...prev, [name]: value }));
+            setFormData(prev => {
+                const newState = { ...prev, [name]: value };
+                if (name === 'level') {
+                    newState.grade = '';
+                    newState.track = '';
+                }
+                return newState;
+            });
         }
     };
 
     const handleNext = () => {
         setFormError('');
-        const phoneRegex = /^01[0125]\d{8}$/; // This expects 11 digits with leading 0
+        const phoneRegex = /^01[0125]\d{8}$/;
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-        if (!formData.name.trim() || !formData.phone.trim() || !formData.guardianPhone.trim() || !formData.password.trim()) {
+        if (!formData.name.trim() || !formData.email.trim() || !formData.phone.trim() || !formData.guardianPhone.trim() || !formData.password.trim()) {
             setFormError('يرجى ملء جميع الحقول المطلوبة.');
+            return;
+        }
+        if (!emailRegex.test(formData.email)) {
+            setFormError('الرجاء إدخال بريد إلكتروني صالح.');
             return;
         }
         if (formData.password !== formData.confirmPassword) {
             setFormError('كلمتا المرور غير متطابقتين.');
             return;
         }
+        if (formData.password.length < 6) {
+            setFormError('يجب أن تتكون كلمة المرور من 6 أحرف على الأقل.');
+            return;
+        }
 
         const studentPhoneForValidation = normalizePhoneNumber(formData.phone);
         const guardianPhoneForValidation = normalizePhoneNumber(formData.guardianPhone);
         
-        const errorMessage = 'الرجاء إدخال رقم هاتف مصري صحيح (مثل 01012345678).';
-
         if (!phoneRegex.test(studentPhoneForValidation)) {
-            setFormError(errorMessage);
+            setFormError('الرجاء إدخال رقم هاتف مصري صحيح (مثل 01012345678).');
             return;
         }
         if (!phoneRegex.test(guardianPhoneForValidation)) {
@@ -98,7 +147,7 @@ const RegistrationScreen: React.FC<RegistrationScreenProps> = ({ onRegister, err
         setStep(2);
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setFormError('');
         if (!formData.level || !formData.grade) {
@@ -110,24 +159,19 @@ const RegistrationScreen: React.FC<RegistrationScreenProps> = ({ onRegister, err
             return;
         }
 
-        const normalizedStudentPhone = normalizePhoneNumber(formData.phone);
-        const normalizedGuardianPhone = normalizePhoneNumber(formData.guardianPhone);
-
-        const registrationData: Omit<User, 'id' | 'role' | 'subscriptionId'> = {
+        setIsLoading(true);
+        const registrationData = {
             name: formData.name.trim(),
-            phone: `+2${normalizedStudentPhone}`,
-            guardianPhone: `+2${normalizedGuardianPhone}`,
+            email: formData.email.trim(),
             password: formData.password,
+            phone: `+2${normalizePhoneNumber(formData.phone)}`,
+            guardianPhone: `+2${normalizePhoneNumber(formData.guardianPhone)}`,
             grade: parseInt(formData.grade, 10),
             track: (formData.grade === '11' || formData.grade === '12') ? (formData.track as any) : undefined,
         };
-        onRegister(registrationData);
+        await onRegister(registrationData);
+        setIsLoading(false);
     };
-    
-    const gradesForLevel = useMemo(() => {
-        if (!formData.level) return [];
-        return allGrades.filter(g => g.level === formData.level);
-    }, [formData.level, allGrades]);
 
     return (
         <div className="flex items-center justify-center min-h-screen p-4 relative overflow-hidden cosmic-flow-background">
@@ -152,7 +196,6 @@ const RegistrationScreen: React.FC<RegistrationScreenProps> = ({ onRegister, err
                     </div>
                 )}
 
-                {/* Progress Bar */}
                  <div className="flex items-center justify-center mb-8">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${step >= 1 ? 'border-[var(--accent-primary)] bg-[rgba(var(--accent-primary-rgb),0.2)] text-[var(--text-accent)] font-bold' : 'border-[var(--border-primary)] bg-[var(--bg-tertiary)] text-[var(--text-secondary)]'}`}>1</div>
                     <div className={`flex-1 h-1 mx-2 transition-all duration-300 rounded-full ${step > 1 ? 'bg-[var(--accent-primary)]' : 'bg-[var(--bg-tertiary)]'}`}></div>
@@ -160,13 +203,13 @@ const RegistrationScreen: React.FC<RegistrationScreenProps> = ({ onRegister, err
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    {/* Step 1: Personal Info */}
                     <div className={step === 1 ? 'fade-in' : 'hidden'}>
                         <div className="space-y-4">
                             <input name="name" type="text" placeholder="الاسم الثلاثي" value={formData.name} onChange={handleChange} required className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-[var(--accent-primary)]" />
+                            <input name="email" type="email" placeholder="البريد الإلكتروني" value={formData.email} onChange={handleChange} required className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-[var(--accent-primary)]" />
                             <PhoneInput name="phone" placeholder="رقم الطالب" value={formData.phone} onChange={handleChange} required />
                             <PhoneInput name="guardianPhone" placeholder="رقم ولي الامر" value={formData.guardianPhone} onChange={handleChange} required />
-                            <input name="password" type="password" placeholder="كلمة المرور" value={formData.password} onChange={handleChange} required className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-[var(--accent-primary)]" />
+                            <input name="password" type="password" placeholder="كلمة المرور (6 أحرف على الأقل)" value={formData.password} onChange={handleChange} required className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-[var(--accent-primary)]" />
                             <input name="confirmPassword" type="password" placeholder="تأكيد كلمة المرور" value={formData.confirmPassword} onChange={handleChange} required className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-[var(--accent-primary)]" />
                         </div>
                         {formError && <p className="text-red-500 text-sm mt-2">{formError}</p>}
@@ -175,7 +218,6 @@ const RegistrationScreen: React.FC<RegistrationScreenProps> = ({ onRegister, err
                         </button>
                     </div>
 
-                    {/* Step 2: Academic Info */}
                     <div className={step === 2 ? 'fade-in' : 'hidden'}>
                         <div className="space-y-4">
                             <select name="level" value={formData.level} onChange={handleChange} required className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-[var(--accent-primary)] appearance-none text-right">
@@ -192,48 +234,25 @@ const RegistrationScreen: React.FC<RegistrationScreenProps> = ({ onRegister, err
                             )}
                             
                             {formData.grade === '11' && (
-                                <div className="p-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg">
-                                    <p className="text-right text-sm text-[var(--text-secondary)] mb-2">اختر الشعبة</p>
-                                    <div className="flex gap-4">
-                                        <label className={`flex-1 text-center py-2 rounded-md cursor-pointer transition-colors ${formData.track === 'Scientific' ? 'bg-[var(--accent-primary)] text-white shadow' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)]'}`}>
-                                            <input type="radio" name="track" value="Scientific" checked={formData.track === 'Scientific'} onChange={handleChange} className="sr-only" />
-                                            علمي
-                                        </label>
-                                        <label className={`flex-1 text-center py-2 rounded-md cursor-pointer transition-colors ${formData.track === 'Literary' ? 'bg-[var(--accent-primary)] text-white shadow' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)]'}`}>
-                                            <input type="radio" name="track" value="Literary" checked={formData.track === 'Literary'} onChange={handleChange} className="sr-only" />
-                                            أدبي
-                                        </label>
-                                    </div>
-                                </div>
+                                <div className="p-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg"><p className="text-right text-sm text-[var(--text-secondary)] mb-2">اختر الشعبة</p><div className="flex gap-4">
+                                    <label className={`flex-1 text-center py-2 rounded-md cursor-pointer transition-colors ${formData.track === 'Scientific' ? 'bg-[var(--accent-primary)] text-white shadow' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)]'}`}><input type="radio" name="track" value="Scientific" checked={formData.track === 'Scientific'} onChange={handleChange} className="sr-only" />علمي</label>
+                                    <label className={`flex-1 text-center py-2 rounded-md cursor-pointer transition-colors ${formData.track === 'Literary' ? 'bg-[var(--accent-primary)] text-white shadow' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)]'}`}><input type="radio" name="track" value="Literary" checked={formData.track === 'Literary'} onChange={handleChange} className="sr-only" />أدبي</label>
+                                </div></div>
                             )}
 
                             {formData.grade === '12' && (
-                                <div className="p-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg">
-                                    <p className="text-right text-sm text-[var(--text-secondary)] mb-2">اختر الشعبة</p>
-                                    <div className="flex gap-2">
-                                        <label className={`flex-1 text-center py-2 rounded-md cursor-pointer transition-colors ${formData.track === 'Science' ? 'bg-[var(--accent-primary)] text-white shadow' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)]'}`}>
-                                            <input type="radio" name="track" value="Science" checked={formData.track === 'Science'} onChange={handleChange} className="sr-only" />
-                                            علمي علوم
-                                        </label>
-                                        <label className={`flex-1 text-center py-2 rounded-md cursor-pointer transition-colors ${formData.track === 'Math' ? 'bg-[var(--accent-primary)] text-white shadow' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)]'}`}>
-                                            <input type="radio" name="track" value="Math" checked={formData.track === 'Math'} onChange={handleChange} className="sr-only" />
-                                            علمي رياضيات
-                                        </label>
-                                        <label className={`flex-1 text-center py-2 rounded-md cursor-pointer transition-colors ${formData.track === 'Literary' ? 'bg-[var(--accent-primary)] text-white shadow' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)]'}`}>
-                                            <input type="radio" name="track" value="Literary" checked={formData.track === 'Literary'} onChange={handleChange} className="sr-only" />
-                                            أدبي
-                                        </label>
-                                    </div>
-                                </div>
+                                <div className="p-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg"><p className="text-right text-sm text-[var(--text-secondary)] mb-2">اختر الشعبة</p><div className="flex gap-2">
+                                    <label className={`flex-1 text-center py-2 rounded-md cursor-pointer transition-colors ${formData.track === 'Science' ? 'bg-[var(--accent-primary)] text-white shadow' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)]'}`}><input type="radio" name="track" value="Science" checked={formData.track === 'Science'} onChange={handleChange} className="sr-only" />علمي علوم</label>
+                                    <label className={`flex-1 text-center py-2 rounded-md cursor-pointer transition-colors ${formData.track === 'Math' ? 'bg-[var(--accent-primary)] text-white shadow' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)]'}`}><input type="radio" name="track" value="Math" checked={formData.track === 'Math'} onChange={handleChange} className="sr-only" />علمي رياضيات</label>
+                                    <label className={`flex-1 text-center py-2 rounded-md cursor-pointer transition-colors ${formData.track === 'Literary' ? 'bg-[var(--accent-primary)] text-white shadow' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)]'}`}><input type="radio" name="track" value="Literary" checked={formData.track === 'Literary'} onChange={handleChange} className="sr-only" />أدبي</label>
+                                </div></div>
                             )}
                         </div>
                         {(formError || error) && <p className="text-red-500 text-sm mt-2">{formError || error}</p>}
                         <div className="mt-6 flex gap-4">
-                            <button type="button" onClick={() => setStep(1)} className="w-1/3 py-3.5 font-bold bg-[var(--bg-tertiary)] text-[var(--text-secondary)] rounded-lg hover:bg-[var(--border-primary)]">
-                                السابق
-                            </button>
-                            <button type="submit" className="w-2/3 py-3.5 font-bold text-white bg-green-600 hover:bg-green-700 rounded-lg transition-transform transform hover:scale-105 shadow-lg shadow-green-500/20">
-                                إنشاء الحساب
+                            <button type="button" onClick={() => setStep(1)} className="w-1/3 py-3.5 font-bold bg-[var(--bg-tertiary)] text-[var(--text-secondary)] rounded-lg hover:bg-[var(--border-primary)]">السابق</button>
+                            <button type="submit" disabled={isLoading} className="w-2/3 py-3.5 font-bold text-white bg-green-600 hover:bg-green-700 rounded-lg transition-transform transform hover:scale-105 shadow-lg shadow-green-500/20 disabled:opacity-60">
+                                {isLoading ? 'جاري الإنشاء...' : 'إنشاء الحساب'}
                             </button>
                         </div>
                     </div>

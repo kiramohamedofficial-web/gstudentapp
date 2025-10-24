@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ArrowRightIcon, UserCircleIcon, KeyIcon, QrcodeIcon } from '../common/Icons';
 
 interface LoginScreenProps {
-  onLogin: (identifier: string, password: string) => void;
+  onLogin: (email: string, password: string) => Promise<void>;
   onCodeLogin: (code: string) => void;
   error: string;
   onBack: () => void;
@@ -10,18 +10,21 @@ interface LoginScreenProps {
 }
 
 const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onCodeLogin, error, onBack, onNavigateToRegister }) => {
-  const [identifier, setIdentifier] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
   const [isCodeLogin, setIsCodeLogin] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
     if (isCodeLogin) {
         onCodeLogin(code);
     } else {
-        onLogin(identifier, password);
+        await onLogin(email, password);
     }
+    setIsLoading(false);
   };
 
   return (
@@ -78,19 +81,19 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onCodeLogin, error, 
           ) : (
             <>
               <div>
-                <label htmlFor="identifier" className="block text-sm font-medium text-[var(--text-secondary)] mb-2">رقم الهاتف أو البريد الإلكتروني</label>
+                <label htmlFor="email" className="block text-sm font-medium text-[var(--text-secondary)] mb-2">البريد الإلكتروني</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                     <UserCircleIcon className="w-5 h-5 text-gray-400"/>
                   </div>
                   <input
-                    id="identifier"
-                    type="text"
-                    value={identifier}
-                    onChange={(e) => setIdentifier(e.target.value)}
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     required
                     className="block w-full px-4 py-3 pl-10 text-right bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-[var(--accent-primary)] transition-all duration-300"
-                    placeholder="أدخل رقم هاتفك أو بريدك الإلكتروني"
+                    placeholder="أدخل بريدك الإلكتروني"
                   />
                 </div>
               </div>
@@ -116,16 +119,18 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onCodeLogin, error, 
 
           {error && <p className="text-red-400 text-sm text-center pt-2">{error}</p>}
           <button 
-            type="submit" 
+            type="submit"
+            disabled={isLoading}
             className={`w-full py-3.5 px-4 font-bold text-white rounded-lg 
                        focus:outline-none focus:ring-4
                        transition-all duration-300 transform hover:scale-[1.03]
+                       disabled:opacity-60 disabled:cursor-not-allowed
                        ${isCodeLogin 
                          ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500/50 shadow-lg shadow-green-500/20' 
                          : 'bg-gradient-to-r from-indigo-500 to-blue-500 hover:from-indigo-600 hover:to-blue-600 focus:ring-indigo-500/50 shadow-lg shadow-indigo-500/30'
                        }`}
           >
-            {isCodeLogin ? 'متابعة' : 'تسجيل الدخول'}
+            {isLoading ? 'جاري التحقق...' : (isCodeLogin ? 'متابعة' : 'تسجيل الدخول')}
           </button>
         </form>
 

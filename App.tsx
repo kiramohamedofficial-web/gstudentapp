@@ -1,10 +1,23 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { User, Role, Theme } from './types';
-import { initData, getUserByCredentials, addActivityLog, addUser, validateSubscriptionCode, registerAndRedeemCode } from './services/storageService';
+import { 
+    initData, 
+    validateSubscriptionCode, 
+    registerAndRedeemCode,
+    signIn,
+    signUp,
+    signOut,
+    onAuthStateChange,
+    getProfile,
+    // FIX: Import `getSession` and `addActivityLog` to resolve 'Cannot find name' errors.
+    getSession,
+    addActivityLog
+} from './services/storageService';
 import LoginScreen from './components/auth/LoginScreen';
 import StudentDashboard from './components/student/StudentDashboard';
 import AdminDashboard from './components/admin/AdminDashboard';
-import TeacherDashboard from './components/teacher/TeacherDashboard'; // Import TeacherDashboard
+import TeacherDashboard from './components/teacher/TeacherDashboard';
 import Loader from './components/common/Loader';
 import { ToastContainer } from './components/common/Toast';
 import { useToast } from './useToast';
@@ -22,20 +35,51 @@ const App: React.FC = () => {
   const { addToast } = useToast();
 
   useEffect(() => {
-    try {
-      initData();
-      const storedUser = localStorage.getItem('currentUser');
-      if (storedUser) {
-        setCurrentUser(JSON.parse(storedUser));
-      }
-      const storedTheme = localStorage.getItem('theme') as Theme | null;
-      if (storedTheme) {
+    const initializeApp = async () => {
+        try {
+            await initData(); // Initialize non-auth data (content, etc.)
+            
+            // Supabase auth state listener will handle user session
+            const { data: { subscription } } = onAuthStateChange(async (session) => {
+                if (session) {
+                    const profile = await getProfile(session.user.id);
+                    if (profile) {
+                        setCurrentUser({
+                            ...profile,
+                            email: session.user.email!,
+                        });
+                    } else {
+                        // This case can happen if profile creation fails, log user out
+                        console.error("User is logged in but profile data is missing.");
+                        await signOut();
+                        setCurrentUser(null);
+                    }
+                } else {
+                    setCurrentUser(null);
+                }
+                setIsLoading(false); // Auth check is complete
+            });
+
+            // Initial session check
+            const session = await getSession();
+            if (!session) {
+                setIsLoading(false);
+            }
+
+            return () => {
+                subscription?.unsubscribe();
+            };
+        } catch (error) {
+            console.error("Initialization failed:", error);
+            setIsLoading(false);
+        }
+    };
+    
+    initializeApp();
+
+    const storedTheme = localStorage.getItem('theme') as Theme | null;
+    if (storedTheme) {
         setTheme(storedTheme);
-      }
-    } catch (error) {
-      console.error("Initialization failed:", error);
-    } finally {
-      setIsLoading(false);
     }
   }, []);
 
@@ -45,15 +89,13 @@ const App: React.FC = () => {
   }, [theme]);
 
 
-  const handleLogin = useCallback((identifier: string, password: string): void => {
-    const user = getUserByCredentials(identifier, password);
-    if (user) {
-      setCurrentUser(user);
-      localStorage.setItem('currentUser', JSON.stringify(user));
-      setAuthError('');
-      addActivityLog('User Login', `User "${user.name}" logged in.`);
+  const handleLogin = useCallback(async (email: string, password: string): Promise<void> => {
+    const { error } = await signIn(email, password);
+    if (error) {
+      setAuthError('البريد الإلكتروني أو كلمة المرور غير صحيحة.');
     } else {
-      setAuthError('رقم الهاتف/البريد الإلكتروني أو كلمة المرور غير صحيحة.');
+      setAuthError('');
+      // onAuthStateChange will handle setting the user
     }
   }, []);
   
@@ -68,31 +110,33 @@ const App: React.FC = () => {
       }
   }, []);
 
-  const handleRegister = useCallback((userData: Omit<User, 'id' | 'role' | 'subscriptionId'>): void => {
-      const result = codeToRegister
-          ? registerAndRedeemCode(userData, codeToRegister)
-          : addUser(userData);
-
-      if (result.user) {
-          setCurrentUser(result.user);
-          localStorage.setItem('currentUser', JSON.stringify(result.user));
-          setAuthError('');
-          addToast(`مرحباً بك ${result.user.name}! تم إنشاء حسابك بنجاح.`, 'success');
-          setCodeToRegister(null);
+  const handleRegister = useCallback(async (userData: any): Promise<void> => {
+      if (codeToRegister) {
+          const result = await registerAndRedeemCode(userData, codeToRegister);
+          if (result.error) {
+              setAuthError(result.error);
+          } else {
+               addToast(`مرحباً بك ${result.user?.name}! تم إنشاء حسابك وتفعيل اشتراكك.`, 'success');
+               setCodeToRegister(null);
+               // onAuthStateChange will handle setting the user
+          }
       } else {
-          setAuthError(result.error || 'حدث خطأ غير متوقع أثناء إنشاء الحساب.');
-          // Navigate back to register screen to show the error
-          setPreLoginView('register');
+          const { error } = await signUp(userData);
+          if (error) {
+              setAuthError(error.message);
+          } else {
+              addToast(`تم إنشاء حسابك بنجاح! مرحباً بك.`, 'success');
+              // onAuthStateChange will handle setting the user
+          }
       }
   }, [addToast, codeToRegister]);
 
 
-  const handleLogout = useCallback((): void => {
+  const handleLogout = useCallback(async (): Promise<void> => {
     if (currentUser) {
       addActivityLog('User Logout', `User "${currentUser.name}" logged out.`);
     }
-    setCurrentUser(null);
-    localStorage.removeItem('currentUser');
+    await signOut();
     setPreLoginView('welcome');
     setCodeToRegister(null);
   }, [currentUser]);

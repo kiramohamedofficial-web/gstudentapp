@@ -11,9 +11,8 @@ export type TeacherView = 'dashboard' | 'content' | 'subscriptions' | 'profile' 
 export interface User {
   id: string;
   name: string; // Full name
-  email?: string;
+  email: string;
   phone: string;
-  password: string; // Replaces 'code'
   guardianPhone: string;
   grade: number;
   track?: 'Scientific' | 'Literary' | 'Science' | 'Math'; // For 2nd & 3rd year secondary students

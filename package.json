@@ -1,5 +1,5 @@
 {
-  "name": "copy-of-gstudent",
+  "name": "copy-of-copy-of-gstudent225",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -11,7 +11,8 @@
   "dependencies": {
     "react-dom": "^19.1.1",
     "react": "^19.1.1",
-    "@google/genai": "^1.21.0"
+    "@google/genai": "^1.21.0",
+    "@supabase/supabase-js": "^2.76.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
