@@ -30,7 +30,7 @@ const App: React.FC = () => {
   const [authError, setAuthError] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [preLoginView, setPreLoginView] = useState<'welcome' | 'login' | 'register'>('welcome');
-  const [theme, setTheme] = useState<Theme>('dark');
+  const [theme, setTheme] = useState<Theme>('light');
   const [codeToRegister, setCodeToRegister] = useState<string | null>(null);
   const { addToast } = useToast();
 
