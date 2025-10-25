@@ -337,7 +337,7 @@ const UnitAccordion: React.FC<{ unit: Unit; grade: Grade; semester: Semester; op
 // Main Component
 const ContentManagementView: React.FC = () => {
     const [dataVersion, setDataVersion] = useState(0);
-    const teachers = useMemo(() => getTeachers(), [dataVersion]);
+    const [teachers, setTeachers] = useState<Teacher[]>([]);
     const grades = useMemo(() => getAllGrades(), [dataVersion]);
     const [modalState, setModalState] = useState<{ type: string | null; data: Partial<ModalData> }>({ type: null, data: {} });
     const { addToast } = useToast();
@@ -345,6 +345,14 @@ const ContentManagementView: React.FC = () => {
     const [selectedTeacherId, setSelectedTeacherId] = useState<string>('');
     const [selectedGradeId, setSelectedGradeId] = useState<string>('');
     const [selectedSemesterId, setSelectedSemesterId] = useState<string>('');
+    
+    useEffect(() => {
+        const fetchAndSetTeachers = async () => {
+            const data = await getTeachers();
+            setTeachers(data);
+        };
+        fetchAndSetTeachers();
+    }, [dataVersion]);
     
     const selectedGrade = useMemo(() => grades.find(g => g.id.toString() === selectedGradeId), [grades, selectedGradeId]);
     const selectedSemester = useMemo(() => selectedGrade?.semesters.find(s => s.id === selectedSemesterId), [selectedGrade, selectedSemesterId]);

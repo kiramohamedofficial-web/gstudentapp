@@ -1,9 +1,10 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Teacher, ToastType, Grade, User } from '../../types';
 import { getTeachers, addTeacher, updateTeacher, deleteTeacher, getAllGrades, getAllUsers } from '../../services/storageService';
 import Modal from '../common/Modal';
 import { PlusIcon, PencilIcon, TrashIcon, UserCircleIcon } from '../common/Icons';
 import { useToast } from '../../useToast';
+import Loader from '../common/Loader';
 
 const Checkbox: React.FC<{ label: string; checked: boolean; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; name: string; }> = ({ label, checked, onChange, name }) => (
     <label className="flex items-center space-x-2 space-x-reverse cursor-pointer p-2 rounded-md hover:bg-white/5 transition-colors">
@@ -33,7 +34,7 @@ const TeacherModal: React.FC<{
     const middleSchoolGrades = useMemo(() => allGrades.filter(g => g.level === 'Middle').sort((a,b) => a.id - b.id), [allGrades]);
     const secondarySchoolGrades = useMemo(() => allGrades.filter(g => g.level === 'Secondary').sort((a,b) => a.id - b.id), [allGrades]);
 
-    React.useEffect(() => {
+    useEffect(() => {
         const loadTeacherData = async () => {
             setError('');
             if (teacher) {
@@ -43,7 +44,7 @@ const TeacherModal: React.FC<{
                     name: teacher.name || '',
                     subject: teacher.subject || '',
                     imageUrl: teacher.imageUrl || '',
-                    phone: teacherUser?.phone.replace('+2', '') || '',
+                    phone: teacherUser?.phone?.replace('+2', '') || '',
                     password: '' // Don't pre-fill password
                 });
                 setSelectedLevels(teacher.teachingLevels || []);
@@ -228,49 +229,80 @@ const TeacherCard: React.FC<{ teacher: Teacher; onEdit: () => void; onDelete: ()
 
 const TeacherManagementView: React.FC = () => {
     const [dataVersion, setDataVersion] = useState(0);
+    const [teachers, setTeachers] = useState<Teacher[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [modalState, setModalState] = useState<{ type: 'add' | 'edit' | 'delete' | null, teacher: Teacher | null }>({ type: null, teacher: null });
     const { addToast } = useToast();
     
-    const teachers = useMemo(() => getTeachers(), [dataVersion]);
+    useEffect(() => {
+        const fetchAndSetTeachers = async () => {
+            setIsLoading(true);
+            const data = await getTeachers();
+            setTeachers(data);
+            setIsLoading(false);
+        };
+        fetchAndSetTeachers();
+    }, [dataVersion]);
     
     const refreshData = useCallback(() => setDataVersion(v => v + 1), []);
 
-    const handleSave = (data: TeacherModalSaveData) => {
-        let result: { error?: string; [key: string]: any } | undefined;
-    
-        if (data.id) { // Editing
-            const { id, name, subject, imageUrl, teachingLevels, teachingGrades, phone, password } = data;
-            const teacherData: Teacher & { phone: string; password?: string } = { id, name, subject, imageUrl, teachingLevels, teachingGrades, phone, password };
-            
-            if (!teacherData.password) {
-                delete teacherData.password;
-            }
-            result = updateTeacher(teacherData);
-        } else { // Adding
-            const { name, subject, imageUrl, teachingLevels, teachingGrades, phone, password } = data;
-            if (!password) { // This should be caught by form validation but is a safeguard.
-                addToast('كلمة المرور مطلوبة للمدرس الجديد.', ToastType.ERROR);
-                return;
-            }
-            const teacherData = { name, subject, imageUrl, teachingLevels, teachingGrades, phone, password };
-            result = addTeacher(teacherData);
-        }
+    const handleSave = async (data: TeacherModalSaveData) => {
+        try {
+            let result: { error?: any; data?: any };
         
-        if (result?.error) {
-            addToast(result.error, ToastType.ERROR);
-        } else {
-            addToast(data.id ? 'تم تحديث بيانات المدرس بنجاح.' : 'تمت إضافة المدرس بنجاح.', ToastType.SUCCESS);
-            refreshData();
-            closeModal();
+            if (data.id) { // Editing
+                const { id, name, subject, imageUrl, teachingLevels, teachingGrades, phone, password } = data;
+                const teacherData: Partial<Teacher> & { id: string, phone: string; password?: string } = { id, name, subject, imageUrl, teachingLevels, teachingGrades, phone, password };
+                
+                if (!teacherData.password?.trim()) {
+                    delete teacherData.password;
+                }
+                result = await updateTeacher(teacherData);
+            } else { // Adding
+                const { name, subject, imageUrl, teachingLevels, teachingGrades, phone, password } = data;
+                if (!password) {
+                    addToast('كلمة المرور مطلوبة للمدرس الجديد.', ToastType.ERROR);
+                    return;
+                }
+                const teacherData = { name, subject, imageUrl, teachingLevels, teachingGrades, phone, password };
+                result = await addTeacher(teacherData);
+            }
+            
+            if (result?.error) {
+                // Supabase errors are objects with a message property.
+                throw new Error(result.error.message || 'حدث خطأ غير متوقع.');
+            } else {
+                addToast(data.id ? 'تم تحديث بيانات المدرس بنجاح.' : 'تمت إضافة المدرس بنجاح.', ToastType.SUCCESS);
+                refreshData();
+                closeModal();
+            }
+        } catch (error) {
+             if (error instanceof Error) {
+                addToast(`فشل: ${error.message}`, ToastType.ERROR);
+            } else {
+                addToast('حدث خطأ غير معروف أثناء الحفظ.', ToastType.ERROR);
+            }
         }
     };
     
-    const handleDelete = () => {
+    const handleDelete = async () => {
         if (modalState.teacher) {
-            deleteTeacher(modalState.teacher.id);
-            addToast('تم حذف المدرس بنجاح.', ToastType.SUCCESS);
-            refreshData();
-            closeModal();
+            try {
+                const { error } = await deleteTeacher(modalState.teacher.id);
+                if (error) {
+                     throw new Error(error.message || 'حدث خطأ غير متوقع.');
+                } else {
+                    addToast('تم حذف المدرس بنجاح.', ToastType.SUCCESS);
+                    refreshData();
+                    closeModal();
+                }
+            } catch(error) {
+                if (error instanceof Error) {
+                    addToast(`فشل حذف المدرس: ${error.message}`, ToastType.ERROR);
+                } else {
+                    addToast('حدث خطأ غير معروف أثناء الحذف.', ToastType.ERROR);
+                }
+            }
         }
     };
 
@@ -293,7 +325,11 @@ const TeacherManagementView: React.FC = () => {
                 </button>
             </div>
             
-             {teachers.length > 0 ? (
+            {isLoading ? (
+                <div className="flex justify-center items-center py-20">
+                    <Loader />
+                </div>
+            ) : teachers.length > 0 ? (
                 <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-6">
                     {teachers.map(teacher => (
                         <TeacherCard key={teacher.id} teacher={teacher} onEdit={() => openModal('edit', teacher)} onDelete={() => openModal('delete', teacher)} />

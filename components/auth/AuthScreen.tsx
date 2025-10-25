@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowRightIcon } from '../common/Icons';
 import { Grade } from '../../types';
-import { validateSubscriptionCode, getGradesForSelection } from '../../services/storageService';
+import { validateSubscriptionCode, getAllGrades } from '../../services/storageService';
 
 interface AuthScreenProps {
     onLogin: (email: string, password: string) => Promise<void>;
@@ -48,13 +48,12 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, error, cle
     const [gradesForLevel, setGradesForLevel] = useState<GradeForSelect[]>([]);
     
     useEffect(() => {
-        const fetchGrades = async () => {
-            // Fetch grades directly from the database to avoid race conditions with the caching system
-            // and to align with the user's new `grades` table schema.
-            const grades = await getGradesForSelection();
-            setAllGrades(grades);
-        };
-        fetchGrades();
+        // FIX: Use getAllGrades to ensure consistency with the rest of the app,
+        // which relies on a cached/initialized data source for grade information.
+        // This prevents a mismatch where a grade ID is saved from one source (DB)
+        // but cannot be found in the other (local cache) for display.
+        const grades = getAllGrades().map(g => ({ id: g.id, name: g.name, level: g.level }));
+        setAllGrades(grades);
     }, []);
 
     useEffect(() => {
@@ -79,8 +78,12 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, error, cle
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) return setFormError('الرجاء إدخال بريد إلكتروني صالح.');
         if (formData.password.length < 6) return setFormError('يجب أن تتكون كلمة المرور من 6 أحرف على الأقل.');
         if (formData.password !== formData.confirmPassword) return setFormError('كلمتا المرور غير متطابقتين.');
-        if (!normalizePhoneNumber(formData.phone)) return setFormError('الرجاء إدخال رقم هاتف مصري صحيح (11 رقم يبدأ بـ 0).');
-        if (!normalizePhoneNumber(formData.guardianPhone)) return setFormError('الرجاء إدخال رقم هاتف ولي أمر مصري صحيح (11 رقم يبدأ بـ 0).');
+        
+        // FIX: Added more explicit validation for phone numbers to ensure they are exactly
+        // 10 digits after normalization, which helps prevent invalid data from being submitted.
+        if (normalizePhoneNumber(formData.phone).length !== 10) return setFormError('الرجاء إدخال رقم هاتف مصري صحيح (11 رقم يبدأ بـ 0).');
+        if (normalizePhoneNumber(formData.guardianPhone).length !== 10) return setFormError('الرجاء إدخال رقم هاتف ولي أمر مصري صحيح (11 رقم يبدأ بـ 0).');
+        
         changeView('register-step-2');
     };
 

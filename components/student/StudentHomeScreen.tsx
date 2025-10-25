@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Teacher, User, StudentView, Unit, Lesson, LessonType } from '../../types';
 import { getTeachers, getGradeById, getUserProgress } from '../../services/storageService';
 import { DocumentTextIcon, VideoCameraIcon, ClockIcon } from '../common/Icons';
@@ -77,9 +77,17 @@ interface StudentHomeScreenProps {
 }
 
 const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({ user, onNavigate }) => {
-    const teachers = useMemo(() => getTeachers(), []);
+    const [teachers, setTeachers] = useState<Teacher[]>([]);
     const grade = useMemo(() => getGradeById(user.grade), [user.grade]);
     const userProgress = useMemo(() => getUserProgress(user.id), [user.id]);
+
+    useEffect(() => {
+        const fetchTeachers = async () => {
+            const data = await getTeachers();
+            setTeachers(data);
+        };
+        fetchTeachers();
+    }, []);
 
     const { overallProgress, continueLearningItem, nextAssignmentItem } = useMemo(() => {
         if (!grade) return { overallProgress: 0 };
