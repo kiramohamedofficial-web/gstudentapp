@@ -1,4 +1,3 @@
-
 import { createClient, Session, User as SupabaseUser } from '@supabase/supabase-js';
 import {
   User,
@@ -125,8 +124,34 @@ const isMiddleSchoolGrade = (gradeId: number) => gradeId >= 7 && gradeId <= 9;
 // NEW AUTHENTICATION SERVICE
 // =================================================================
 
-export const signIn = async (email: string, password: string) => {
-    return supabaseCore.auth.signInWithPassword({ email, password });
+export const signIn = async (identifier: string, password: string) => {
+    const isEmail = identifier.includes('@');
+    
+    if (isEmail) {
+        return supabaseCore.auth.signInWithPassword({ email: identifier, password });
+    } else {
+        // Assume it's a phone number and format it for Supabase (E.164)
+        const trimmed = identifier.trim().replace(/\s/g, '');
+        let formattedPhone = '';
+
+        // Handle Egyptian numbers: user enters '01xxxxxxxxx'
+        if (trimmed.startsWith('0') && trimmed.length === 11) {
+            formattedPhone = `+2${trimmed}`; // e.g., user enters 010..., we send +2010...
+        } 
+        // Handle if user enters with country code but without plus
+        else if (trimmed.startsWith('20') && trimmed.length === 12) {
+             formattedPhone = `+${trimmed}`; // e.g., user enters 2010..., we send +2010...
+        }
+        // Handle if user enters full international format
+        else if (trimmed.startsWith('+20') && trimmed.length === 13) {
+            formattedPhone = trimmed;
+        } 
+        else {
+             return { data: null, error: { message: 'رقم الهاتف المدخل غير صالح. يجب أن يكون 11 رقمًا مصريًا.' } };
+        }
+        
+        return supabaseCore.auth.signInWithPassword({ phone: formattedPhone, password });
+    }
 };
 
 export const signUp = async (userData: Omit<User, 'id' | 'role' | 'subscriptionId' | 'email'> & { email: string, password?: string }) => {
@@ -157,6 +182,31 @@ export const signUp = async (userData: Omit<User, 'id' | 'role' | 'subscriptionI
         }
         if (error.message.includes('Password should be at least')) {
             return { data: null, error: { message: 'يجب أن تتكون كلمة المرور من 6 أحرف على الأقل.' } };
+        }
+        return { data, error };
+    }
+
+    // If signup is successful, create a corresponding profile in the public 'users' table.
+    if (data.user) {
+        const { error: profileError } = await supabaseCore
+            .from('users')
+            .insert({
+                id: data.user.id,
+                name: name,
+                phone: phone,
+                guardian_phone: guardianPhone,
+                grade_id: grade,
+                track: track,
+                role: 'student'
+            });
+        
+        if (profileError) {
+            console.error("Error creating user profile after signup:", profileError);
+            // This is a critical error. The user exists in auth but not in public profiles.
+            return { 
+                data: null, 
+                error: { message: `تم إنشاء حساب المصادقة ولكن فشل إنشاء الملف الشخصي. يرجى التواصل مع الدعم الفني. الخطأ: ${profileError.message}` } 
+            };
         }
     }
 
@@ -266,12 +316,21 @@ export const initData = async (): Promise<void> => {
 // =================================================================
 
 // --- Teacher Functions ---
-export const getTeachers = (): Teacher[] => {
-    const middle = getMiddleSchoolData().teachers || [];
-    const high = getHighSchoolData().teachers || [];
-    return [...middle, ...high];
+export const getTeachers = async (): Promise<Teacher[]> => {
+    const { data, error } = await supabaseCore.from('teachers').select('*');
+    if (error) {
+        console.error("Error fetching teachers:", error);
+        return [];
+    }
+    return (data || []).map(t => ({...t, imageUrl: t.image_url, teachingLevels: t.teaching_levels, teachingGrades: t.teaching_grades}));
 };
-export const getTeacherById = (id: string): Teacher | undefined => getTeachers().find(t => t.id === id);
+
+export const getTeacherById = (id: string): Teacher | undefined => {
+    // This function is now problematic as data is async.
+    // For now, it will return undefined, and components using it should be updated.
+    console.warn("getTeacherById is synchronous and data is now fetched asynchronously. This may not work as expected.");
+    return undefined;
+};
 // The add/update/delete teacher functions need to be refactored to handle Supabase Auth for the teacher user account.
 // This is a larger change and will be deferred for now to focus on student auth. The existing logic will fail for creating users.
 
@@ -533,42 +592,22 @@ export const getAllUsers = async (): Promise<User[]> => {
         return [];
     }
     
-    // NOTE: Listing users requires admin privileges. For this to work in production,
-    // this function must be called from a secure context (e.g., a Supabase Edge Function)
-    // with a client initialized with the `service_role` key. The anon key will fail.
-    // For the context of this app, we assume it has the necessary privileges.
-    const { data: authData, error: authError } = await supabaseCore.auth.admin.listUsers();
-    
-    if (authError) {
-         console.error("Error fetching all auth users (requires admin privileges):", authError);
-         // Fallback: return profiles without email if auth user list fails
-        return (profiles || []).map((p: any) => ({
-            id: p.id,
-            name: p.name,
-            email: '', // Email is missing
-            phone: p.phone,
-            guardianPhone: p.guardian_phone,
-            grade: p.grade_id,
-            track: p.track,
-            role: p.role as Role,
-        }));
-    }
+    // NOTE: Listing auth users to get emails requires admin privileges and is not
+    // possible from the client-side with an anonymous key. 
+    // We will return user profiles without email addresses.
+    // The email property will be an empty string.
 
-    const authUserMap = new Map(authData.users.map(u => [u.id, u]));
-
-    return (profiles || []).map((p: any) => {
-        const authUser = authUserMap.get(p.id);
-        return {
-            id: p.id,
-            name: p.name,
-            email: (authUser as { email?: string })?.email || '',
-            phone: p.phone,
-            guardianPhone: p.guardian_phone,
-            grade: p.grade_id,
-            track: p.track,
-            role: p.role as Role,
-        };
-    });
+    return (profiles || []).map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        email: '', // Email is not available from the public 'users' table.
+        phone: p.phone,
+        guardianPhone: p.guardian_phone,
+        grade: p.grade_id,
+        track: p.track,
+        role: p.role as Role,
+        teacherId: p.teacher_id,
+    }));
 };
 export const updateUser = async (updatedUser: Partial<User> & { id: string }) => {
     const { id, name, phone, guardianPhone, grade, track } = updatedUser;
@@ -609,9 +648,89 @@ export const deleteUser = async (userId: string) => {
     }
     return { data, error };
 };
-export const addTeacher = (teacherData: any): any => { console.warn("addTeacher needs to be refactored for Supabase.") };
-export const updateTeacher = (updatedTeacherData: any): any => { console.warn("updateTeacher needs to be refactored for Supabase.") };
-export const deleteTeacher = (teacherId: string): void => { console.warn("deleteTeacher needs to be refactored for Supabase.") };
+export const addTeacher = async (teacherData: any): Promise<{ data: any, error: any }> => {
+    const { name, subject, imageUrl, teachingLevels, teachingGrades, phone, password } = teacherData;
+    const email = `${phone}@gstudent.app`;
+    
+    // 1. Get and save the current admin session to prevent auth side-effects from signUp
+    const { data: { session: adminSession } } = await supabaseCore.auth.getSession();
+    if (!adminSession) {
+        return { data: null, error: { message: 'Admin session not found. Please log in again.' } };
+    }
+    
+    // 2. Create the new teacher auth user. This may change the active session.
+    const { data: authData, error: authError } = await supabaseCore.auth.signUp({ email, password: password!, options: { data: { name, phone: `+2${phone}`, role: 'teacher' } } });
+    if (authError) {
+        console.error('Error creating teacher auth account:', authError);
+        // Restore session even on failure, just in case.
+        await supabaseCore.auth.setSession({ access_token: adminSession.access_token, refresh_token: adminSession.refresh_token });
+        return { data: null, error: { message: `فشل إنشاء حساب المصادقة: ${authError.message}` } };
+    }
+    if (!authData.user) {
+        // Restore session even on failure, just in case.
+        await supabaseCore.auth.setSession({ access_token: adminSession.access_token, refresh_token: adminSession.refresh_token });
+        return { data: null, error: { message: 'فشل إنشاء حساب المصادغة، لم يتم إرجاع المستخدم.' } };
+    }
+    const userId = authData.user.id;
+
+    // 3. IMPORTANT: Restore the admin session to perform privileged operations
+    const { error: sessionError } = await supabaseCore.auth.setSession({ access_token: adminSession.access_token, refresh_token: adminSession.refresh_token });
+     if (sessionError) {
+        console.error('Failed to restore admin session:', sessionError);
+        // Attempt to clean up the created auth user might be needed here, but it's complex.
+        return { data: null, error: { message: `فشل استعادة جلسة المدير. لا يمكن إكمال إنشاء المدرس.` } };
+    }
+
+    // 4. With admin session restored, create the teacher profile.
+    const { data: teacherProfile, error: teacherProfileError } = await supabaseCore.from('teachers').insert({ name, subject, image_url: imageUrl, teaching_levels: teachingLevels, teaching_grades: teachingGrades, }).select().single();
+    if (teacherProfileError) {
+        console.error('Error creating teacher profile:', teacherProfileError);
+        return { data: null, error: { message: `فشل إنشاء ملف المدرس: ${teacherProfileError.message}` } };
+    }
+
+    // 5. Create the public user profile for the teacher.
+    const { error: publicProfileError } = await supabaseCore.from('users').insert({ id: userId, name, phone: `+2${phone}`, role: 'teacher', teacher_id: teacherProfile.id });
+    if (publicProfileError) {
+        console.error('Error creating public user profile for teacher:', publicProfileError);
+        // If this fails, we should ideally delete the teacher profile and auth user we just created.
+        // This is complex transaction logic not easily done on the client.
+        return { data: null, error: { message: `فشل ربط حساب المدرس: ${publicProfileError.message}` } };
+    }
+
+    return { data: teacherProfile, error: null };
+};
+
+export const updateTeacher = async (updatedTeacherData: any): Promise<{ data: any, error: any }> => {
+    const { id, name, subject, imageUrl, teachingLevels, teachingGrades, phone } = updatedTeacherData;
+    const { data: teacherProfile, error: teacherProfileError } = await supabaseCore.from('teachers').update({ name, subject, image_url: imageUrl, teaching_levels: teachingLevels, teaching_grades: teachingGrades, }).eq('id', id).select().single();
+    if (teacherProfileError) return { data: null, error: teacherProfileError };
+    
+    const { data: users, error: findUserError } = await supabaseCore.from('users').select('id').eq('teacher_id', id);
+    if (findUserError || !users || users.length === 0) {
+        console.warn(`Could not find user associated with teacher id ${id} to update.`);
+    } else {
+        const { error: userUpdateError } = await supabaseCore.from('users').update({ name: name, phone: `+2${phone}`}).eq('id', users[0].id);
+        if (userUpdateError) console.error("Error updating user profile for teacher:", userUpdateError);
+    }
+    return { data: teacherProfile, error: null };
+};
+
+export const deleteTeacher = async (teacherId: string): Promise<{ error: any }> => {
+    const { data: users, error: findUserError } = await supabaseCore.from('users').select('id').eq('teacher_id', teacherId);
+    if (findUserError) return { error: findUserError };
+    
+    const userId = users && users.length > 0 ? users[0].id : null;
+
+    const { error: teacherDeleteError } = await supabaseCore.from('teachers').delete().eq('id', teacherId);
+    if (teacherDeleteError) return { error: teacherDeleteError };
+
+    if (userId) {
+        const { error: userDeleteError } = await supabaseCore.from('users').delete().eq('id', userId);
+        if (userDeleteError) console.error("Error deleting user profile for teacher:", userDeleteError);
+        console.warn(`Auth user with id ${userId} was not deleted. This must be done manually or with admin privileges.`);
+    }
+    return { error: null };
+};
 export const addFeaturedCourse = (course: Omit<Course, 'id'>): void => modifyCoreData(c => c.featuredCourses.push({ ...course, id: `c_${Date.now()}` }));
 export const updateFeaturedCourse = (updatedCourse: Course): void => modifyCoreData(c => { const i = c.featuredCourses.findIndex(x => x.id === updatedCourse.id); if (i > -1) c.featuredCourses[i] = updatedCourse; });
 export const deleteFeaturedCourse = (courseId: string): void => modifyCoreData(c => { c.featuredCourses = c.featuredCourses.filter(x => x.id !== courseId); });

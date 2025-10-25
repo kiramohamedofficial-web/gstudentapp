@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Teacher, SubscriptionCode, ToastType } from '../../types';
 import { getTeachers, generateSubscriptionCodes } from '../../services/storageService';
 import { PrinterIcon, PlusIcon, ClipboardIcon } from '../common/Icons';
@@ -37,7 +37,16 @@ const QrCodeGeneratorView: React.FC = () => {
     const printRef = useRef<HTMLDivElement>(null);
     const { addToast } = useToast();
 
-    const teachers = useMemo(() => getTeachers(), []);
+    const [teachers, setTeachers] = useState<Teacher[]>([]);
+
+    useEffect(() => {
+        const fetchTeachers = async () => {
+            const teacherData = await getTeachers();
+            setTeachers(teacherData);
+        };
+        fetchTeachers();
+    }, []);
+
     const teacherOptions = useMemo(() => teachers.map(t => ({ value: t.id, label: t.name })), [teachers]);
 
     const handleGenerate = () => {
@@ -152,11 +161,11 @@ const QrCodeGeneratorView: React.FC = () => {
                         />
                          <div>
                             <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">عدد الأكواد</label>
-                            <input type="number" value={codeCount} onChange={e => setCodeCount(Math.max(1, parseInt(e.target.value)))} min="1" className="w-full p-3 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg"/>
+                            <input type="number" value={codeCount} onChange={e => setCodeCount(Math.max(1, parseInt(e.target.value) || 1))} min="1" className="w-full p-3 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg"/>
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">عدد مرات الاستخدام (لكل كود)</label>
-                            <input type="number" value={maxUses} onChange={e => setMaxUses(Math.max(1, parseInt(e.target.value)))} min="1" className="w-full p-3 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg"/>
+                            <input type="number" value={maxUses} onChange={e => setMaxUses(Math.max(1, parseInt(e.target.value) || 1))} min="1" className="w-full p-3 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg"/>
                         </div>
                     </div>
                     <div className="mt-8 pt-6 border-t border-[var(--border-primary)]">

@@ -190,7 +190,7 @@ export interface PlatformSettings {
   contactYoutubeUrl: string;
 }
 
-export type Theme = 'dark' | 'light' | 'gold' | 'pink';
+export type Theme = 'dark' | 'light' | 'royal' | 'gold' | 'pink' | 'sunset' | 'forest' | 'ocean' | 'wave' | 'matrix';
 
 export interface SubscriptionCode {
     code: string;

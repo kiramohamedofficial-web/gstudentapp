@@ -91,7 +91,7 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
-  const [editFormData, setEditFormData] = useState<Partial<User>>({});
+  const [editFormData, setEditFormData] = useState<Partial<User> & { password?: string }>({});
 
   const refreshData = useCallback(() => setDataVersion(v => v + 1), []);
 
@@ -135,9 +135,10 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
             addToast("الرجاء ملء جميع الحقول.", ToastType.ERROR); return;
         }
         
-        // FIX: The destructuring of 'password' was unnecessary and potentially confusing
-        // as the User type does not include it. This simplifies the data preparation.
-        const profileData = { ...user, ...editFormData };
+        // FIX: Destructure from `editFormData` directly. It contains the full updated user object.
+        // The previous spread `{ ...user, ...editFormData }` caused a type error because the result
+        // was inferred as type `User`, which does not have a `password` property.
+        const { password, ...profileData } = editFormData;
 
         const result = await updateUser(profileData as User);
 
@@ -152,7 +153,6 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
   };
   
   const handleDeleteUser = async () => {
-      // FIX: Assign the result to a variable before destructuring to prevent errors.
       const result = await deleteUser(user.id);
       if (result?.error) {
           addToast(`فشل حذف الطالب: ${result.error.message}`, ToastType.ERROR);

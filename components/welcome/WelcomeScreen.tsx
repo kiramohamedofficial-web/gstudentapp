@@ -31,9 +31,8 @@ const MobileNav: React.FC<{ isOpen: boolean; onClose: () => void; onNavigateToLo
 const Header: React.FC<{ onNavigateToLogin: () => void; onNavigateToRegister: () => void; onOpenNav: () => void; platformName: string; }> = ({ onNavigateToLogin, onNavigateToRegister, onOpenNav, platformName }) => (
     <header className="fixed top-0 left-0 right-0 z-50 transition-colors duration-300">
         <div className="container mx-auto px-6 py-4 flex justify-between items-center bg-[var(--glass-bg)] backdrop-blur-[var(--glass-blur)] border border-[var(--glass-border)] rounded-2xl m-3">
-            <div className="flex items-center space-x-2 space-x-reverse">
-                <img src="https://h.top4top.io/p_3583m5j8t0.png" alt="Gstudent Logo" className="w-8 h-8" />
-                <span className="text-xl font-bold">{platformName}</span>
+            <div className="flex items-center">
+                <img src="https://j.top4top.io/p_3584uziv73.png" alt="Gstudent Logo" className="w-10 h-10" />
             </div>
             <div className="hidden md:flex items-center gap-3">
                  <button onClick={onNavigateToRegister} className="px-6 py-2.5 text-sm font-semibold bg-transparent border-2 border-[var(--accent-primary)] text-[var(--accent-primary)] rounded-lg transition-all duration-300 transform hover:scale-105 hover:bg-[rgba(var(--accent-primary-rgb),0.1)]">إنشاء حساب</button>

@@ -1,9 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { User } from '../../types';
-import { CollectionIcon, QrcodeIcon, CreditCardIcon, HomeIcon, XIcon, TemplateIcon, CogIcon, LogoutIcon, UsersIcon, UserCircleIcon, BellIcon, QuestionMarkCircleIcon, ShieldCheckIcon } from '../common/Icons';
+import { CollectionIcon, QrcodeIcon, CreditCardIcon, HomeIcon, XIcon, TemplateIcon, CogIcon, LogoutIcon, UsersIcon, UserCircleIcon, BellIcon, QuestionMarkCircleIcon } from '../common/Icons';
 import { getPendingSubscriptionRequestCount } from '../../services/storageService';
 
 type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'content' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers';
+
+const SystemHealthIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <img src="https://g.top4top.io/p_3584g68tl0.png" alt="System Health" className={className} />
+);
 
 interface AdminLayoutProps {
   user: User;
@@ -23,7 +27,7 @@ const navItems = [
     { id: 'tools', label: 'أكواد الاشتراكات', icon: QrcodeIcon },
     { id: 'questionBank', label: 'بنك الأسئلة', icon: QuestionMarkCircleIcon },
     { id: 'platformSettings', label: 'إعدادات المنصة', icon: CogIcon },
-    { id: 'systemHealth', label: 'الأمان والصحة', icon: ShieldCheckIcon },
+    { id: 'systemHealth', label: 'الأمان والصحة', icon: SystemHealthIcon },
     { id: 'accountSettings', label: 'إعدادات الحساب', icon: UserCircleIcon },
 ];
 
@@ -111,8 +115,8 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ user, onLogout, children, onN
   };
   
   return (
-    <div className="h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] p-2 md:p-3">
-      <div className="flex w-full h-full gap-3">
+    <div className="h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] p-0 md:p-3">
+      <div className="flex w-full h-full md:gap-3">
         {/* Desktop Sidebar */}
         <aside className="w-72 flex-shrink-0 bg-[var(--glass-bg)] backdrop-blur-[var(--glass-blur)] border border-[var(--glass-border)] rounded-2xl flex-col hidden md:flex overflow-hidden">
           <div className="h-20 flex items-center justify-center px-4 flex-shrink-0">
@@ -127,35 +131,34 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ user, onLogout, children, onN
           <NavContent activeView={activeView} onNavClick={onNavClick} onLogout={onLogout} pendingRequestsCount={pendingRequestsCount}/>
         </aside>
 
-        <div className="flex-1 flex flex-col overflow-hidden rounded-2xl">
+        <div className="flex-1 flex flex-col overflow-hidden md:rounded-2xl">
           {/* Header */}
-          <header className="relative h-20 bg-[var(--glass-bg)] backdrop-blur-[var(--glass-blur)] border-b border-[var(--border-primary)] flex items-center justify-between px-4 md:px-6 rounded-t-2xl flex-shrink-0">
-            <div className="flex items-center space-x-3 space-x-reverse group">
-              <div className="h-12 w-12 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-lg">
-                {user.name.charAt(0)}
-              </div>
-              <div className="text-right">
-                <span className="font-semibold text-md text-[var(--text-primary)]">{user.name}</span>
-                <span className="block text-sm text-[var(--text-secondary)]">المدير</span>
-              </div>
-            </div>
-            {/* Centered Logo */}
-            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-                <img
-                    src="https://b.top4top.io/p_3584fktwq0.png"
-                    alt="Platform Logo"
-                    className="h-[74px] object-contain"
-                />
-            </div>
-            <div className="md:hidden">
-              <button onClick={() => setIsMobileNavOpen(true)} className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
-                <img src="https://b.top4top.io/p_3583gmh281.png" alt="Menu" className="w-6 h-6" />
-              </button>
-            </div>
-          </header>
+          <header className="app-header">
+                <div className="header-logo" style={{ cursor: 'pointer' }} onClick={() => onNavClick('dashboard')}>
+                    <div className="header-logo-icon" style={{background: 'linear-gradient(135deg, #a855f7, #ec4899)'}}>
+                        <i className="fa-solid fa-gear text-white"></i>
+                    </div>
+                    <span>لوحة التحكم</span>
+                </div>
+
+                <div className="header-actions">
+                    <button onClick={() => onNavClick('subscriptions')} className="notification-btn">
+                        <i className="fas fa-bell"></i>
+                        {pendingRequestsCount > 0 && <span className="badge">{pendingRequestsCount}</span>}
+                    </button>
+                    <div onClick={() => onNavClick('accountSettings')} className="user-avatar" style={{background: 'linear-gradient(135deg, #a855f7, #ec4899)'}}>
+                        {user.name.charAt(0)}
+                    </div>
+                    <div className="menu-toggle md:hidden" onClick={() => setIsMobileNavOpen(true)}>
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                </div>
+            </header>
 
           {/* Main Content */}
-          <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-[var(--bg-secondary)] rounded-b-2xl">
+          <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-[var(--bg-secondary)] md:rounded-b-2xl">
               <div key={activeView} className="fade-in">
                   {children}
               </div>

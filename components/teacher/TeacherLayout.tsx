@@ -37,8 +37,8 @@ const TeacherLayout: React.FC<TeacherLayoutProps> = ({ user, teacher, onLogout, 
     const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   
     return (
-    <div className="h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] p-2 md:p-3">
-      <div className="flex w-full h-full gap-3">
+    <div className="h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] p-0 md:p-3">
+      <div className="flex w-full h-full md:gap-3">
         {/* Desktop Sidebar */}
         <aside className="w-72 flex-shrink-0 bg-[var(--glass-bg)] backdrop-blur-[var(--glass-blur)] border border-[var(--glass-border)] rounded-2xl flex-col hidden md:flex overflow-hidden">
             <div className="h-20 flex items-center px-6 flex-shrink-0">
@@ -54,16 +54,28 @@ const TeacherLayout: React.FC<TeacherLayoutProps> = ({ user, teacher, onLogout, 
             <NavContent activeView={activeView} onNavClick={onNavClick} onLogout={onLogout} />
         </aside>
 
-        <div className="flex-1 flex flex-col overflow-hidden rounded-2xl">
+        <div className="flex-1 flex flex-col overflow-hidden md:rounded-2xl">
           {/* Header */}
-          <header className="flex-shrink-0 bg-[var(--glass-bg)] backdrop-blur-[var(--glass-blur)] flex items-center justify-between px-4 md:px-6 h-20 rounded-t-2xl border-b border-[var(--glass-border)]">
-              <div className="flex items-center space-x-4 space-x-reverse">
-                  <button onClick={() => setIsMobileNavOpen(true)} className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] md:hidden"><MenuIcon className="w-6 h-6" /></button>
-                  <h1 className="hidden md:block text-xl font-bold text-[var(--text-primary)]">أهلاً بك، {user.name.split(' ')[0]}</h1>
-              </div>
-              <button onClick={() => onNavClick('profile')} className="h-11 w-11 rounded-full bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] border-2 border-transparent flex items-center justify-center text-[var(--text-primary)] font-bold text-lg transition-all hover:border-[var(--accent-primary)]">{user.name.charAt(0)}</button>
-          </header>
-          <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-[var(--bg-secondary)] rounded-b-2xl"><div key={activeView} className="fade-in">{children}</div></main>
+          <header className="app-header">
+                <div className="header-logo" style={{ cursor: 'pointer' }} onClick={() => onNavClick('dashboard')}>
+                    <div className="header-logo-icon"></div>
+                </div>
+
+                <div className="header-actions">
+                    <button onClick={() => onNavClick('questionBank')} className="notification-btn">
+                        <i className="fas fa-bell"></i>
+                    </button>
+                    <div onClick={() => onNavClick('profile')} className="user-avatar">
+                        {user.name.charAt(0)}
+                    </div>
+                    <div className="menu-toggle md:hidden" onClick={() => setIsMobileNavOpen(true)}>
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                </div>
+            </header>
+          <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-[var(--bg-secondary)] md:rounded-b-2xl"><div key={activeView} className="fade-in">{children}</div></main>
         </div>
       </div>
       {isMobileNavOpen && (

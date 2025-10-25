@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { User, Role, Theme } from './types';
 import { 
@@ -81,11 +80,11 @@ const App: React.FC = () => {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  const handleLogin = useCallback(async (email: string, password: string): Promise<void> => {
+  const handleLogin = useCallback(async (identifier: string, password: string): Promise<void> => {
     setAuthError('');
-    const { error } = await signIn(email, password);
+    const { error } = await signIn(identifier, password);
     if (error) {
-      setAuthError('البريد الإلكتروني أو كلمة المرور غير صحيحة.');
+      setAuthError('بيانات الدخول غير صحيحة.');
     }
   }, []);
   

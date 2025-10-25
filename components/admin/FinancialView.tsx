@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import { SubscriptionRequest, ToastType, Subscription, Grade } from '../../types';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { SubscriptionRequest, ToastType, Subscription, Grade, User } from '../../types';
 import { getSubscriptionRequests, updateSubscriptionRequest, createOrUpdateSubscription, getAllSubscriptions, getAllUsers, getAllGrades } from '../../services/storageService';
 import { useToast } from '../../useToast';
 import Modal from '../common/Modal';
@@ -71,10 +71,18 @@ const SubscriptionManagementView: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'Pending' | 'Active' | 'Expired'>('Pending');
     const [approvalRequest, setApprovalRequest] = useState<SubscriptionRequest | null>(null);
     const { addToast } = useToast();
+    const [allUsers, setAllUsers] = useState<User[]>([]);
+
+    useEffect(() => {
+        const fetchUsers = async () => {
+            const users = await getAllUsers();
+            setAllUsers(users);
+        };
+        fetchUsers();
+    }, [dataVersion]);
 
     const allRequests = useMemo(() => getSubscriptionRequests(), [dataVersion]);
     const allSubscriptions = useMemo(() => getAllSubscriptions(), [dataVersion]);
-    const allUsers = useMemo(() => getAllUsers(), []);
     const allGrades = useMemo(() => getAllGrades(), []);
     const userMap = useMemo(() => new Map(allUsers.map(u => [u.id, u.name])), [allUsers]);
 
@@ -125,7 +133,7 @@ const SubscriptionManagementView: React.FC = () => {
     };
 
     const renderRequestsTable = () => (
-        <tbody>
+        <tbody className="divide-y divide-[var(--border-primary)]">
             {pendingRequests.length > 0 ? pendingRequests.map(req => (
                 <tr key={req.id} className="hover:bg-[var(--bg-tertiary)]/50 transition-colors">
                     <td className="px-6 py-4 font-semibold text-[var(--text-primary)]">{req.userName}</td>
@@ -145,7 +153,7 @@ const SubscriptionManagementView: React.FC = () => {
     );
     
     const renderSubscriptionsTable = (subscriptions: Subscription[]) => (
-         <tbody>
+         <tbody className="divide-y divide-[var(--border-primary)]">
             {subscriptions.length > 0 ? subscriptions.map(sub => (
                 <tr key={sub.id} className="hover:bg-[var(--bg-tertiary)]/50 transition-colors">
                     <td className="px-6 py-4 font-semibold text-[var(--text-primary)]">{userMap.get(sub.userId) || 'طالب محذوف'}</td>
@@ -203,11 +211,11 @@ const SubscriptionManagementView: React.FC = () => {
                             </tr>
                        )}
                     </thead>
-                    <tbody className="divide-y divide-[var(--border-primary)]">
+                    
                         {activeTab === 'Pending' && renderRequestsTable()}
                         {activeTab === 'Active' && renderSubscriptionsTable(activeSubscriptions)}
                         {activeTab === 'Expired' && renderSubscriptionsTable(expiredSubscriptions)}
-                    </tbody>
+                    
                 </table>
             </div>
             <ApprovalModal isOpen={!!approvalRequest} onClose={() => setApprovalRequest(null)} request={approvalRequest} onConfirm={handleApproveConfirm} />

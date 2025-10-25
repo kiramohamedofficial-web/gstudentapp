@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { getTeachers } from '../../services/storageService';
 import { Teacher } from '../../types';
+import Loader from '../common/Loader';
 
 const TeacherCard: React.FC<{ teacher: Teacher }> = ({ teacher }) => (
     <div className="bg-[var(--bg-secondary)] rounded-xl shadow-md border border-[var(--border-primary)] text-center p-6 transition-transform transform hover:-translate-y-2 group">
@@ -11,7 +12,25 @@ const TeacherCard: React.FC<{ teacher: Teacher }> = ({ teacher }) => (
 );
 
 const TeachersView: React.FC = () => {
-    const teachers = useMemo(() => getTeachers(), []);
+    const [teachers, setTeachers] = useState<Teacher[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchTeachers = async () => {
+            const data = await getTeachers();
+            setTeachers(data);
+            setIsLoading(false);
+        };
+        fetchTeachers();
+    }, []);
+
+    if (isLoading) {
+        return (
+            <div className="flex justify-center items-center h-64">
+                <Loader />
+            </div>
+        );
+    }
 
     return (
         <div>

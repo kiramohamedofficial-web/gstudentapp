@@ -9,7 +9,6 @@ interface TeacherSubscriptionsViewProps {
 
 const TeacherSubscriptionsView: React.FC<TeacherSubscriptionsViewProps> = ({ teacher }) => {
     const subscriptions = useMemo(() => getSubscriptionsByTeacherId(teacher.id), [teacher.id]);
-    // FIX: Fetch users asynchronously using useState and useEffect instead of useMemo.
     const [users, setUsers] = useState<Map<string, User>>(new Map());
 
     useEffect(() => {

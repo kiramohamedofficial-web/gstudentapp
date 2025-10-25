@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect } from 'react';
 import { ArrowRightIcon } from '../common/Icons';
 import { Grade } from '../../types';
@@ -152,7 +150,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, error, cle
                     {/* Login View */}
                     {view === 'login' && (
                         <>
-                            <input name="email" type="email" value={formData.email} onChange={handleChange} required placeholder="البريد الإلكتروني" className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg" />
+                            <input name="email" type="text" value={formData.email} onChange={handleChange} required placeholder="البريد الإلكتروني أو رقم الهاتف" className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg" />
                             <input name="password" type="password" value={formData.password} onChange={handleChange} required placeholder="كلمة المرور" className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg" />
                             <button type="submit" disabled={isLoading} className="w-full py-3.5 font-bold text-white bg-gradient-to-r from-indigo-500 to-blue-500 rounded-lg disabled:opacity-60">{isLoading ? 'جاري التحقق...' : 'تسجيل الدخول'}</button>
                         </>

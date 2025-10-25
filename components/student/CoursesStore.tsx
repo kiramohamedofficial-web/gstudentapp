@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Course, Teacher, ToastType } from '../../types';
 import { getFeaturedCourses, getTeachers } from '../../services/storageService';
 import { useToast } from '../../useToast';
@@ -88,9 +88,14 @@ const CourseStoreCard: React.FC<{ course: Course; teacher?: Teacher; onPurchase:
 
 const CoursesStore: React.FC = () => {
     const courses = useMemo(() => getFeaturedCourses(), []);
-    const teachers = useMemo(() => {
-        const teacherData = getTeachers();
-        return new Map(teacherData.map(t => [t.id, t]));
+    const [teachers, setTeachers] = useState<Map<string, Teacher>>(new Map());
+
+    useEffect(() => {
+        const fetchTeachers = async () => {
+            const teacherData = await getTeachers();
+            setTeachers(new Map(teacherData.map(t => [t.id, t])));
+        };
+        fetchTeachers();
     }, []);
 
     const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);

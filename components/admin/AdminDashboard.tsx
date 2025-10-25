@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { User, ActivityLog, Grade, Theme } from '../../types';
+import { User, ActivityLog, Grade, Theme, Teacher } from '../../types';
 import AdminLayout from '../layout/AdminLayout';
 import SubscriptionManagementView from './FinancialView';
 import StudentDetailView from './StudentDetailView';
@@ -90,15 +90,19 @@ const StudentManagementView: React.FC<{ onViewDetails: (user: User) => void }> =
             }))
             .filter(user => {
                 const query = searchQuery.toLowerCase();
-                const searchMatch = user.name.toLowerCase().includes(query) || user.phone.includes(query);
-                const gradeMatch = gradeFilter ? user.grade.toString() === gradeFilter : true;
+                const searchMatch = (user.name && user.name.toLowerCase().includes(query)) || (user.phone && user.phone.includes(query));
+                const gradeMatch = gradeFilter ? user.grade != null && user.grade.toString() === gradeFilter : true;
                 return searchMatch && gradeMatch;
             });
     }, [allUsers, allGrades, searchQuery, gradeFilter]);
     
     const uniqueGrades = useMemo(() => {
         const gradeSet = new Set<string>();
-        allUsers.forEach(u => gradeSet.add(u.grade.toString()));
+        allUsers.forEach(u => {
+            if (u.grade != null) {
+                gradeSet.add(u.grade.toString());
+            }
+        });
         return Array.from(gradeSet).sort((a,b) => parseInt(a) - parseInt(b)).map(g => ({
             id: g,
             name: allGrades.find(grade => grade.id === parseInt(g))?.name || `الصف ${g}`
@@ -179,20 +183,26 @@ const StudentManagementView: React.FC<{ onViewDetails: (user: User) => void }> =
 
 const MainDashboard: React.FC<{ onNavigate: (view: AdminView) => void }> = ({ onNavigate }) => {
     const [students, setStudents] = useState<User[]>([]);
+    const [teachers, setTeachers] = useState<Teacher[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         const fetchData = async () => {
-            const users = await getAllUsers();
+            setIsLoading(true);
+            const usersPromise = getAllUsers();
+            const teachersPromise = getTeachers();
+            
+            const [users, teacherData] = await Promise.all([usersPromise, teachersPromise]);
+
             setStudents(users.filter(u => u.role === 'student'));
+            setTeachers(teacherData);
             setIsLoading(false);
         };
         fetchData();
     }, []);
 
-    const teachers = useMemo(() => getTeachers(), []);
     const latestUsers = useMemo(() => [...students].reverse().slice(0, 5), [students]);
-    const subscriptions = useMemo(() => getAllSubscriptions(), [students]); // re-calc if students change
+    const subscriptions = useMemo(() => getAllSubscriptions(), [students]); 
     const activityLogs = useMemo(() => getActivityLogs().slice(0, 5), []);
     const pendingRequestsCount = useMemo(() => getPendingSubscriptionRequestCount(), []);
     

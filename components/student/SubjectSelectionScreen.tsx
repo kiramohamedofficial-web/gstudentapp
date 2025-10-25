@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Grade, Unit, User, Teacher } from '../../types';
-import { getUserProgress, getTeacherById } from '../../services/storageService';
+import { getUserProgress, getTeachers } from '../../services/storageService';
 import { ArrowRightIcon, ArrowLeftIcon } from '../common/Icons';
 
 // --- Reusable Sub-components ---
@@ -14,14 +14,7 @@ const ProgressBar: React.FC<{ progress: number }> = ({ progress }) => (
     </div>
 );
 
-const TeacherSubjectCard: React.FC<{ unit: Unit; onClick: () => void; delay: number; progress: number; }> = ({ unit, onClick, delay, progress }) => {
-    const [teacher, setTeacher] = useState<Teacher | null>(null);
-
-    useEffect(() => {
-        const teacherData = getTeacherById(unit.teacherId);
-        setTeacher(teacherData || null);
-    }, [unit.teacherId]);
-
+const TeacherSubjectCard: React.FC<{ unit: Unit; teacher?: Teacher; onClick: () => void; delay: number; progress: number; }> = ({ unit, teacher, onClick, delay, progress }) => {
     return (
         <div
             onClick={onClick}
@@ -76,6 +69,17 @@ interface SubjectSelectionScreenProps {
 const SubjectSelectionScreen: React.FC<SubjectSelectionScreenProps> = ({ grade, onSubjectSelect, onBack, user }) => {
     const [activeSemesterId, setActiveSemesterId] = useState<string>(grade.semesters[0]?.id || '');
     const [activeSubject, setActiveSubject] = useState<string>('الكل');
+    const [teachers, setTeachers] = useState<Teacher[]>([]);
+
+    useEffect(() => {
+        const fetchTeachers = async () => {
+            const data = await getTeachers();
+            setTeachers(data);
+        };
+        fetchTeachers();
+    }, []);
+
+    const teacherMap = useMemo(() => new Map(teachers.map(t => [t.id, t])), [teachers]);
     
     const userProgress = useMemo(() => getUserProgress(user.id), [user.id]);
 
@@ -174,6 +178,7 @@ const SubjectSelectionScreen: React.FC<SubjectSelectionScreenProps> = ({ grade, 
                         <TeacherSubjectCard
                             key={`${unit.id}-${index}`}
                             unit={unit} 
+                            teacher={teacherMap.get(unit.teacherId)}
                             onClick={() => onSubjectSelect(unit)} 
                             delay={index * 50}
                             progress={calculateProgress(unit)}
