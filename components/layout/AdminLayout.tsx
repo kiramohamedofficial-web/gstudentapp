@@ -1,6 +1,6 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { User } from '../../types';
-import { CollectionIcon, QrcodeIcon, CreditCardIcon, HomeIcon, XIcon, TemplateIcon, CogIcon, LogoutIcon, UsersIcon, UserCircleIcon, BellIcon, QuestionMarkCircleIcon, ArrowsExpandIcon, ArrowsShrinkIcon } from '../common/Icons';
+import { CollectionIcon, QrcodeIcon, CreditCardIcon, HomeIcon, XIcon, TemplateIcon, CogIcon, LogoutIcon, UsersIcon, UserCircleIcon, BellIcon, QuestionMarkCircleIcon } from '../common/Icons';
 import { getPendingSubscriptionRequestCount } from '../../services/storageService';
 
 type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'content' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers';
@@ -106,27 +106,7 @@ const NavContent: React.FC<{ activeView: string; onNavClick: (view: AdminView) =
 
 const AdminLayout: React.FC<AdminLayoutProps> = ({ user, onLogout, children, onNavClick, activeView }) => {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const pendingRequestsCount = useMemo(() => getPendingSubscriptionRequestCount(), [children]);
-
-  const handleFullscreenChange = useCallback(() => {
-      setIsFullscreen(!!document.fullscreenElement);
-  }, []);
-
-  useEffect(() => {
-      document.addEventListener('fullscreenchange', handleFullscreenChange);
-      return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, [handleFullscreenChange]);
-
-  const toggleFullscreen = () => {
-      if (!document.fullscreenElement) {
-          document.documentElement.requestFullscreen().catch(err => {
-              console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
-          });
-      } else if (document.exitFullscreen) {
-          document.exitFullscreen();
-      }
-  };
 
   const handleMobileNavClick = (view: AdminView) => {
     onNavClick(view);
@@ -161,13 +141,6 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ user, onLogout, children, onN
                 </div>
 
                 <div className="header-actions">
-                    <button onClick={toggleFullscreen} className="notification-btn hidden md:flex" title={isFullscreen ? "الخروج من وضع ملء الشاشة" : "عرض ملء الشاشة"}>
-                        {isFullscreen ? (
-                            <ArrowsShrinkIcon className="w-5 h-5 text-[var(--text-secondary)]" />
-                        ) : (
-                            <ArrowsExpandIcon className="w-5 h-5 text-[var(--text-secondary)]" />
-                        )}
-                    </button>
                     <button onClick={() => onNavClick('subscriptions')} className="notification-btn">
                         <i className="fas fa-bell"></i>
                         {pendingRequestsCount > 0 && <span className="badge">{pendingRequestsCount}</span>}

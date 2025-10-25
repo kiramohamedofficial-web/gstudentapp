@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import { User, ToastType, Theme } from '../../types';
 import { getGradeById, getSubscriptionByUserId, getUserProgress, deleteSelf } from '../../services/storageService';
-import { CheckCircleIcon, ClockIcon, CreditCardIcon, KeyIcon, LogoutIcon, SparklesIcon, TemplateIcon, TrashIcon } from '../common/Icons';
+import { CheckCircleIcon, ClockIcon, CreditCardIcon, KeyIcon, LogoutIcon, SparklesIcon, TemplateIcon, TrashIcon, ArrowsExpandIcon, ArrowsShrinkIcon } from '../common/Icons';
 import Modal from '../common/Modal';
 import { useToast } from '../../useToast';
 import ThemeSelectionModal from '../common/ThemeSelectionModal';
@@ -85,7 +85,27 @@ const Profile: React.FC<ProfileProps> = ({ user, onLogout, theme, setTheme }) =>
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
   const { addToast } = useToast();
+
+  const handleFullscreenChange = useCallback(() => {
+    setIsFullscreen(!!document.fullscreenElement);
+  }, []);
+
+  useEffect(() => {
+      document.addEventListener('fullscreenchange', handleFullscreenChange);
+      return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, [handleFullscreenChange]);
+
+  const toggleFullscreen = () => {
+      if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(err => {
+              console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+          });
+      } else if (document.exitFullscreen) {
+          document.exitFullscreen();
+      }
+  };
 
   const { totalLessons, completedLessons, progress } = useMemo(() => {
     if (!grade) return { totalLessons: 0, completedLessons: 0, progress: 0 };
@@ -206,6 +226,10 @@ const Profile: React.FC<ProfileProps> = ({ user, onLogout, theme, setTheme }) =>
             <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-md border border-[var(--border-primary)]">
                 <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-4">إجراءات الحساب</h2>
                 <div className="space-y-3">
+                    <button onClick={toggleFullscreen} className="w-full flex items-center justify-center p-3 rounded-lg text-[var(--text-secondary)] bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] hover:text-[var(--text-primary)] transition-colors duration-200 space-x-3 space-x-reverse">
+                        {isFullscreen ? <ArrowsShrinkIcon className="w-5 h-5" /> : <ArrowsExpandIcon className="w-5 h-5" />}
+                        <span>{isFullscreen ? 'الخروج من وضع ملء الشاشة' : 'عرض ملء الشاشة'}</span>
+                    </button>
                     <button onClick={() => setIsPasswordModalOpen(true)} className="w-full flex items-center justify-center p-3 rounded-lg text-[var(--text-secondary)] bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] hover:text-[var(--text-primary)] transition-colors duration-200 space-x-3 space-x-reverse">
                         <KeyIcon className="w-5 h-5" />
                         <span>تغيير كلمة المرور</span>

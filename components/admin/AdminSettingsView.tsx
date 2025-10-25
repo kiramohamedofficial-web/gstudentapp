@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { User, Theme, ToastType } from '../../types';
-import { LogoutIcon, KeyIcon, TemplateIcon } from '../common/Icons';
+import { LogoutIcon, KeyIcon, TemplateIcon, ArrowsExpandIcon, ArrowsShrinkIcon } from '../common/Icons';
 import { useToast } from '../../useToast';
 import Modal from '../common/Modal';
 import ThemeSelectionModal from '../common/ThemeSelectionModal';
@@ -46,6 +46,26 @@ interface AdminSettingsViewProps {
 const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({ user, theme, setTheme, onLogout }) => {
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
+
+  const handleFullscreenChange = useCallback(() => {
+    setIsFullscreen(!!document.fullscreenElement);
+  }, []);
+
+  useEffect(() => {
+      document.addEventListener('fullscreenchange', handleFullscreenChange);
+      return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, [handleFullscreenChange]);
+
+  const toggleFullscreen = () => {
+      if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(err => {
+              console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+          });
+      } else if (document.exitFullscreen) {
+          document.exitFullscreen();
+      }
+  };
 
   return (
     <div className="fade-in">
@@ -68,6 +88,12 @@ const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({ user, theme, setT
             <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)]">
                 <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-4">إجراءات الحساب</h2>
                 <div className="space-y-3">
+                    <button onClick={toggleFullscreen} className="w-full flex items-center justify-between p-3 rounded-lg text-[var(--text-primary)] bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] transition-colors duration-200 group">
+                        <div className="flex items-center space-x-3 space-x-reverse">
+                            {isFullscreen ? <ArrowsShrinkIcon className="w-5 h-5 text-[var(--text-secondary)] group-hover:text-purple-400 transition-colors" /> : <ArrowsExpandIcon className="w-5 h-5 text-[var(--text-secondary)] group-hover:text-purple-400 transition-colors" />}
+                            <span>{isFullscreen ? 'الخروج من وضع ملء الشاشة' : 'عرض ملء الشاشة'}</span>
+                        </div>
+                    </button>
                     <button onClick={() => setIsPasswordModalOpen(true)} className="w-full flex items-center justify-between p-3 rounded-lg text-[var(--text-primary)] bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] transition-colors duration-200 group">
                         <div className="flex items-center space-x-3 space-x-reverse">
                             <KeyIcon className="w-5 h-5 text-[var(--text-secondary)] group-hover:text-purple-400 transition-colors" />
