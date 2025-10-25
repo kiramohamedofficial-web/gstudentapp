@@ -259,7 +259,7 @@ export const getProfile = async (userId: string): Promise<Omit<User, 'email'> | 
 // DATA INITIALIZATION
 // =================================================================
 const seedMiddleSchoolData = (): MiddleSchoolData => {
-    const initialMiddleSchoolTeachers: Teacher[] = [{ id: 't_eng_01', name: 'أستاذ اللغة الإنجليزية', subject: 'اللغة الإنجليزية', imageUrl: 'https://i.ibb.co/bJCmnz5/teacher1.png', teachingLevels: ['Middle'], teachingGrades: [7, 8, 9] }];
+    const initialMiddleSchoolTeachers: Teacher[] = [{ id: 't_eng_01', name: 'أستاذ اللغة الإنجليزية', subject: 'اللغة الإنجليزية', imageUrl: 'https://i.ibb.co/0j2pS0s/teacher-avatar.jpg', teachingLevels: ['Middle'], teachingGrades: [7, 8, 9] }];
     const createPlaceholderLessons = (): Lesson[] => ([]);
     const createSubjects = (subjects: {title: string, teacherId: string, track?: Unit['track']}[], gradeId: number, semesterId: string): Unit[] => subjects.map((subject, i) => ({ id: `unit_${gradeId}_${semesterId}_${i}`, title: subject.title, teacherId: subject.teacherId, track: subject.track || 'All', lessons: createPlaceholderLessons() }));
     const middle_school_subjects = [{ title: 'اللغة الإنجليزية', teacherId: 't_eng_01' }];
@@ -296,7 +296,7 @@ export const initData = async (): Promise<void> => {
 
   console.log("Initializing non-user Core and High School data in localStorage...");
   
-  const initialHighSchoolTeachers: Teacher[] = [{ id: 't_math_01', name: 'أستاذ الرياضيات', subject: 'الرياضيات', imageUrl: 'https://i.ibb.co/bJCmnz5/teacher1.png', teachingLevels: ['Secondary'], teachingGrades: [10, 11, 12] }];
+  const initialHighSchoolTeachers: Teacher[] = [{ id: 't_math_01', name: 'أستاذ الرياضيات', subject: 'الرياضيات', imageUrl: 'https://i.ibb.co/0j2pS0s/teacher-avatar.jpg', teachingLevels: ['Secondary'], teachingGrades: [10, 11, 12] }];
   const createPlaceholderLessons = (): Lesson[] => ([]);
   const createSubjects = (subjects: {title: string, teacherId: string, track?: Unit['track']}[], gradeId: number, semesterId: string): Unit[] => subjects.map((subject, i) => ({ id: `unit_${gradeId}_${semesterId}_${i}`, title: subject.title, teacherId: subject.teacherId, track: subject.track || 'All', lessons: createPlaceholderLessons() }));
   const sec_subjects = [{ title: 'الرياضيات', teacherId: 't_math_01' }];
@@ -305,7 +305,7 @@ export const initData = async (): Promise<void> => {
     { id: 11, name: 'الصف الثاني الثانوي', ordinal: '2nd', level: 'Secondary', levelAr: 'الثانوي', semesters: [{ id: 'sem1_11', title: 'الفصل الدراسي الأول', units: createSubjects(sec_subjects, 11, '1') }, { id: 'sem2_11', title: 'الفصل الدراسي الثاني', units: createSubjects(sec_subjects, 11, '2') }] },
     { id: 12, name: 'الصف الثالث الثانوي', ordinal: '3rd', level: 'Secondary', levelAr: 'الثانوي', semesters: [{ id: 'sem1_12', title: 'الفصل الدراسي الأول', units: createSubjects(sec_subjects, 12, '1') }, { id: 'sem2_12', title: 'الفصل الدراسي الثاني', units: createSubjects(sec_subjects, 12, '2') }] },
   ];
-  const defaultPlatformSettings: PlatformSettings = { platformName: 'Gstudent', heroTitle: 'بوابتك للتفوق الدراسي', heroSubtitle: 'شرح مبسط وتمارين مكثفة لجميع المواد، لمساعدتك على تحقيق أعلى الدرجات مع نخبة من أفضل المدرسين.', heroButtonText: 'ابدأ رحلتك الآن', heroImageUrl: 'https://b.top4top.io/p_3568ksa1i0.jpg', teacherImageUrl: 'https://i.ibb.co/bJCmnz5/teacher1.png', featuresTitle: 'لماذا تختار منصة Gstudent؟', featuresSubtitle: 'نوفر لك كل ما تحتاجه لتحقيق أعلى الدرجات بأبسط الطرق.', features: [{ title: "شرح تفصيلي ومبسط", description: "فيديوهات عالية الجودة تشرح كل جزء من المنهج بأسلوب سهل وممتع." }, { title: "واجبات وامتحانات دورية", description: "اختبر فهمك وتابع مستواك من خلال واجبات وامتحانات إلكترونية." }, { title: "نخبة من أفضل المدرسين", description: "تعلم على أيدي خبراء في كل مادة لضمان فهم عميق وتفوق مضمون." }, { title: "متابعة مستمرة وذكية", description: "نظام متكامل لمتابعة تقدمك الدراسي وتحديد نقاط القوة والضعف." }], footerDescription: 'منصة Gstudent التعليمية تهدف إلى تقديم أفضل المحتويات التعليمية لطلاب المرحلتين الإعدادية والثانوية.', contactPhone: '+20 123 456 7890', contactFacebookUrl: '#', contactYoutubeUrl: '#' };
+  const defaultPlatformSettings: PlatformSettings = { platformName: 'Gstudent', heroTitle: 'بوابتك للتفوق الدراسي', heroSubtitle: 'شرح مبسط وتمارين مكثفة لجميع المواد، لمساعدتك على تحقيق أعلى الدرجات مع نخبة من أفضل المدرسين.', heroButtonText: 'ابدأ رحلتك الآن', heroImageUrl: 'https://b.top4top.io/p_3568ksa1i0.jpg', teacherImageUrl: 'https://i.ibb.co/0j2pS0s/teacher-avatar.jpg', featuresTitle: 'لماذا تختار منصة Gstudent؟', featuresSubtitle: 'نوفر لك كل ما تحتاجه لتحقيق أعلى الدرجات بأبسط الطرق.', features: [{ title: "شرح تفصيلي ومبسط", description: "فيديوهات عالية الجودة تشرح كل جزء من المنهج بأسلوب سهل وممتع." }, { title: "واجبات وامتحانات دورية", description: "اختبر فهمك وتابع مستواك من خلال واجبات وامتحانات إلكترونية." }, { title: "نخبة من أفضل المدرسين", description: "تعلم على أيدي خبراء في كل مادة لضمان فهم عميق وتفوق مضمون." }, { title: "متابعة مستمرة وذكية", description: "نظام متكامل لمتابعة تقدمك الدراسي وتحديد نقاط القوة والضعف." }], footerDescription: 'منصة Gstudent التعليمية تهدف إلى تقديم أفضل المحتويات التعليمية لطلاب المرحلتين الإعدادية والثانوية.', contactPhone: '+20 123 456 7890', contactFacebookUrl: '#', contactYoutubeUrl: '#' };
 
   setHighSchoolData({ grades: initialHighSchoolGrades, teachers: initialHighSchoolTeachers });
   setCoreData({ users: [], subscriptions: [], activityLogs: [], accessTokens: [], subscriptionRequests: [], quizAttempts: [], studentQuestions: [], subscriptionCodes: [], userProgress: {}, chatUsage: {}, platformSettings: defaultPlatformSettings, featuredCourses: [], featuredBooks: [] });
@@ -318,11 +318,32 @@ export const initData = async (): Promise<void> => {
 // --- Teacher Functions ---
 export const getTeachers = async (): Promise<Teacher[]> => {
     const { data, error } = await supabaseCore.from('teachers').select('*');
-    if (error) {
-        console.error("Error fetching teachers:", error);
-        return [];
+
+    // Prioritize data from Supabase if available and no error occurred
+    if (!error && data && data.length > 0) {
+        return data.map(t => ({
+            id: t.id,
+            name: t.name,
+            subject: t.subject,
+            imageUrl: t.image_url, 
+            teachingLevels: t.teaching_levels, 
+            teachingGrades: t.teaching_grades
+        }));
     }
-    return (data || []).map(t => ({...t, imageUrl: t.image_url, teachingLevels: t.teaching_levels, teachingGrades: t.teaching_grades}));
+
+    if (error) {
+        console.error("Error fetching teachers from Supabase, falling back to local data:", error);
+    }
+    
+    // Fallback to local/seeded data
+    const seededTeachers: Teacher[] = [
+        ...(getMiddleSchoolData().teachers || []),
+        ...(getHighSchoolData().teachers || [])
+    ];
+    
+    const uniqueSeededTeachers = Array.from(new Map(seededTeachers.map(t => [t.id, t])).values());
+    
+    return uniqueSeededTeachers;
 };
 
 export const getTeacherById = (id: string): Teacher | undefined => {
@@ -648,6 +669,21 @@ export const deleteUser = async (userId: string) => {
     }
     return { data, error };
 };
+
+export const deleteSelf = async () => {
+    // This function assumes a Supabase RPC function named 'handle_self_delete' exists.
+    // This RPC function should be defined with SECURITY DEFINER and should delete
+    // the user record from both 'public.users' and 'auth.users' for the currently
+    // authenticated user.
+    const { data, error } = await supabaseCore.rpc('handle_self_delete');
+
+    if (error) {
+        console.error("Error deleting own user account via RPC:", JSON.stringify(error, null, 2));
+    }
+
+    return { data, error };
+};
+
 export const addTeacher = async (teacherData: any): Promise<{ data: any, error: any }> => {
     const { name, subject, imageUrl, teachingLevels, teachingGrades, phone, password } = teacherData;
     const email = `${phone}@gstudent.app`;

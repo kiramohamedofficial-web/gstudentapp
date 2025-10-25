@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { User, Teacher, TeacherView } from '../../types';
-import { CollectionIcon, CreditCardIcon, UserCircleIcon, LogoutIcon, MenuIcon, XIcon, HomeIcon, QuestionMarkCircleIcon } from '../common/Icons';
+import { CollectionIcon, CreditCardIcon, UserCircleIcon, LogoutIcon, MenuIcon, XIcon, HomeIcon, QuestionMarkCircleIcon, ArrowsExpandIcon, ArrowsShrinkIcon } from '../common/Icons';
 
 interface TeacherLayoutProps {
   user: User;
@@ -35,6 +35,26 @@ const NavContent: React.FC<{ activeView: string; onNavClick: (view: TeacherView)
 
 const TeacherLayout: React.FC<TeacherLayoutProps> = ({ user, teacher, onLogout, children, onNavClick, activeView }) => {
     const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(false);
+
+    const handleFullscreenChange = useCallback(() => {
+        setIsFullscreen(!!document.fullscreenElement);
+    }, []);
+
+    useEffect(() => {
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    }, [handleFullscreenChange]);
+
+    const toggleFullscreen = () => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => {
+                console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+            });
+        } else if (document.exitFullscreen) {
+            document.exitFullscreen();
+        }
+    };
   
     return (
     <div className="h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] p-0 md:p-3">
@@ -62,6 +82,13 @@ const TeacherLayout: React.FC<TeacherLayoutProps> = ({ user, teacher, onLogout, 
                 </div>
 
                 <div className="header-actions">
+                    <button onClick={toggleFullscreen} className="notification-btn hidden md:flex" title={isFullscreen ? "الخروج من وضع ملء الشاشة" : "عرض ملء الشاشة"}>
+                        {isFullscreen ? (
+                            <ArrowsShrinkIcon className="w-5 h-5 text-[var(--text-secondary)]" />
+                        ) : (
+                            <ArrowsExpandIcon className="w-5 h-5 text-[var(--text-secondary)]" />
+                        )}
+                    </button>
                     <button onClick={() => onNavClick('questionBank')} className="notification-btn">
                         <i className="fas fa-bell"></i>
                     </button>

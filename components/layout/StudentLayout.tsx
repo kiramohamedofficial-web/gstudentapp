@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { User, StudentView, Subscription, Theme } from '../../types';
-import { HomeIcon, UserCircleIcon, CreditCardIcon, UsersIcon, LogoutIcon, TemplateIcon, XIcon, SparklesIcon, ChartBarIcon, BrainIcon, BellIcon, CogIcon, QuestionMarkCircleIcon, MoonIcon } from '../common/Icons';
+import { HomeIcon, UserCircleIcon, CreditCardIcon, UsersIcon, LogoutIcon, TemplateIcon, XIcon, SparklesIcon, ChartBarIcon, BrainIcon, BellIcon, CogIcon, QuestionMarkCircleIcon, MoonIcon, ArrowsExpandIcon, ArrowsShrinkIcon } from '../common/Icons';
 
 interface StudentLayoutProps {
   user: User;
@@ -91,8 +91,28 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ user, onLogout, children,
     const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(false);
     const profileMenuRef = useRef<HTMLDivElement>(null);
     const notificationsRef = useRef<HTMLDivElement>(null);
+
+    const handleFullscreenChange = useCallback(() => {
+        setIsFullscreen(!!document.fullscreenElement);
+    }, []);
+
+    useEffect(() => {
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    }, [handleFullscreenChange]);
+
+    const toggleFullscreen = () => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => {
+                console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+            });
+        } else if (document.exitFullscreen) {
+            document.exitFullscreen();
+        }
+    };
 
     const navItems = useMemo(() => [
         { id: 'home', label: 'الرئيسية', icon: HomeIcon },
@@ -143,6 +163,13 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ user, onLogout, children,
                 </h1>
 
                 <div className="header-actions">
+                    <button onClick={toggleFullscreen} className="notification-btn hidden md:flex" title={isFullscreen ? "الخروج من وضع ملء الشاشة" : "عرض ملء الشاشة"}>
+                        {isFullscreen ? (
+                            <ArrowsShrinkIcon className="w-5 h-5 text-[var(--text-secondary)]" />
+                        ) : (
+                            <ArrowsExpandIcon className="w-5 h-5 text-[var(--text-secondary)]" />
+                        )}
+                    </button>
                     <div className="relative">
                         <button onClick={() => { setIsNotificationsOpen(p => !p); setIsProfileMenuOpen(false); }} className="notification-btn">
                             <i className="fas fa-bell"></i>

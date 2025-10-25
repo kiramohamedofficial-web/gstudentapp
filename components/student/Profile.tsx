@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { User, ToastType, Theme } from '../../types';
-import { getGradeById, getSubscriptionByUserId, getUserProgress } from '../../services/storageService';
-import { CheckCircleIcon, ClockIcon, CreditCardIcon, KeyIcon, LogoutIcon, SparklesIcon, TemplateIcon } from '../common/Icons';
+import { getGradeById, getSubscriptionByUserId, getUserProgress, deleteSelf } from '../../services/storageService';
+import { CheckCircleIcon, ClockIcon, CreditCardIcon, KeyIcon, LogoutIcon, SparklesIcon, TemplateIcon, TrashIcon } from '../common/Icons';
 import Modal from '../common/Modal';
 import { useToast } from '../../useToast';
 import ThemeSelectionModal from '../common/ThemeSelectionModal';
@@ -84,6 +84,7 @@ const Profile: React.FC<ProfileProps> = ({ user, onLogout, theme, setTheme }) =>
   const subscription = useMemo(() => getSubscriptionByUserId(user.id), [user.id]);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const { addToast } = useToast();
 
   const { totalLessons, completedLessons, progress } = useMemo(() => {
@@ -103,6 +104,17 @@ const Profile: React.FC<ProfileProps> = ({ user, onLogout, theme, setTheme }) =>
       e.preventDefault();
       addToast("تم تغيير كلمة المرور بنجاح (محاكاة).", ToastType.SUCCESS);
       setIsPasswordModalOpen(false);
+  };
+
+  const handleDeleteAccount = async () => {
+    setIsDeleteModalOpen(false);
+    const { error } = await deleteSelf();
+    if (error) {
+        addToast(`فشل حذف الحساب: ${error.message}`, ToastType.ERROR);
+    } else {
+        addToast('تم حذف حسابك بنجاح.', ToastType.SUCCESS);
+        onLogout(); 
+    }
   };
 
   return (
@@ -198,6 +210,10 @@ const Profile: React.FC<ProfileProps> = ({ user, onLogout, theme, setTheme }) =>
                         <KeyIcon className="w-5 h-5" />
                         <span>تغيير كلمة المرور</span>
                     </button>
+                    <button onClick={() => setIsDeleteModalOpen(true)} className="w-full flex items-center justify-center p-3 rounded-lg text-red-500 bg-red-500/10 hover:bg-red-500/20 transition-colors duration-200 space-x-3 space-x-reverse">
+                        <TrashIcon className="w-5 h-5" />
+                        <span>حذف الحساب</span>
+                    </button>
                     <button onClick={onLogout} className="w-full flex items-center justify-center p-3 rounded-lg text-red-500 bg-red-500/10 hover:bg-red-500/20 transition-colors duration-200 space-x-3 space-x-reverse">
                         <LogoutIcon className="w-5 h-5" />
                         <span>تسجيل الخروج</span>
@@ -229,6 +245,14 @@ const Profile: React.FC<ProfileProps> = ({ user, onLogout, theme, setTheme }) =>
           </form>
       </Modal>
       
+      <Modal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} title="تأكيد حذف الحساب">
+          <p className="text-[var(--text-secondary)] mb-6">هل أنت متأكد تمامًا؟ سيؤدي هذا إلى حذف حسابك وجميع بياناتك بشكل دائم، بما في ذلك تقدمك واشتراكاتك. لا يمكن التراجع عن هذا الإجراء.</p>
+          <div className="flex justify-end space-x-3 space-x-reverse">
+              <button onClick={() => setIsDeleteModalOpen(false)} className="px-4 py-2 rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] transition-colors">إلغاء</button>
+              <button onClick={handleDeleteAccount} className="px-4 py-2 rounded-md bg-red-600 hover:bg-red-700 transition-colors text-white">نعم، أحذف حسابي</button>
+          </div>
+      </Modal>
+
       <ThemeSelectionModal 
         isOpen={isThemeModalOpen}
         onClose={() => setIsThemeModalOpen(false)}
