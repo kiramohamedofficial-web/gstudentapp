@@ -170,7 +170,7 @@ const TeacherModal: React.FC<{
                                 <div className="p-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md">
                                     <p className="text-sm font-medium text-[var(--text-secondary)] mb-2">الصفوف الإعدادية</p>
                                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-2 gap-y-1">
-                                        {middleSchoolGrades.map(grade => <Checkbox key={grade.id} label={grade.ordinal} name={`grade_${grade.id}`} checked={selectedGrades.includes(grade.id)} onChange={e => handleGradeChange(grade.id, e.target.checked)} />)}
+                                        {middleSchoolGrades.map(grade => <Checkbox key={grade.id} label={grade.name} name={`grade_${grade.id}`} checked={selectedGrades.includes(grade.id)} onChange={e => handleGradeChange(grade.id, e.target.checked)} />)}
                                     </div>
                                 </div>
                             )}
@@ -178,7 +178,7 @@ const TeacherModal: React.FC<{
                                 <div className="p-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md">
                                     <p className="text-sm font-medium text-[var(--text-secondary)] mb-2">الصفوف الثانوية</p>
                                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-2 gap-y-1">
-                                        {secondarySchoolGrades.map(grade => <Checkbox key={grade.id} label={grade.ordinal} name={`grade_${grade.id}`} checked={selectedGrades.includes(grade.id)} onChange={e => handleGradeChange(grade.id, e.target.checked)} />)}
+                                        {secondarySchoolGrades.map(grade => <Checkbox key={grade.id} label={grade.name} name={`grade_${grade.id}`} checked={selectedGrades.includes(grade.id)} onChange={e => handleGradeChange(grade.id, e.target.checked)} />)}
                                     </div>
                                 </div>
                             )}
@@ -245,7 +245,7 @@ const TeacherManagementView: React.FC = () => {
         const fetchAndSetTeachers = async () => {
             setIsLoading(true);
             const data = await getAllTeachers();
-            setTeachers(data);
+            setTeachers(data as Teacher[]);
             setIsLoading(false);
         };
         fetchAndSetTeachers();
@@ -268,7 +268,17 @@ const TeacherManagementView: React.FC = () => {
                 result = await updateTeacher(id, updates);
             } else { // Adding
                 // FIX: Use createTeacher instead of the stub function addTeacher.
-                result = await createTeacher(data);
+                // FIX: Map TeacherModalSaveData to the shape expected by createTeacher.
+                result = await createTeacher({
+                    email: data.email,
+                    password: data.password,
+                    name: data.name,
+                    subject: data.subject,
+                    phone: data.phone,
+                    teaching_grades: data.teachingGrades || [],
+                    teaching_levels: data.teachingLevels || [],
+                    image_url: data.imageUrl,
+                });
             }
             
             // FIX: Check for the `success` flag instead of just the `error` property for better reliability.

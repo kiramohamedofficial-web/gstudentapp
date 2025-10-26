@@ -6,11 +6,10 @@ import StudentDetailView from './StudentDetailView';
 import { 
     getAllUsers, 
     getActivityLogs, 
-    getSubscriptionByUserId, 
     getAllSubscriptions, 
     getAllGrades,
     getPendingSubscriptionRequestCount,
-    getUserProgress,
+    getAllStudentProgress,
     getTeachers,
 } from '../../services/storageService';
 import { ChartBarIcon, UsersIcon, BellIcon, SearchIcon, InformationCircleIcon, UserCircleIcon, ChevronLeftIcon } from '../common/Icons';
@@ -50,23 +49,12 @@ const StatCard: React.FC<{ title: string; value: string; icon: React.FC<{ classN
     </div>
 );
 
-const calculateStudentProgress = (user: User, allGrades: Grade[]): number => {
-    const grade = allGrades.find(g => g.id === user.grade);
-    if (!grade) return 0;
-    
-    const allLessons = grade.semesters.flatMap(s => s.units.flatMap(u => u.lessons));
-    if (allLessons.length === 0) return 0; 
-
-    const userProgress = getUserProgress(user.id);
-    const completed = allLessons.filter(l => !!userProgress[l.id]).length;
-    return Math.round((completed / allLessons.length) * 100);
-};
-
 const StudentManagementView: React.FC<{ onViewDetails: (user: User) => void }> = ({ onViewDetails }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [gradeFilter, setGradeFilter] = useState('');
     const [allUsers, setAllUsers] = useState<User[]>([]);
     const [subscriptions, setSubscriptions] = useState<Map<string, any>>(new Map());
+    const [allProgress, setAllProgress] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     const allGrades = useMemo(() => getAllGrades(), []);
@@ -74,14 +62,42 @@ const StudentManagementView: React.FC<{ onViewDetails: (user: User) => void }> =
     useEffect(() => {
         const fetchData = async () => {
             setIsLoading(true);
-            const users = await getAllUsers();
-            const subs = await getAllSubscriptions();
+            const usersPromise = getAllUsers();
+            const subsPromise = getAllSubscriptions();
+            const progressPromise = getAllStudentProgress();
+
+            const [users, subs, progressData] = await Promise.all([usersPromise, subsPromise, progressPromise]);
+
             setAllUsers(users.filter(u => u.role === 'student'));
             setSubscriptions(new Map(subs.map(s => [s.userId, s])));
+            setAllProgress(progressData);
             setIsLoading(false);
         };
         fetchData();
     }, []);
+
+    const progressByStudent = useMemo(() => {
+        const map = new Map<string, Record<string, boolean>>();
+        allProgress.forEach(p => {
+            if (!map.has(p.user_id)) {
+                map.set(p.user_id, {});
+            }
+            map.get(p.user_id)![p.lesson_id] = true;
+        });
+        return map;
+    }, [allProgress]);
+
+    const calculateStudentProgress = (user: User, allGrades: Grade[]): number => {
+        const grade = allGrades.find(g => g.id === user.grade);
+        if (!grade) return 0;
+        
+        const allLessons = grade.semesters.flatMap(s => s.units.flatMap(u => u.lessons));
+        if (allLessons.length === 0) return 0; 
+
+        const userProgress = progressByStudent.get(user.id) || {};
+        const completed = allLessons.filter(l => !!userProgress[l.id]).length;
+        return Math.round((completed / allLessons.length) * 100);
+    };
 
     const filteredUsers = useMemo(() => {
         return allUsers
@@ -96,7 +112,7 @@ const StudentManagementView: React.FC<{ onViewDetails: (user: User) => void }> =
                 const gradeMatch = gradeFilter ? user.grade != null && user.grade.toString() === gradeFilter : true;
                 return searchMatch && gradeMatch;
             });
-    }, [allUsers, allGrades, searchQuery, gradeFilter, subscriptions]);
+    }, [allUsers, allGrades, searchQuery, gradeFilter, subscriptions, progressByStudent]);
     
     const uniqueGrades = useMemo(() => {
         const gradeSet = new Set<string>();

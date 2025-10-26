@@ -264,7 +264,17 @@ const TeacherManagementView: React.FC = () => {
                 }
                 result = await updateTeacher(id, updates);
             } else { // Adding
-                result = await createTeacher(data);
+                // FIX: Map TeacherModalSaveData to the shape expected by createTeacher.
+                result = await createTeacher({
+                    email: data.email,
+                    password: data.password,
+                    name: data.name,
+                    subject: data.subject,
+                    phone: data.phone,
+                    teaching_grades: data.teachingGrades || [],
+                    teaching_levels: data.teachingLevels || [],
+                    image_url: data.imageUrl,
+                });
             }
             
             if (!result.success) {

@@ -2,7 +2,7 @@ import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import { User, Grade, Lesson, LessonType, QuizAttempt, ToastType, Subscription } from '../../types';
 import { 
     getGradeById, getSubscriptionByUserId, getQuizAttemptsByUserId, 
-    getAllGrades, getUserProgress, updateUser, deleteUser, createOrUpdateSubscription 
+    getAllGrades, getStudentProgress, updateUser, deleteUser, createOrUpdateSubscription 
 } from '../../services/storageService';
 import { ArrowRightIcon, CheckCircleIcon, ClockIcon, PencilIcon, TrashIcon, CreditCardIcon, BookOpenIcon, UsersIcon } from '../common/Icons';
 import Modal from '../common/Modal';
@@ -93,14 +93,29 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
   const [editFormData, setEditFormData] = useState<Partial<User> & { password?: string }>({});
+  const [userProgress, setUserProgress] = useState<Record<string, boolean>>({});
 
   const refreshData = useCallback(() => setDataVersion(v => v + 1), []);
 
   const grade = useMemo(() => getGradeById(user.grade), [user.grade, dataVersion]);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [quizAttempts, setQuizAttempts] = useState<QuizAttempt[]>([]);
-  const userProgress = useMemo(() => getUserProgress(user.id), [user.id, dataVersion]);
   const allGrades = useMemo(() => getAllGrades(), []);
+
+  useEffect(() => {
+    if (!user) return;
+    const fetchProgress = async () => {
+        const progressData = await getStudentProgress(user.id);
+        if (progressData) {
+            const progressMap = progressData.reduce((acc, item) => {
+                acc[item.lesson_id] = true;
+                return acc;
+            }, {} as Record<string, boolean>);
+            setUserProgress(progressMap);
+        }
+    };
+    fetchProgress();
+  }, [user, dataVersion]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -108,7 +123,7 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
         const attemptsPromise = getQuizAttemptsByUserId(user.id);
         const [subData, attemptsData] = await Promise.all([subPromise, attemptsPromise]);
         setSubscription(subData);
-        setQuizAttempts(attemptsData);
+        setQuizAttempts(attemptsData as QuizAttempt[]);
     };
     fetchData();
   }, [user.id, dataVersion]);

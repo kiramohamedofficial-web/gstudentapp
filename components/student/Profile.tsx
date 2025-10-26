@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import { User, ToastType, Theme, Subscription } from '../../types';
-import { getGradeById, getUserProgress, deleteSelf } from '../../services/storageService';
+import { getGradeById, getStudentProgress, deleteSelf } from '../../services/storageService';
 import { CheckCircleIcon, ClockIcon, CreditCardIcon, KeyIcon, LogoutIcon, SparklesIcon, TemplateIcon, TrashIcon, ArrowsExpandIcon, ArrowsShrinkIcon } from '../common/Icons';
 import Modal from '../common/Modal';
 import { useToast } from '../../useToast';
@@ -89,6 +89,22 @@ const Profile: React.FC<ProfileProps> = ({ theme, setTheme }) => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
   const { addToast } = useToast();
+  const [userProgress, setUserProgress] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    const fetchProgress = async () => {
+        if(!user) return;
+        const progressData = await getStudentProgress(user.id);
+        if (progressData) {
+            const progressMap = progressData.reduce((acc, item) => {
+                acc[item.lesson_id] = true;
+                return acc;
+            }, {} as Record<string, boolean>);
+            setUserProgress(progressMap);
+        }
+    };
+    fetchProgress();
+  }, [user]);
 
   const handleFullscreenChange = useCallback(() => {
     setIsFullscreen(!!document.fullscreenElement);
@@ -114,11 +130,10 @@ const Profile: React.FC<ProfileProps> = ({ theme, setTheme }) => {
     const allLessons = grade.semesters.flatMap(s => s.units.flatMap(u => u.lessons));
     const total = allLessons.length;
     if (total === 0) return { totalLessons: 0, completedLessons: 0, progress: 0 };
-    const userProgress = getUserProgress(user.id);
     const completed = allLessons.filter(l => !!userProgress[l.id]).length;
     const prog = Math.round((completed / total) * 100);
     return { totalLessons: total, completedLessons: completed, progress: prog };
-  }, [grade, user]);
+  }, [grade, user, userProgress]);
   
   const evaluation = useMemo(() => getEvaluation(progress), [progress]);
 

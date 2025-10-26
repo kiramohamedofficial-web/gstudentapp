@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Teacher, User, StudentView, Unit, Lesson, LessonType } from '../../types';
-import { getTeachers, getGradeById, getUserProgress } from '../../services/storageService';
+import { getTeachers, getGradeById, getStudentProgress } from '../../services/storageService';
 import { DocumentTextIcon, VideoCameraIcon, ClockIcon } from '../common/Icons';
 
 // --- NEW HOME SCREEN COMPONENTS ---
@@ -79,7 +79,7 @@ interface StudentHomeScreenProps {
 const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({ user, onNavigate }) => {
     const [teachers, setTeachers] = useState<Teacher[]>([]);
     const grade = useMemo(() => getGradeById(user.grade), [user.grade]);
-    const userProgress = useMemo(() => getUserProgress(user.id), [user.id]);
+    const [userProgress, setUserProgress] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
         const fetchTeachers = async () => {
@@ -88,6 +88,21 @@ const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({ user, onNavigate 
         };
         fetchTeachers();
     }, []);
+
+    useEffect(() => {
+        if (!user) return;
+        const fetchProgress = async () => {
+            const progressData = await getStudentProgress(user.id);
+            if (progressData) {
+                const progressMap = progressData.reduce((acc, item) => {
+                    acc[item.lesson_id] = true;
+                    return acc;
+                }, {} as Record<string, boolean>);
+                setUserProgress(progressMap);
+            }
+        };
+        fetchProgress();
+    }, [user]);
 
     const { overallProgress, continueLearningItem, nextAssignmentItem } = useMemo(() => {
         if (!grade) return { overallProgress: 0 };

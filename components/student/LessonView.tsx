@@ -13,7 +13,7 @@ interface LessonViewProps {
   lesson: Lesson;
   onBack: () => void;
   grade: Grade;
-  onLessonComplete: (lessonId: string) => void;
+  onLessonComplete: (lessonId: string) => Promise<void>;
   onNavigate: (view: StudentView) => void;
 }
 

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Grade, Unit, Lesson, LessonType, ToastType, User, StudentView } from '../../types';
-import { getUserProgress, setLessonCompleted } from '../../services/storageService';
+import { getStudentProgress, markLessonComplete } from '../../services/storageService';
 import { useToast } from '../../useToast';
 import LessonView from './LessonView';
 import { BookOpenIcon, PencilIcon, CheckCircleIcon, VideoCameraIcon, DocumentTextIcon, ArrowRightIcon, ChevronDownIcon, PlaySolidIcon } from '../common/Icons';
@@ -156,9 +156,19 @@ const CourseView: React.FC<CourseViewProps> = ({ grade, unit, user, onBack, onNa
   const [openAccordion, setOpenAccordion] = useState<string | null>(null);
   const { addToast } = useToast();
 
-  useEffect(() => {
-      setUserProgress(getUserProgress(user.id));
-  }, [user.id]);
+    useEffect(() => {
+        const fetchProgress = async () => {
+            const progressData = await getStudentProgress(user.id);
+            if (progressData) {
+                const progressMap = progressData.reduce((acc, item) => {
+                    acc[item.lesson_id] = true;
+                    return acc;
+                }, {} as Record<string, boolean>);
+                setUserProgress(progressMap);
+            }
+        };
+        fetchProgress();
+    }, [user.id]);
 
   useEffect(() => {
     if (initialLesson) {
@@ -198,26 +208,19 @@ const CourseView: React.FC<CourseViewProps> = ({ grade, unit, user, onBack, onNa
   }, [unit.lessons, userProgress]);
   
   const overallProgress = useMemo(() => {
-    // Get all units for the student's grade and track
     const allUnitsForTrack = grade.semesters.flatMap(s => s.units.filter(u =>
         !u.track || u.track === 'All' || u.track === user.track
     ));
-
-    // Get all lessons from those units
     const allLessons = allUnitsForTrack.flatMap(u => u.lessons);
-    
     if (allLessons.length === 0) return 0;
-
-    // Count completed lessons
     const completedCount = allLessons.filter(lesson => userProgress[lesson.id]).length;
-
     return Math.round((completedCount / allLessons.length) * 100);
   }, [grade, user.track, userProgress]);
 
 
-  const handleLessonComplete = (lessonId: string) => {
+  const handleLessonComplete = async (lessonId: string) => {
     if (!userProgress[lessonId]) {
-      setLessonCompleted(user.id, lessonId, true);
+      await markLessonComplete(user.id, lessonId);
       setUserProgress(prev => ({ ...prev, [lessonId]: true }));
       addToast('أحسنت! لقد أكملت هذا الجزء بنجاح.', ToastType.SUCCESS);
     }
@@ -233,7 +236,6 @@ const CourseView: React.FC<CourseViewProps> = ({ grade, unit, user, onBack, onNa
         lesson={activeLesson} 
         onBack={() => setActiveLesson(null)} 
         grade={grade}
-        user={user}
         onLessonComplete={handleLessonComplete}
         onNavigate={onNavigate}
     />;

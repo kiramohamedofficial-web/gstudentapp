@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Grade, Unit, User, Teacher } from '../../types';
-import { getUserProgress, getTeachers } from '../../services/storageService';
+import { getStudentProgress, getTeachers } from '../../services/storageService';
 import { ArrowRightIcon, ArrowLeftIcon } from '../common/Icons';
 
 // --- Reusable Sub-components ---
@@ -70,6 +70,7 @@ const SubjectSelectionScreen: React.FC<SubjectSelectionScreenProps> = ({ grade, 
     const [activeSemesterId, setActiveSemesterId] = useState<string>(grade.semesters[0]?.id || '');
     const [activeSubject, setActiveSubject] = useState<string>('الكل');
     const [teachers, setTeachers] = useState<Teacher[]>([]);
+    const [userProgress, setUserProgress] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
         const fetchTeachers = async () => {
@@ -79,9 +80,22 @@ const SubjectSelectionScreen: React.FC<SubjectSelectionScreenProps> = ({ grade, 
         fetchTeachers();
     }, []);
 
+    useEffect(() => {
+        if (!user) return;
+        const fetchProgress = async () => {
+            const progressData = await getStudentProgress(user.id);
+            if (progressData) {
+                const progressMap = progressData.reduce((acc, item) => {
+                    acc[item.lesson_id] = true;
+                    return acc;
+                }, {} as Record<string, boolean>);
+                setUserProgress(progressMap);
+            }
+        };
+        fetchProgress();
+    }, [user]);
+
     const teacherMap = useMemo(() => new Map(teachers.map(t => [t.id, t])), [teachers]);
-    
-    const userProgress = useMemo(() => getUserProgress(user.id), [user.id]);
 
     const calculateProgress = useCallback((unit: Unit) => {
         const totalLessons = unit.lessons.length;

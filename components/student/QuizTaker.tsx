@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Lesson, User, QuizAttempt } from '../../types';
-import { getLatestQuizAttemptForLesson, addQuizAttempt } from '../../services/storageService';
+import { getLatestQuizAttemptForLesson, addQuizAttempt, saveQuizAttempt } from '../../services/storageService';
 import { ClockIcon, CheckCircleIcon, XCircleIcon, DocumentTextIcon } from '../common/Icons';
 import { useSession } from '../../hooks/useSession';
 
 interface QuizTakerProps {
   lesson: Lesson;
-  onComplete: (lessonId: string) => void;
+  onComplete: (lessonId: string) => Promise<void>;
 }
 
 const QuizTaker: React.FC<QuizTakerProps> = ({ lesson, onComplete }) => {
@@ -41,20 +41,12 @@ const QuizTaker: React.FC<QuizTakerProps> = ({ lesson, onComplete }) => {
         const score = Math.round((correctCount / correctAnswers.length) * 100);
         const timeTaken = startTime ? Math.round((Date.now() - startTime) / 1000) : 0;
         const passingScore = lesson.passingScore ?? 50;
+        const isPass = score >= passingScore;
 
-        const attempt: Omit<QuizAttempt, 'id'> = {
-            userId: user.id,
-            lessonId: lesson.id,
-            submittedAt: new Date().toISOString(),
-            score,
-            submittedAnswers: studentAnswers,
-            timeTaken,
-            isPass: score >= passingScore,
-        };
+        await saveQuizAttempt(user.id, lesson.id, score, correctAnswers.length, studentAnswers, timeTaken);
         
-        await addQuizAttempt(attempt);
-        if (attempt.isPass) {
-            onComplete(lesson.id);
+        if (isPass) {
+            await onComplete(lesson.id);
         }
 
         const newAttemptData = await getLatestQuizAttemptForLesson(user.id, lesson.id);
