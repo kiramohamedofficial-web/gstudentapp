@@ -36,21 +36,31 @@ const defaultCurriculumData = {
 // =================================================================
 
 /**
- * Signs up a new student. This version creates the auth user and explicitly creates the profile
- * in the public 'users' table, which is a safer pattern than relying on triggers.
+ * Signs up a new student. This version creates the auth user and sends all profile data
+ * in the metadata, assuming a database trigger will create the public user profile.
  */
 export async function signUp(userData: Omit<User, 'id' | 'role' | 'subscriptionId' | 'email'> & { email: string, password?: string }) {
     const { email, password, name, phone, guardianPhone, grade, track } = userData;
-    
-    if(!password) {
+
+    if (!password) {
         return { data: null, error: { message: "Password is required for sign up." } };
+    };
+
+    const userMetaData = {
+        name: name,
+        phone: phone,
+        guardian_phone: guardianPhone,
+        grade_id: grade,
+        track: track, // Will be undefined if not applicable, which is fine
+        role: 'student'
     };
 
     const { data, error } = await supabase.auth.signUp({
         email,
-        phone,
         password,
-        options: { data: { name: name, role: 'student' } }
+        options: {
+            data: userMetaData
+        }
     });
 
     if (error) {
@@ -60,27 +70,8 @@ export async function signUp(userData: Omit<User, 'id' | 'role' | 'subscriptionI
         return { data, error };
     }
 
-    if (data.user) {
-        const { error: profileError } = await supabase
-            .from('users')
-            .insert({
-                id: data.user.id,
-                name: name,
-                phone: phone,
-                guardian_phone: guardianPhone,
-                grade_id: grade,
-                track: track,
-                role: 'student'
-            });
-        
-        if (profileError) {
-            console.error("Error creating user profile after signup:", profileError);
-            return { 
-                data: null, 
-                error: { message: `فشل إنشاء الملف الشخصي. تواصل مع الدعم. الخطأ: ${profileError.message}` } 
-            };
-        }
-    }
+    // The manual insert is now removed, assuming a database trigger handles profile creation
+    // from the raw_user_meta_data in auth.users table.
 
     return { data, error };
 };
@@ -387,7 +378,21 @@ export async function redeemCode(code: string, userGradeId: number, userTrack: s
 export async function registerAndRedeemCode(userData: any, code: string): Promise<{ error: string | null }> { const { data: authData, error: authError } = await signUp(userData); if (authError || !authData.user) { return { error: authError?.message || 'فشل إنشاء الحساب.' }; } const { success, error: redeemError } = await redeemCode(code, userData.grade, userData.track); if (!success) { return { error: `تم إنشاء حسابك ولكن فشل تفعيل الكود: ${redeemError}. يرجى التواصل مع الدعم.` }; } return { error: null }; };
 export async function validateSubscriptionCode(code: string): Promise<{ valid: boolean; error?: string }> { const { data, error } = await supabase.from('subscription_codes').select('*').eq('code', code.trim()).single(); if (error || !data) return { valid: false, error: 'الكود غير موجود.' }; if (data.times_used >= data.max_uses) return { valid: false, error: 'هذا الكود تم استخدامه بالكامل.' }; return { valid: true }; };
 export const generateSubscriptionCodes = async (options: any) => { const codes = []; for(let i=0; i < options.count; i++) { const code = `G-${Math.random().toString(36).substring(2, 8).toUpperCase()}`; await generateSubscriptionCode({ code, ...options }); codes.push({ code, ...options, id: code }); } return codes; };
-export const updateUser = async (userId: string, updates: Partial<User>) => { const payload: Record<string, any> = {}; if (updates.name) payload.name = updates.name; if (updates.phone) payload.phone = updates.phone; if (updates.guardianPhone) payload.guardian_phone = updates.guardianPhone; if (updates.grade) payload.grade_id = updates.grade; if (updates.track !== undefined) payload.track = updates.track; if (Object.keys(payload).length === 0) { return { error: null }; } const { error } = await supabase.from('users').update(payload).eq('id', userId); return { error }; };
+export const updateUser = async (userId: string, updates: Partial<User>) => {
+    const payload: Record<string, any> = {};
+    if (updates.name) payload.name = updates.name;
+    if (updates.phone) payload.phone = updates.phone;
+    if (updates.guardianPhone) payload.guardian_phone = updates.guardianPhone;
+    if (updates.grade) payload.grade_id = updates.grade;
+    if (updates.track !== undefined) {
+        payload.track = updates.track || null;
+    }
+    if (Object.keys(payload).length === 0) {
+        return { error: null };
+    }
+    const { error } = await supabase.from('users').update(payload).eq('id', userId);
+    return { error };
+};
 export const deleteUser = async (id: string) => { const { error } = await supabase.from('users').delete().eq('id', id); return { error }; };
 export const getGradesForSelection = async (): Promise<{id: number, name: string, level: 'Middle' | 'Secondary'}[]> => { if (!curriculumCache) await initData(); const grades = getAllGrades(); return grades.map(({ id, name, level }) => ({ id, name, level })); };
 export const deleteSelf = async () => { const { data: { user } } = await supabase.auth.getUser(); if (!user) return { error: { message: 'User not authenticated.' } }; const { error } = await supabase.from('users').delete().eq('id', user.id); if (!error) await signOut(); return { error }; };

@@ -156,6 +156,22 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
     setIsEditModalOpen(true);
   };
 
+  const handleEditFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setEditFormData(prev => {
+        const newState = { ...prev, [name]: value };
+        if (name === 'grade') {
+            const gradeId = Number(value);
+            newState.grade = gradeId;
+            // If the new grade doesn't require a track, reset it
+            if (gradeId < 5) {
+                newState.track = undefined;
+            }
+        }
+        return newState;
+    });
+};
+
   const handleUpdateUser = async () => {
     if (editFormData.id) {
         if (!editFormData.name || !editFormData.phone || !editFormData.guardianPhone) {
@@ -276,13 +292,30 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
 
        <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="تعديل بيانات الطالب">
             <div className="space-y-4">
-                <input type="text" placeholder="الاسم" value={editFormData.name || ''} onChange={e => setEditFormData({...editFormData, name: e.target.value})} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-primary)]" />
-                <input type="text" placeholder="رقم الهاتف" value={editFormData.phone || ''} onChange={e => setEditFormData({...editFormData, phone: e.target.value})} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-primary)]" />
-                <input type="text" placeholder="رقم ولي الأمر" value={editFormData.guardianPhone || ''} onChange={e => setEditFormData({...editFormData, guardianPhone: e.target.value})} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-primary)]" />
-                <select value={editFormData.grade || ''} onChange={e => setEditFormData({...editFormData, grade: Number(e.target.value)})} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-primary)]">
+                <input type="text" placeholder="الاسم" name="name" value={editFormData.name || ''} onChange={handleEditFormChange} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-primary)]" />
+                <input type="text" placeholder="رقم الهاتف" name="phone" value={editFormData.phone || ''} onChange={handleEditFormChange} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-primary)]" />
+                <input type="text" placeholder="رقم ولي الأمر" name="guardianPhone" value={editFormData.guardianPhone || ''} onChange={handleEditFormChange} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-primary)]" />
+                <select name="grade" value={editFormData.grade || ''} onChange={handleEditFormChange} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-primary)]">
+                    <option value="" disabled>اختر الصف</option>
                     {allGrades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                 </select>
-                <input type="password" placeholder="كلمة مرور جديدة (اتركها فارغة لعدم التغيير)" onChange={e => setEditFormData({...editFormData, password: e.target.value})} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-primary)]" />
+                {(editFormData.grade === 5 || editFormData.grade === 6) && (
+                    <div>
+                        <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">الشعبة</label>
+                        <select name="track" value={editFormData.track || ''} onChange={handleEditFormChange} required className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)]">
+                            <option value="" disabled>-- اختر الشعبة --</option>
+                            {editFormData.grade === 5 ? <>
+                                <option value="Scientific">علمي</option>
+                                <option value="Literary">أدبي</option>
+                            </> : <>
+                                <option value="Science">علمي علوم</option>
+                                <option value="Math">علمي رياضيات</option>
+                                <option value="Literary">أدبي</option>
+                            </>}
+                        </select>
+                    </div>
+                )}
+                <input type="password" placeholder="كلمة مرور جديدة (اتركها فارغة لعدم التغيير)" name="password" onChange={handleEditFormChange} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-primary)]" />
                 <div className="flex justify-end pt-4"><button onClick={handleUpdateUser} className="px-5 py-2 font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700">حفظ التغييرات</button></div>
             </div>
        </Modal>
