@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Course, Teacher, ToastType } from '../../types';
-import { getFeaturedCourses, getTeachers } from '../../services/storageService';
+import { getFeaturedCourses, getAllTeachers } from '../../services/storageService';
 import { useToast } from '../../useToast';
 import Modal from '../common/Modal';
 import { CreditCardIcon, UserCircleIcon } from '../common/Icons';
@@ -92,7 +92,7 @@ const CoursesStore: React.FC = () => {
 
     useEffect(() => {
         const fetchTeachers = async () => {
-            const teacherData = await getTeachers();
+            const teacherData = await getAllTeachers();
             setTeachers(new Map(teacherData.map(t => [t.id, t])));
         };
         fetchTeachers();

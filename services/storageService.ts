@@ -500,8 +500,7 @@ export const getAllUsers = async (): Promise<User[]> => {
         grade: p.grade_id, track: p.track, role: p.role as Role, teacherId: p.teacher_id 
     })); 
 };
-export const getTeachers = async (): Promise<Teacher[]> => (await getAllTeachers() as Teacher[]) || [];
-export const getTeacherById = async (id: string): Promise<Teacher | null> => { const teachers = await getTeachers(); return teachers.find(t => t.id === id) || null; };
+export const getTeacherById = async (id: string): Promise<Teacher | null> => { const teachers = await getAllTeachers(); return teachers.find(t => t.id === id) || null; };
 export const addActivityLog = (action: string, details: string) => console.log(`Activity: ${action} - ${details}`);
 export const getChatUsage = (userId: string) => ({ remaining: 50 });
 export const incrementChatUsage = (userId: string) => {};

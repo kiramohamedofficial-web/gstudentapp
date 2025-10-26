@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { getTeachers } from '../../services/storageService';
+import { getAllTeachers } from '../../services/storageService';
 import { Teacher } from '../../types';
 import Loader from '../common/Loader';
 
@@ -17,7 +17,8 @@ const TeachersView: React.FC = () => {
 
     useEffect(() => {
         const fetchTeachers = async () => {
-            const data = await getTeachers();
+            // FIX: Corrected function name from getTeachers to getAllTeachers
+            const data = await getAllTeachers();
             setTeachers(data);
             setIsLoading(false);
         };

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Grade, Unit, User, Teacher } from '../../types';
-import { getStudentProgress, getTeachers } from '../../services/storageService';
+import { getStudentProgress, getAllTeachers } from '../../services/storageService';
 import { ArrowRightIcon, ArrowLeftIcon } from '../common/Icons';
 
 // --- Reusable Sub-components ---
@@ -74,7 +74,7 @@ const SubjectSelectionScreen: React.FC<SubjectSelectionScreenProps> = ({ grade, 
 
     useEffect(() => {
         const fetchTeachers = async () => {
-            const data = await getTeachers();
+            const data = await getAllTeachers();
             setTeachers(data);
         };
         fetchTeachers();

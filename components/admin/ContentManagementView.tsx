@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { Grade, Semester, Unit, Lesson, LessonType, ToastType, Teacher } from '../../types';
 import { 
     getAllGrades, addLessonToUnit, updateLesson, deleteLesson,
-    addUnitToSemester, updateUnit, deleteUnit, addActivityLog, getTeachers
+    addUnitToSemester, updateUnit, deleteUnit, addActivityLog, getAllTeachers
 } from '../../services/storageService';
 import Modal from '../common/Modal';
 import { PlusIcon, PencilIcon, TrashIcon, CheckCircleIcon, VideoCameraIcon, DocumentTextIcon, BookOpenIcon, DotsVerticalIcon, CollectionIcon, ChevronDownIcon, UserCircleIcon, ShieldExclamationIcon } from '../common/Icons';
@@ -348,7 +348,7 @@ const ContentManagementView: React.FC = () => {
     
     useEffect(() => {
         const fetchAndSetTeachers = async () => {
-            const data = await getTeachers();
+            const data = await getAllTeachers();
             setTeachers(data);
         };
         fetchAndSetTeachers();

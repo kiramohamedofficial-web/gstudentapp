@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Course, Book, ToastType, Teacher } from '../../types';
 import { 
     getFeaturedCourses, addFeaturedCourse, updateFeaturedCourse, deleteFeaturedCourse,
-    getFeaturedBooks, addFeaturedBook, updateFeaturedBook, deleteFeaturedBook, getTeachers
+    getFeaturedBooks, addFeaturedBook, updateFeaturedBook, deleteFeaturedBook, getAllTeachers
 } from '../../services/storageService';
 import Modal from '../common/Modal';
 import { PlusIcon, PencilIcon, TrashIcon, BookBookmarkIcon, TemplateIcon } from '../common/Icons';
@@ -65,7 +65,7 @@ const HomeManagementView: React.FC = () => {
     const [teachers, setTeachers] = useState<Teacher[]>([]);
     useEffect(() => {
         const fetchTeachers = async () => {
-            const teacherData = await getTeachers();
+            const teacherData = await getAllTeachers();
             setTeachers(teacherData);
         };
         fetchTeachers();

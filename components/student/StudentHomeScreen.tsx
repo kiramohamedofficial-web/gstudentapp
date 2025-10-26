@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Teacher, User, StudentView, Unit, Lesson, LessonType } from '../../types';
-import { getTeachers, getGradeById, getStudentProgress } from '../../services/storageService';
+import { getAllTeachers, getGradeById, getStudentProgress } from '../../services/storageService';
 import { DocumentTextIcon, VideoCameraIcon, ClockIcon } from '../common/Icons';
 
 // --- NEW HOME SCREEN COMPONENTS ---
@@ -83,7 +83,8 @@ const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({ user, onNavigate 
 
     useEffect(() => {
         const fetchTeachers = async () => {
-            const data = await getTeachers();
+            // FIX: Corrected function name from getTeachers to getAllTeachers
+            const data = await getAllTeachers();
             setTeachers(data);
         };
         fetchTeachers();

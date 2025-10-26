@@ -10,7 +10,8 @@ import {
     getAllGrades,
     getPendingSubscriptionRequestCount,
     getAllStudentProgress,
-    getTeachers,
+    // FIX: Corrected function name from getTeachers to getAllTeachers
+    getAllTeachers,
 } from '../../services/storageService';
 import { ChartBarIcon, UsersIcon, BellIcon, SearchIcon, InformationCircleIcon, UserCircleIcon, ChevronLeftIcon } from '../common/Icons';
 import RevenueChart from './RevenueChart';
@@ -220,7 +221,8 @@ const MainDashboard: React.FC<{ onNavigate: (view: AdminView) => void }> = ({ on
         const fetchData = async () => {
             setIsLoading(true);
             const usersPromise = getAllUsers();
-            const teachersPromise = getTeachers();
+            // FIX: Corrected function name from getTeachers to getAllTeachers
+            const teachersPromise = getAllTeachers();
             const subsPromise = getAllSubscriptions();
             const pendingPromise = getPendingSubscriptionRequestCount();
 
