@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import { User, Grade, Lesson, LessonType, QuizAttempt, ToastType, Subscription } from '../../types';
 import { 
     getGradeById, getSubscriptionByUserId, getQuizAttemptsByUserId, 
@@ -12,9 +12,9 @@ const SubscriptionModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;
     subscription: Subscription | undefined;
-    onSave: (plan: 'Monthly' | 'Quarterly' | 'Annual' | 'SemiAnnually', status: 'Active' | 'Expired', customEndDate?: string) => void;
+    onSave: (plan: Subscription['plan'], status: 'Active' | 'Expired', customEndDate?: string) => void;
 }> = ({ isOpen, onClose, subscription, onSave }) => {
-    const [plan, setPlan] = useState<'Monthly' | 'Quarterly' | 'Annual' | 'SemiAnnually'>('Monthly');
+    const [plan, setPlan] = useState<Subscription['plan']>('Monthly');
     const [status, setStatus] = useState<'Active' | 'Expired'>('Active');
     const [endDate, setEndDate] = useState('');
 
@@ -45,6 +45,7 @@ const SubscriptionModal: React.FC<{
                         <option value="Quarterly">ربع سنوية</option>
                         <option value="SemiAnnually">نصف سنوية</option>
                         <option value="Annual">سنوية</option>
+                        {plan === 'Code' && <option value="Code" disabled>كود</option>}
                     </select>
                 </div>
                  <div>
@@ -96,10 +97,21 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
   const refreshData = useCallback(() => setDataVersion(v => v + 1), []);
 
   const grade = useMemo(() => getGradeById(user.grade), [user.grade, dataVersion]);
-  const subscription = useMemo(() => getSubscriptionByUserId(user.id), [user.id, dataVersion]);
-  const quizAttempts = useMemo(() => getQuizAttemptsByUserId(user.id), [user.id, dataVersion]);
+  const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [quizAttempts, setQuizAttempts] = useState<QuizAttempt[]>([]);
   const userProgress = useMemo(() => getUserProgress(user.id), [user.id, dataVersion]);
   const allGrades = useMemo(() => getAllGrades(), []);
+
+  useEffect(() => {
+    const fetchData = async () => {
+        const subPromise = getSubscriptionByUserId(user.id);
+        const attemptsPromise = getQuizAttemptsByUserId(user.id);
+        const [subData, attemptsData] = await Promise.all([subPromise, attemptsPromise]);
+        setSubscription(subData);
+        setQuizAttempts(attemptsData);
+    };
+    fetchData();
+  }, [user.id, dataVersion]);
   
   const lessonMap = useMemo(() => {
     const map = new Map<string, { title: string, unit: string }>();
@@ -160,7 +172,7 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
       }
   }
 
-  const handleSubscriptionUpdate = async (plan: any, status: any, endDate?: string) => {
+  const handleSubscriptionUpdate = async (plan: Subscription['plan'], status: 'Active' | 'Expired', endDate?: string) => {
     const { error } = await createOrUpdateSubscription(user.id, plan, status, endDate);
     if (error) {
         addToast(`فشل تحديث الاشتراك: ${error.message}`, ToastType.ERROR);
@@ -266,7 +278,7 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
                 <button onClick={handleDeleteUser} className="px-4 py-2 rounded-md bg-red-600 hover:bg-red-700 transition-colors text-white">نعم، قم بالحذف</button>
             </div>
         </Modal>
-        <SubscriptionModal isOpen={isSubModalOpen} onClose={() => setIsSubModalOpen(false)} subscription={subscription} onSave={handleSubscriptionUpdate} />
+        <SubscriptionModal isOpen={isSubModalOpen} onClose={() => setIsSubModalOpen(false)} subscription={subscription || undefined} onSave={handleSubscriptionUpdate} />
     </div>
   );
 };

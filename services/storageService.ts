@@ -389,6 +389,13 @@ export const createOrUpdateSubscription = async (
     customEndDate?: string,
     teacherId?: string
 ): Promise<{ error: Error | null }> => {
+    // FIX: Add a guard clause to prevent sending null `plan` to the database.
+    if (!plan) {
+        const errorMessage = 'فشل تحديث الاشتراك: خطة الاشتراك غير محددة.';
+        console.error("Error in createOrUpdateSubscription: The 'plan' argument was null or undefined.");
+        return { error: new Error(errorMessage) };
+    }
+
     const startDate = new Date();
     let endDate: Date;
 
@@ -429,7 +436,10 @@ export const createOrUpdateSubscription = async (
 
     if (selectError) {
         console.error("Error checking for existing subscription:", selectError);
-        return { error: new Error(selectError.message) };
+        const errorMessage = typeof selectError === 'object' && selectError !== null && 'message' in selectError 
+            ? String((selectError as any).message) 
+            : 'حدث خطأ عند فحص الاشتراك.';
+        return { error: new Error(errorMessage) };
     }
 
     let dbOperation;
@@ -446,7 +456,10 @@ export const createOrUpdateSubscription = async (
 
     if (dbError) {
         console.error("Error in createOrUpdateSubscription operation:", dbError);
-        return { error: new Error(dbError.message) };
+        const errorMessage = typeof dbError === 'object' && dbError !== null && 'message' in dbError 
+            ? String((dbError as any).message) 
+            : 'حدث خطأ عند تحديث الاشتراك.';
+        return { error: new Error(errorMessage) };
     }
 
     return { error: null };
