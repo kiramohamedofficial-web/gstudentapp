@@ -48,15 +48,20 @@ const QrCodeGeneratorView: React.FC = () => {
         fetchTeachers();
     }, []);
 
-    const teacherOptions = useMemo(() => teachers.map(t => ({ value: t.id, label: t.name })), [teachers]);
+    const teacherOptions = useMemo(() => [
+        { value: 'comprehensive', label: 'اشتراك شامل (كل المدرسين)' },
+        ...teachers.map(t => ({ value: t.id, label: t.name }))
+    ], [teachers]);
 
     const handleGenerate = async () => {
         if (!selectedTeacherId || !durationDays || codeCount < 1 || maxUses < 1) {
             return;
         }
         setIsGenerating(true);
+        const isComprehensive = selectedTeacherId === 'comprehensive';
+        
         const codes = await generateSubscriptionCodes({
-            teacherId: selectedTeacherId,
+            teacherId: isComprehensive ? undefined : selectedTeacherId,
             durationDays: parseInt(durationDays),
             count: codeCount,
             maxUses: maxUses,
@@ -149,11 +154,11 @@ const QrCodeGeneratorView: React.FC = () => {
                     <h2 className="text-xl font-bold text-[var(--text-primary)] mb-6">إعدادات الكود</h2>
                     <div className="space-y-4">
                         <Select
-                            label="المدرس"
+                            label="المدرس / النوع"
                             value={selectedTeacherId}
                             onChange={setSelectedTeacherId}
                             options={teacherOptions}
-                            placeholder="اختر المدرس..."
+                            placeholder="اختر مدرس أو اشتراك شامل..."
                         />
                         <Select
                             label="مدة الاشتراك"
@@ -203,8 +208,10 @@ const QrCodeGeneratorView: React.FC = () => {
                              <div ref={printRef} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {generatedCodes.map(c => (
                                     <div key={c.code} className="code-card p-4 rounded-lg border border-[var(--border-primary)] text-center bg-[var(--bg-tertiary)] flex flex-col justify-center">
-                                        <h3 className="font-semibold">اشتراك {durationDays} يوم</h3>
-                                        <p className="text-xs text-[var(--text-secondary)] mb-3">{teachers.find(t => t.id === c.teacherId)?.name}</p>
+                                        <h3 className="font-semibold">اشتراك {c.durationDays} يوم</h3>
+                                        <p className="text-xs text-[var(--text-secondary)] mb-3">
+                                            {c.teacherId ? teachers.find(t => t.id === c.teacherId)?.name : 'اشتراك شامل'}
+                                        </p>
                                         
                                         <div className="flex items-center justify-between w-full bg-[var(--bg-primary)] rounded p-2 mt-auto">
                                             <p className="code font-mono text-lg font-bold tracking-widest text-[var(--text-primary)]">{c.code}</p>

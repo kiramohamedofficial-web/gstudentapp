@@ -5,7 +5,7 @@ import {
     addUnitToSemester, updateUnit, deleteUnit, addActivityLog, getTeachers
 } from '../../services/storageService';
 import Modal from '../common/Modal';
-import { PlusIcon, PencilIcon, TrashIcon, CheckCircleIcon, VideoCameraIcon, DocumentTextIcon, BookOpenIcon, DotsVerticalIcon, CollectionIcon, ChevronDownIcon, UserCircleIcon } from '../common/Icons';
+import { PlusIcon, PencilIcon, TrashIcon, CheckCircleIcon, VideoCameraIcon, DocumentTextIcon, BookOpenIcon, DotsVerticalIcon, CollectionIcon, ChevronDownIcon, UserCircleIcon, ShieldExclamationIcon } from '../common/Icons';
 import { useToast } from '../../useToast';
 
 // Helper to parse YouTube video ID from various URL formats
@@ -445,6 +445,13 @@ const ContentManagementView: React.FC = () => {
     
     return (
         <div className="flex flex-col h-full">
+            <div className="bg-amber-500/10 border border-amber-500/30 text-amber-300 text-sm rounded-lg p-4 mb-6 flex items-start gap-3">
+                <ShieldExclamationIcon className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                <div>
+                    <h4 className="font-bold">تنبيه للمشرفين</h4>
+                    <p>نظام إدارة المحتوى الحالي لا يدعم التعديلات المتزامنة. لتجنب فقدان البيانات، يرجى التنسيق مع المشرفين الآخرين قبل إجراء أي تغييرات على المنهج.</p>
+                </div>
+            </div>
             <div className="flex-shrink-0 flex flex-col sm:flex-row justify-between sm:items-center mb-6 gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-[var(--text-primary)]">إدارة المحتوى التعليمي</h1>

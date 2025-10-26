@@ -1,22 +1,26 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, lazy, Suspense } from 'react';
 import { Unit, Lesson, StudentView, Theme } from '../../types';
 import { getGradeById } from '../../services/storageService';
 import StudentLayout from '../layout/StudentLayout';
-import CourseView from './CourseView';
-import SubscriptionView from './Subscription';
-import Profile from './Profile';
-import SubjectSelectionScreen from './SubjectSelectionScreen';
-import StudentHomeScreen from './StudentHomeScreen';
-import TeachersView from './TeachersView';
-import CoursesStore from './CoursesStore';
-import SingleSubjectSubscription from './SingleSubjectSubscription';
-import ComprehensiveSubscription from './ComprehensiveSubscription';
-import ResultsView from './ResultsView';
 import { SparklesIcon, ArrowRightIcon } from '../common/Icons';
-import ChatbotView from './ChatbotView';
-import AskTheProfView from './AskTheProfView';
-import AdhkarView from './AdhkarView';
 import { useSession } from '../../hooks/useSession';
+import Loader from '../common/Loader';
+
+// Lazy load all view components for performance optimization
+const CourseView = lazy(() => import('./CourseView'));
+const SubscriptionView = lazy(() => import('./Subscription'));
+const Profile = lazy(() => import('./Profile'));
+const SubjectSelectionScreen = lazy(() => import('./SubjectSelectionScreen'));
+const StudentHomeScreen = lazy(() => import('./StudentHomeScreen'));
+const TeachersView = lazy(() => import('./TeachersView'));
+const CoursesStore = lazy(() => import('./CoursesStore'));
+const SingleSubjectSubscription = lazy(() => import('./SingleSubjectSubscription'));
+const ComprehensiveSubscription = lazy(() => import('./ComprehensiveSubscription'));
+const ResultsView = lazy(() => import('./ResultsView'));
+const ChatbotView = lazy(() => import('./ChatbotView'));
+const AskTheProfView = lazy(() => import('./AskTheProfView'));
+const AdhkarView = lazy(() => import('./AdhkarView'));
+
 
 // --- NEW COMPONENT: CartoonMoviesView START ---
 interface Movie {
@@ -118,6 +122,12 @@ interface StudentDashboardProps {
   theme: Theme;
   setTheme: (theme: Theme) => void;
 }
+
+const SuspenseLoader: React.FC = () => (
+    <div className="w-full h-full flex items-center justify-center">
+        <Loader />
+    </div>
+);
 
 const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
   const { theme, setTheme } = props;
@@ -222,7 +232,9 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
         onNavClick={handleNavClick} 
         gradeName={studentGrade?.name}
     >
-      {renderContent()}
+      <Suspense fallback={<SuspenseLoader />}>
+        {renderContent()}
+      </Suspense>
     </StudentLayout>
   );
 };

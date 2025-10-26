@@ -96,9 +96,18 @@ export const getChatbotResponseStream = async (
       config,
     });
     return responseStream;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Gemini Chat API Error:", error);
+    let userMessage = "حدث خطأ أثناء التواصل مع المساعد الذكي. يرجى المحاولة مرة أخرى.";
+
+    if (error instanceof Error) {
+        if (error.message.includes('API key not valid')) {
+            userMessage = "حدث خطأ في المصادقة مع المساعد الذكي. يرجى التواصل مع الدعم الفني.";
+        } else if (error.message.includes('429')) { // Too Many Requests
+            userMessage = "الطلب على المساعد الذكي مرتفع حاليًا. يرجى الانتظار قليلاً ثم المحاولة مرة أخرى.";
+        }
+    }
     // Re-throw a more user-friendly error
-    throw new Error("حدث خطأ أثناء التواصل مع المساعد الذكي. يرجى المحاولة مرة أخرى.");
+    throw new Error(userMessage);
   }
 };

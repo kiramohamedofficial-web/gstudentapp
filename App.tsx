@@ -9,6 +9,7 @@ import { ToastContainer } from './components/common/Toast';
 import WelcomeScreen from './components/welcome/WelcomeScreen';
 import AuthScreen from './components/auth/AuthScreen';
 import ScreenSecurity from './components/common/ScreenSecurity';
+import ErrorBoundary from './components/common/ErrorBoundary';
 
 const App: React.FC = () => {
   const { currentUser, isLoading, authView, setAuthView } = useSession();
@@ -64,7 +65,9 @@ const App: React.FC = () => {
   return (
     <>
       <div className={`transition-all duration-300`}>
-        {renderContent()}
+        <ErrorBoundary>
+          {renderContent()}
+        </ErrorBoundary>
       </div>
       
       <ToastContainer />

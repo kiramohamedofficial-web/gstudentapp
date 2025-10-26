@@ -1,3 +1,5 @@
+import React from 'react';
+
 export enum Role {
   STUDENT = 'student',
   ADMIN = 'admin',
@@ -15,8 +17,9 @@ export interface User {
   email: string;
   phone: string;
   guardianPhone: string;
-  grade: number;
-  track?: 'Scientific' | 'Literary' | 'Science' | 'Math'; // For 2nd & 3rd year secondary students
+  grade: number | null;
+  stage?: 'Middle' | 'Secondary' | null;
+  track?: 'Scientific' | 'Literary' | 'All' | null; // For 2nd & 3rd year secondary students
   role: Role;
   subscriptionId?: string;
   teacherId?: string; // Links user to a teacher profile
@@ -60,12 +63,14 @@ export interface Unit {
   lessons: Lesson[];
   teacherId: string;
   track?: 'Scientific' | 'Literary' | 'Science' | 'Math' | 'All';
+  semester_id?: string;
 }
 
 export interface Semester {
   id: string;
   title: string;
   units: Unit[];
+  grade_id?: number;
 }
 
 export interface Grade {
@@ -194,7 +199,7 @@ export type Theme = 'dark' | 'light' | 'royal' | 'gold' | 'pink' | 'sunset' | 'f
 
 export interface SubscriptionCode {
     code: string;
-    teacherId: string;
+    teacherId?: string | null;
     durationDays: number;
     maxUses: number;
     timesUsed: number;

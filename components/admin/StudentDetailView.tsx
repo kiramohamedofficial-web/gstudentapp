@@ -2,11 +2,16 @@ import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import { User, Grade, Lesson, LessonType, QuizAttempt, ToastType, Subscription } from '../../types';
 import { 
     getGradeById, getSubscriptionByUserId, getQuizAttemptsByUserId, 
-    getAllGrades, getStudentProgress, updateUser, deleteUser, createOrUpdateSubscription 
+    getAllGrades, getStudentProgress, updateUser, deleteUser, createOrUpdateSubscription, getGradesForSelection 
 } from '../../services/storageService';
 import { ArrowRightIcon, CheckCircleIcon, ClockIcon, PencilIcon, TrashIcon, CreditCardIcon, BookOpenIcon, UsersIcon } from '../common/Icons';
 import Modal from '../common/Modal';
 import { useToast } from '../../useToast';
+
+interface OptionGroup {
+    label: string;
+    options: { value: string; label: string; }[];
+}
 
 const SubscriptionModal: React.FC<{
     isOpen: boolean;
@@ -85,14 +90,17 @@ const StatCard: React.FC<{ icon: React.FC<{className?:string}>; label: string; v
     </div>
 );
 
-const deriveTrackFromGrade = (gradeId: number): 'Scientific' | 'Literary' | 'Science' | 'Math' | undefined => {
+const deriveTrackFromGrade = (gradeId: number): 'Scientific' | 'Literary' | undefined => {
     switch (gradeId) {
-        case 5: return 'Scientific';
-        case 6: return 'Literary';
-        case 7: return 'Science';
-        case 8: return 'Math';
-        case 9: return 'Literary';
-        default: return undefined;
+        case 5: // الثاني الثانوي - علمي
+        case 7: // الثالث الثانوي - علمي علوم
+        case 8: // الثالث الثانوي - علمي رياضيات
+            return 'Scientific';
+        case 6: // الثاني الثانوي - أدبي
+        case 9: // الثالث الثانوي - أدبي
+            return 'Literary';
+        default:
+            return undefined;
     }
 };
 
@@ -103,15 +111,47 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
-  const [editFormData, setEditFormData] = useState<Partial<User> & { password?: string }>({});
+  const [editFormData, setEditFormData] = useState<Partial<User>>({});
   const [userProgress, setUserProgress] = useState<Record<string, boolean>>({});
 
   const refreshData = useCallback(() => setDataVersion(v => v + 1), []);
+  
+  const [allGrades, setAllGrades] = useState<{id: number, name: string, level: 'Middle' | 'Secondary'}[]>([]);
+  const allGradesFromCache = useMemo(() => getAllGrades(), [dataVersion]);
+  
+  const gradeName = useMemo(() => {
+    if (!user.grade) return 'غير محدد';
+    const gradeInfo = allGrades.find(g => g.id === user.grade);
+    return gradeInfo?.name || 'غير محدد';
+  }, [user.grade, allGrades]);
 
-  const grade = useMemo(() => getGradeById(user.grade), [user.grade, dataVersion]);
+  const gradeOptionsForSelect = useMemo(() => {
+    const options: (({ value: string; label: string; }) | OptionGroup)[] = [{ value: '', label: '-- غير محدد --' }];
+    const middleSchool = allGrades.filter(g => g.level === 'Middle');
+    const secondarySchool = allGrades.filter(g => g.level === 'Secondary');
+
+    if (middleSchool.length > 0) {
+        options.push({
+            label: 'المرحلة الإعدادية',
+            options: middleSchool.map(g => ({ value: g.id.toString(), label: g.name }))
+        });
+    }
+    if (secondarySchool.length > 0) {
+        options.push({
+            label: 'المرحلة الثانوية',
+            options: secondarySchool.map(g => ({ value: g.id.toString(), label: g.name }))
+        });
+    }
+    return options;
+  }, [allGrades]);
+
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [quizAttempts, setQuizAttempts] = useState<QuizAttempt[]>([]);
-  const allGrades = useMemo(() => getAllGrades(), []);
+
+  useEffect(() => {
+    const gradesData = getGradesForSelection();
+    setAllGrades(gradesData);
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -141,7 +181,7 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
   
   const lessonMap = useMemo(() => {
     const map = new Map<string, { title: string, unit: string }>();
-    allGrades.forEach(g => {
+    allGradesFromCache.forEach(g => {
         g.semesters.forEach(s => {
             s.units.forEach(u => {
                 u.lessons.forEach(l => {
@@ -151,16 +191,17 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
         });
     });
     return map;
-  }, [allGrades]);
+  }, [allGradesFromCache]);
 
   const { totalLessons, completedLessons, progress } = useMemo(() => {
+    const grade = user.grade ? getGradeById(user.grade) : null;
     if (!grade) return { totalLessons: 0, completedLessons: 0, progress: 0 };
     const allLessons = grade.semesters.flatMap(s => s.units.flatMap(u => u.lessons));
     const total = allLessons.length;
     if (total === 0) return { totalLessons: 0, completedLessons: 0, progress: 0 };
     const completed = allLessons.filter(l => !!userProgress[l.id]).length;
     return { totalLessons: total, completedLessons: completed, progress: Math.round((completed / total) * 100) };
-  }, [grade, userProgress]);
+  }, [user.grade, userProgress]);
 
   const handleOpenEditModal = () => {
     setEditFormData({ ...user });
@@ -172,23 +213,21 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
     setEditFormData(prev => ({ ...prev, [name]: value }));
 };
 
-  const handleUpdateUser = async () => {
+const handleUpdateUser = async () => {
     if (editFormData.id) {
         if (!editFormData.name || !editFormData.phone || !editFormData.guardianPhone) {
             addToast("الرجاء ملء جميع الحقول.", ToastType.ERROR); return;
         }
-        
-        const gradeId = Number(editFormData.grade);
-        const derivedTrack = deriveTrackFromGrade(gradeId);
 
-        // FIX: The original destructuring of optional `id` and `password` properties caused a TypeScript error.
-        // This revised logic safely constructs the payload to avoid the issue.
-        const { id, password, ...profileUpdates } = editFormData;
+        const gradeId = editFormData.grade ? Number(editFormData.grade) : null;
+        const derivedTrack = gradeId ? deriveTrackFromGrade(gradeId) : undefined;
+
+        const { id, ...profileUpdates } = editFormData;
 
         const result = await updateUser(editFormData.id, {
             ...profileUpdates,
             grade: gradeId,
-            track: derivedTrack,
+            track: derivedTrack === undefined ? null : derivedTrack,
         });
 
         if (result?.error) {
@@ -222,7 +261,7 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
     }
   };
 
-  if (!grade) return <div>لا يمكن تحميل بيانات الطالب.</div>;
+  if (!user) return <div>لا يمكن تحميل بيانات الطالب.</div>;
   
   return (
     <div className="fade-in">
@@ -238,7 +277,7 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
                 <div className="flex flex-col items-center text-center">
                     <div className="h-24 w-24 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-4xl mb-4 shadow-lg">{user.name.charAt(0)}</div>
                     <h1 className="text-2xl font-bold text-[var(--text-primary)]">{user.name}</h1>
-                    <p className="text-[var(--text-secondary)]">{grade.name}</p>
+                    <p className="text-[var(--text-secondary)]">{gradeName}</p>
                 </div>
                 <div className="mt-6 pt-6 border-t border-[var(--border-primary)] space-y-2 text-sm">
                     <p className="flex justify-between"><strong>الهاتف:</strong> <span className="text-[var(--text-secondary)]">{user.phone}</span></p>
@@ -304,16 +343,26 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
                 <input type="text" placeholder="الاسم" name="name" value={editFormData.name || ''} onChange={handleEditFormChange} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-primary)]" />
                 <input type="text" placeholder="رقم الهاتف" name="phone" value={editFormData.phone || ''} onChange={handleEditFormChange} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-primary)]" />
                 <input type="text" placeholder="رقم ولي الأمر" name="guardianPhone" value={editFormData.guardianPhone || ''} onChange={handleEditFormChange} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-primary)]" />
-                <select name="grade" value={editFormData.grade || ''} onChange={handleEditFormChange} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-primary)]">
-                    <option value="" disabled>اختر الصف</option>
-                    {allGrades.filter(g => g.level === 'Middle').length > 0 && <optgroup label="المرحلة الإعدادية">
-                        {allGrades.filter(g => g.level === 'Middle').map(g=><option key={g.id} value={g.id}>{g.name}</option>)}
-                    </optgroup>}
-                    {allGrades.filter(g => g.level === 'Secondary').length > 0 && <optgroup label="المرحلة الثانوية">
-                        {allGrades.filter(g => g.level === 'Secondary').map(g=><option key={g.id} value={g.id}>{g.name}</option>)}
-                    </optgroup>}
+                <select
+                    name="grade"
+                    value={String(editFormData.grade || '')}
+                    onChange={handleEditFormChange}
+                    className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-primary)]"
+                >
+                    {gradeOptionsForSelect.map(item => {
+                        if ('options' in item) { // It's a group
+                            return (
+                                <optgroup key={item.label} label={item.label}>
+                                    {item.options.map(option => (
+                                        <option key={option.value} value={option.value}>{option.label}</option>
+                                    ))}
+                                </optgroup>
+                            );
+                        } else { // It's a single option at the top
+                            return <option key={item.value} value={item.value}>{item.label}</option>;
+                        }
+                    })}
                 </select>
-                <input type="password" placeholder="كلمة مرور جديدة (اتركها فارغة لعدم التغيير)" name="password" onChange={handleEditFormChange} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-primary)]" />
                 <div className="flex justify-end pt-4"><button onClick={handleUpdateUser} className="px-5 py-2 font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700">حفظ التغييرات</button></div>
             </div>
        </Modal>

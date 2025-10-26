@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, lazy, Suspense } from 'react';
 import { User, ActivityLog, Grade, Theme, Teacher } from '../../types';
 import AdminLayout from '../layout/AdminLayout';
 import SubscriptionManagementView from './FinancialView';
@@ -25,15 +25,16 @@ import SystemHealthView from './SystemHealthView';
 import Loader from '../common/Loader';
 import { useSession } from '../../hooks/useSession';
 
+const AccountCreationDiagnosticsView = lazy(() => import('./AccountCreationDiagnosticsView'));
 
 interface AdminDashboardProps {
   theme: Theme;
   setTheme: (theme: Theme) => void;
 }
 
-type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'content' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers';
+type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'content' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'systemHealth' | 'accountCreationDiagnostics' | 'accountSettings' | 'teachers';
 
-const StatCard: React.FC<{ title: string; value: string; icon: React.FC<{ className?: string; }>; delay: number; onClick?: () => void; }> = ({ title, value, icon: Icon, delay, onClick }) => (
+const StatCard: React.FC<{ title: string; value: string; icon: React.FC<{ className?: string; }>; delay: number; onClick?: () => void; }> = React.memo(({ title, value, icon: Icon, delay, onClick }) => (
     <div 
         onClick={onClick}
         className={`bg-[var(--bg-secondary)] p-6 rounded-2xl shadow-lg border border-[var(--border-primary)] flex items-center space-x-4 space-x-reverse fade-in ${onClick ? 'transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl hover:border-purple-500/50 cursor-pointer' : ''}`} 
@@ -47,10 +48,11 @@ const StatCard: React.FC<{ title: string; value: string; icon: React.FC<{ classN
             <p className="text-3xl font-bold text-[var(--text-primary)] mt-1">{value}</p>
         </div>
     </div>
-);
+));
 
 const StudentManagementView: React.FC<{ onViewDetails: (user: User) => void }> = ({ onViewDetails }) => {
     const [searchQuery, setSearchQuery] = useState('');
+    const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
     const [gradeFilter, setGradeFilter] = useState('');
     const [allUsers, setAllUsers] = useState<User[]>([]);
     const [subscriptions, setSubscriptions] = useState<Map<string, any>>(new Map());
@@ -59,6 +61,16 @@ const StudentManagementView: React.FC<{ onViewDetails: (user: User) => void }> =
 
     const allGrades = useMemo(() => getAllGrades(), []);
     
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedSearchQuery(searchQuery);
+        }, 300); // 300ms delay
+
+        return () => {
+            clearTimeout(handler);
+        };
+    }, [searchQuery]);
+
     useEffect(() => {
         const fetchData = async () => {
             setIsLoading(true);
@@ -107,12 +119,12 @@ const StudentManagementView: React.FC<{ onViewDetails: (user: User) => void }> =
                 subscription: subscriptions.get(user.id),
             }))
             .filter(user => {
-                const query = searchQuery.toLowerCase();
+                const query = debouncedSearchQuery.toLowerCase();
                 const searchMatch = (user.name && user.name.toLowerCase().includes(query)) || (user.phone && user.phone.includes(query));
                 const gradeMatch = gradeFilter ? user.grade != null && user.grade.toString() === gradeFilter : true;
                 return searchMatch && gradeMatch;
             });
-    }, [allUsers, allGrades, searchQuery, gradeFilter, subscriptions, progressByStudent]);
+    }, [allUsers, allGrades, debouncedSearchQuery, gradeFilter, subscriptions, progressByStudent]);
     
     const uniqueGrades = useMemo(() => {
         const gradeSet = new Set<string>();
@@ -320,6 +332,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
       case 'questionBank': return <QuestionBankView />;
       case 'platformSettings': return <PlatformSettingsView user={user} />;
       case 'systemHealth': return <SystemHealthView />;
+      case 'accountCreationDiagnostics': return <Suspense fallback={<div className="flex justify-center items-center h-64"><Loader /></div>}><AccountCreationDiagnosticsView /></Suspense>;
       case 'accountSettings': return <AdminSettingsView theme={theme} setTheme={setTheme} />;
       case 'dashboard':
       default:

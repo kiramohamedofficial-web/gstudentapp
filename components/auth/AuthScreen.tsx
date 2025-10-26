@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { ArrowRightIcon } from '../common/Icons';
+import React, { useState, useEffect, useMemo } from 'react';
+import { ArrowRightIcon, ChevronDownIcon } from '../common/Icons';
 import { Grade } from '../../types';
 import { validateSubscriptionCode, getGradesForSelection } from '../../services/storageService';
 import { useSession } from '../../hooks/useSession';
@@ -11,6 +11,77 @@ interface AuthScreenProps {
 type AuthView = 'login' | 'register-step-1' | 'register-step-2' | 'code-login';
 type GradeForSelect = Pick<Grade, 'id' | 'name' | 'level'>;
 
+
+const GradeSelectionModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    onSelect: (gradeId: string, gradeName: string) => void;
+    grades: GradeForSelect[];
+}> = ({ isOpen, onClose, onSelect, grades }) => {
+    const [step, setStep] = useState<'level' | 'grade'>('level');
+    const [selectedLevel, setSelectedLevel] = useState<'Middle' | 'Secondary' | null>(null);
+
+    useEffect(() => {
+        if (isOpen) {
+            // Reset on open
+            setStep('level');
+            setSelectedLevel(null);
+        }
+    }, [isOpen]);
+
+    const handleLevelSelect = (level: 'Middle' | 'Secondary') => {
+        setSelectedLevel(level);
+        setStep('grade');
+    };
+
+    const handleGradeSelect = (grade: GradeForSelect) => {
+        onSelect(grade.id.toString(), grade.name);
+    };
+
+    const gradesForLevel = useMemo(() => {
+        if (!selectedLevel) return [];
+        return grades.filter(g => g.level === selectedLevel);
+    }, [grades, selectedLevel]);
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+            <div 
+                className="relative w-full max-w-md p-6 mx-4 rounded-2xl shadow-2xl bg-[rgba(var(--bg-secondary-rgb),0.8)] backdrop-blur-xl border border-[var(--border-primary)] text-[var(--text-primary)] fade-in-up" 
+                onClick={(e) => e.stopPropagation()}
+            >
+                {step === 'level' ? (
+                    <div>
+                        <h3 className="text-xl font-bold text-center mb-6">اختر المرحلة الدراسية</h3>
+                        <div className="grid grid-cols-2 gap-4">
+                            <button onClick={() => handleLevelSelect('Middle')} className="p-8 bg-gradient-to-br from-blue-500 to-sky-500 rounded-lg text-white font-bold text-lg transition-transform hover:scale-105">الإعدادية</button>
+                            <button onClick={() => handleLevelSelect('Secondary')} className="p-8 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-lg text-white font-bold text-lg transition-transform hover:scale-105">الثانوية</button>
+                        </div>
+                    </div>
+                ) : (
+                    <div>
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-xl font-bold">اختر الصف الدراسي</h3>
+                            <button onClick={() => setStep('level')} className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]">تغيير المرحلة</button>
+                        </div>
+                        <div className="space-y-2 max-h-60 overflow-y-auto">
+                            {gradesForLevel.map(grade => (
+                                <button
+                                    key={grade.id}
+                                    onClick={() => handleGradeSelect(grade)}
+                                    className="w-full text-right p-4 rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] transition-colors"
+                                >
+                                    {grade.name}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
 
 const PhoneInput: React.FC<{ name: string; placeholder: string; value: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; required?: boolean; }> = ({ name, placeholder, value, onChange, required = false }) => (
     <div className="relative">
@@ -33,17 +104,19 @@ const normalizePhoneNumber = (phone: string): string => {
     return ''; // Invalid format
 };
 
-const deriveTrackFromGrade = (gradeId: number): 'Scientific' | 'Literary' | 'Science' | 'Math' | undefined => {
+const deriveTrackFromGrade = (gradeId: number): 'Scientific' | 'Literary' | undefined => {
     switch (gradeId) {
-        case 5: return 'Scientific';
-        case 6: return 'Literary';
-        case 7: return 'Science';
-        case 8: return 'Math';
-        case 9: return 'Literary';
-        default: return undefined;
+        case 5: // الثاني الثانوي - علمي
+        case 7: // الثالث الثانوي - علمي علوم
+        case 8: // الثالث الثانوي - علمي رياضيات
+            return 'Scientific';
+        case 6: // الثاني الثانوي - أدبي
+        case 9: // الثالث الثانوي - أدبي
+            return 'Literary';
+        default:
+            return undefined;
     }
 };
-
 
 const AuthScreen: React.FC<AuthScreenProps> = ({ onBack }) => {
     const { handleLogin, handleRegister, authError, clearAuthError } = useSession();
@@ -54,15 +127,20 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onBack }) => {
     const [isLoading, setIsLoading] = useState(false);
     
     const [allGrades, setAllGrades] = useState<GradeForSelect[]>([]);
+    const [isGradeModalOpen, setIsGradeModalOpen] = useState(false);
+    const [selectedGradeName, setSelectedGradeName] = useState('');
     
     useEffect(() => {
-        const fetchGrades = async () => {
-            const grades = await getGradesForSelection();
-            setAllGrades(grades);
-        };
-        fetchGrades();
+        const grades = getGradesForSelection();
+        setAllGrades(grades);
     }, []);
-    
+
+    const handleGradeSelect = (gradeId: string, gradeName: string) => {
+        setFormData(prev => ({ ...prev, grade: gradeId }));
+        setSelectedGradeName(gradeName);
+        setIsGradeModalOpen(false);
+    };
+
     const changeView = (newView: AuthView) => {
         clearAuthError();
         setFormError('');
@@ -106,20 +184,19 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onBack }) => {
                 break;
             case 'register-step-2':
                 if (!formData.grade) {
-                    setFormError('يرجى تحديد الصف الدراسي.');
+                    setFormError('الرجاء اختيار الصف الدراسي.');
                     setIsLoading(false);
                     return;
                 }
-                
-                const gradeId = parseInt(formData.grade, 10);
-                const derivedTrack = deriveTrackFromGrade(gradeId);
+                const gradeId = formData.grade ? parseInt(formData.grade, 10) : null;
+                const derivedTrack = gradeId ? deriveTrackFromGrade(gradeId) : undefined;
 
                 const registrationData = {
                     name: formData.name.trim(), email: formData.email.trim(), password: formData.password,
                     phone: `+20${normalizePhoneNumber(formData.phone)}`,
                     guardianPhone: `+20${normalizePhoneNumber(formData.guardianPhone)}`,
                     grade: gradeId,
-                    track: derivedTrack,
+                    track: derivedTrack || 'All',
                 };
                 await handleRegister(registrationData, code || null);
                 break;
@@ -185,21 +262,22 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onBack }) => {
                     {/* Register Step 2 */}
                     {view === 'register-step-2' && (
                         <>
-                            <div>
-                                <label htmlFor="grade" className="block text-sm font-medium text-[var(--text-secondary)] mb-2">الصف الدراسي</label>
-                                <select name="grade" id="grade" value={formData.grade} onChange={handleChange} required className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg">
-                                    <option value="" disabled>-- اختر الصف --</option>
-                                    {allGrades.filter(g => g.level === 'Middle').length > 0 && <optgroup label="المرحلة الإعدادية">
-                                        {allGrades.filter(g => g.level === 'Middle').map(g=><option key={g.id} value={g.id}>{g.name}</option>)}
-                                    </optgroup>}
-                                    {allGrades.filter(g => g.level === 'Secondary').length > 0 && <optgroup label="المرحلة الثانوية">
-                                        {allGrades.filter(g => g.level === 'Secondary').map(g=><option key={g.id} value={g.id}>{g.name}</option>)}
-                                    </optgroup>}
-                                </select>
+                           <div className="space-y-4">
+                                <label htmlFor="grade" className="block text-sm font-medium text-[var(--text-secondary)] mb-2">اختر الصف الدراسي</label>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsGradeModalOpen(true)}
+                                    className="w-full flex items-center justify-between text-right px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg"
+                                >
+                                    <span className={formData.grade ? 'text-[var(--text-primary)]' : 'text-gray-500'}>
+                                        {formData.grade ? selectedGradeName : '-- اختر الصف الدراسي --'}
+                                    </span>
+                                    <ChevronDownIcon className="w-5 h-5 text-[var(--text-secondary)]" />
+                                </button>
                             </div>
                             <div className="flex gap-4 pt-4">
                                 <button type="button" onClick={() => changeView('register-step-1')} className="w-1/3 py-3.5 font-bold bg-[#212121] text-white rounded-lg">السابق</button>
-                                <button type="submit" disabled={isLoading} className="w-2/3 py-3.5 font-bold text-white bg-green-600 rounded-lg disabled:opacity-60">{isLoading ? 'جاري الإنشاء...' : 'إنشاء الحساب'}</button>
+                                <button type="submit" disabled={isLoading || !formData.grade} className="w-2/3 py-3.5 font-bold text-white bg-green-600 rounded-lg disabled:opacity-60">{isLoading ? 'جاري الإنشاء...' : 'إنشاء الحساب'}</button>
                             </div>
                         </>
                     )}
@@ -211,25 +289,33 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onBack }) => {
     };
 
     return (
-        <div className="flex items-center justify-center min-h-screen p-4 relative overflow-hidden cosmic-flow-background">
-            <button onClick={onBack} className="absolute top-6 right-6 z-20 flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors group">
-                <span>العودة للرئيسية</span><ArrowRightIcon className="w-5 h-5 transition-transform group-hover:translate-x-1" />
-            </button>
-            <div className="relative z-10 p-8 space-y-6 w-full max-w-md bg-[rgba(var(--bg-secondary-rgb),0.6)] backdrop-blur-lg border border-[var(--border-primary)] rounded-2xl shadow-2xl">
-                {renderContent()}
-                <div className="w-full pt-6 border-t border-[var(--border-primary)] text-center space-y-3">
-                    {view === 'login' && (
-                        <>
-                            <p className="text-sm text-[var(--text-secondary)]">ليس لديك حساب؟ <button onClick={() => changeView('register-step-1')} className="font-semibold text-blue-400 hover:text-blue-300">إنشاء حساب جديد</button></p>
-                            <p className="text-sm text-[var(--text-secondary)]">أو <button onClick={() => changeView('code-login')} className="font-semibold text-green-400 hover:text-green-300">تسجيل الدخول بكود اشتراك</button></p>
-                        </>
-                    )}
-                    {(view === 'register-step-1' || view === 'register-step-2' || view === 'code-login') && (
-                        <p className="text-sm text-[var(--text-secondary)]">لديك حساب بالفعل؟ <button onClick={() => changeView('login')} className="font-semibold text-blue-400 hover:text-blue-300">تسجيل الدخول</button></p>
-                    )}
+        <>
+            <div className="flex items-center justify-center min-h-screen p-4 relative overflow-hidden cosmic-flow-background">
+                <button onClick={onBack} className="absolute top-6 right-6 z-20 flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors group">
+                    <span>العودة للرئيسية</span><ArrowRightIcon className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+                </button>
+                <div className="relative z-10 p-8 space-y-6 w-full max-w-md bg-[rgba(var(--bg-secondary-rgb),0.6)] backdrop-blur-lg border border-[var(--border-primary)] rounded-2xl shadow-2xl">
+                    {renderContent()}
+                    <div className="w-full pt-6 border-t border-[var(--border-primary)] text-center space-y-3">
+                        {view === 'login' && (
+                            <>
+                                <p className="text-sm text-[var(--text-secondary)]">ليس لديك حساب؟ <button onClick={() => changeView('register-step-1')} className="font-semibold text-blue-400 hover:text-blue-300">إنشاء حساب جديد</button></p>
+                                <p className="text-sm text-[var(--text-secondary)]">أو <button onClick={() => changeView('code-login')} className="font-semibold text-green-400 hover:text-green-300">تسجيل الدخول بكود اشتراك</button></p>
+                            </>
+                        )}
+                        {(view === 'register-step-1' || view === 'register-step-2' || view === 'code-login') && (
+                            <p className="text-sm text-[var(--text-secondary)]">لديك حساب بالفعل؟ <button onClick={() => changeView('login')} className="font-semibold text-blue-400 hover:text-blue-300">تسجيل الدخول</button></p>
+                        )}
+                    </div>
                 </div>
             </div>
-        </div>
+            <GradeSelectionModal
+                isOpen={isGradeModalOpen}
+                onClose={() => setIsGradeModalOpen(false)}
+                onSelect={handleGradeSelect}
+                grades={allGrades}
+            />
+        </>
     );
 };
 

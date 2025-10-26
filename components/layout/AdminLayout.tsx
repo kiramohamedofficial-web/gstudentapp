@@ -1,9 +1,9 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { User } from '../../types';
-import { CollectionIcon, QrcodeIcon, CreditCardIcon, HomeIcon, XIcon, TemplateIcon, CogIcon, LogoutIcon, UsersIcon, UserCircleIcon, BellIcon, QuestionMarkCircleIcon } from '../common/Icons';
+import { CollectionIcon, QrcodeIcon, CreditCardIcon, HomeIcon, XIcon, TemplateIcon, CogIcon, LogoutIcon, UsersIcon, UserCircleIcon, BellIcon, QuestionMarkCircleIcon, UserCheckIcon } from '../common/Icons';
 import { getPendingSubscriptionRequestCount } from '../../services/storageService';
 
-type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'content' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers';
+type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'content' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'systemHealth' | 'accountCreationDiagnostics' | 'accountSettings' | 'teachers';
 
 const SystemHealthIcon: React.FC<{ className?: string }> = ({ className }) => (
     <img src="https://g.top4top.io/p_3584g68tl0.png" alt="System Health" className={className} />
@@ -17,7 +17,7 @@ interface AdminLayoutProps {
   activeView: string;
 }
 
-const navItems = [
+const mainNavItems = [
     { id: 'dashboard', label: 'الرئيسية', icon: HomeIcon },
     { id: 'students', label: 'إدارة الطلاب', icon: UsersIcon },
     { id: 'teachers', label: 'إدارة المدرسين', icon: UserCircleIcon },
@@ -26,10 +26,14 @@ const navItems = [
     { id: 'subscriptions', label: 'الاشتراكات', icon: CreditCardIcon },
     { id: 'tools', label: 'أكواد الاشتراكات', icon: QrcodeIcon },
     { id: 'questionBank', label: 'بنك الأسئلة', icon: QuestionMarkCircleIcon },
-    { id: 'platformSettings', label: 'إعدادات المنصة', icon: CogIcon },
-    { id: 'systemHealth', label: 'الأمان والصحة', icon: SystemHealthIcon },
-    { id: 'accountSettings', label: 'إعدادات الحساب', icon: UserCircleIcon },
 ];
+
+const settingsNavItems = [
+    { id: 'platformSettings', label: 'إعدادات المنصة', icon: CogIcon },
+    { id: 'systemHealth', label: 'فحص الأعطال', icon: SystemHealthIcon },
+    { id: 'accountCreationDiagnostics', label: 'فحص إنشاء الحساب', icon: UserCheckIcon },
+];
+
 
 const NavButton: React.FC<{
     onClick: () => void;
@@ -76,37 +80,35 @@ const PendingRequestsCard: React.FC<{ count: number; onNavClick: () => void; }> 
 };
 
 
-const NavContent: React.FC<{ activeView: string; onNavClick: (view: AdminView) => void; onLogout: () => void; pendingRequestsCount: number }> = ({ activeView, onNavClick, onLogout, pendingRequestsCount }) => (
+const NavContent: React.FC<{ activeView: string; onNavClick: (view: AdminView) => void; pendingRequestsCount: number }> = ({ activeView, onNavClick, pendingRequestsCount }) => (
     <div className="flex flex-col flex-1 overflow-y-auto">
-        <nav className="mt-2 flex-grow p-4 space-y-1.5">
-            {navItems.map((item) => (
-                <NavButton
-                    key={item.id}
-                    onClick={() => onNavClick(item.id as AdminView)}
-                    label={item.label}
-                    icon={item.icon}
-                    isActive={activeView === item.id}
-                />
-            ))}
+        <nav className="mt-2 flex-grow p-4">
+             <p className="px-3 mb-2 text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">الإدارة الرئيسية</p>
+             <div className="space-y-1.5">
+                {mainNavItems.map((item) => (
+                    <NavButton key={item.id} onClick={() => onNavClick(item.id as AdminView)} label={item.label} icon={item.icon} isActive={activeView === item.id}/>
+                ))}
+            </div>
+
+            <div className="pt-4 mt-4 border-t border-[var(--border-primary)]">
+                <p className="px-3 mb-2 text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">الإعدادات والصيانة</p>
+                <div className="space-y-1.5">
+                    {settingsNavItems.map((item) => (
+                        <NavButton key={item.id} onClick={() => onNavClick(item.id as AdminView)} label={item.label} icon={item.icon} isActive={activeView === item.id}/>
+                    ))}
+                </div>
+            </div>
         </nav>
 
         <PendingRequestsCard count={pendingRequestsCount} onNavClick={() => onNavClick('subscriptions')} />
-
-        <div className="p-4 border-t border-[var(--border-primary)]">
-            <button
-                onClick={onLogout}
-                className="w-full flex items-center p-3 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors duration-200 space-x-4 space-x-reverse"
-            >
-                <LogoutIcon className="w-6 h-6" />
-                <span className="text-md font-semibold">تسجيل الخروج</span>
-            </button>
-        </div>
     </div>
 );
 
 const AdminLayout: React.FC<AdminLayoutProps> = ({ user, onLogout, children, onNavClick, activeView }) => {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
       const fetchPendingCount = async () => {
@@ -114,10 +116,19 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ user, onLogout, children, onN
           setPendingRequestsCount(count);
       };
       fetchPendingCount();
-      // Optional: Set up an interval to refresh the count periodically
       const interval = setInterval(fetchPendingCount, 60000); // every minute
       return () => clearInterval(interval);
-  }, [children]); // Refetch when main content changes as it might affect the count
+  }, [children]);
+
+   useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+                setIsProfileMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
   const handleMobileNavClick = (view: AdminView) => {
     onNavClick(view);
@@ -138,7 +149,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ user, onLogout, children, onN
             </div>
           </div>
           <div className="w-full h-px bg-[var(--border-primary)] flex-shrink-0"></div>
-          <NavContent activeView={activeView} onNavClick={onNavClick} onLogout={onLogout} pendingRequestsCount={pendingRequestsCount}/>
+          <NavContent activeView={activeView} onNavClick={onNavClick} pendingRequestsCount={pendingRequestsCount}/>
         </aside>
 
         <div className="flex-1 flex flex-col overflow-hidden md:rounded-2xl">
@@ -148,7 +159,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ user, onLogout, children, onN
                     <div className="header-logo-icon" style={{background: 'linear-gradient(135deg, #a855f7, #ec4899)'}}>
                         <i className="fa-solid fa-gear text-white"></i>
                     </div>
-                    <span>لوحة التحكم</span>
+                    <span className="hidden md:inline">لوحة التحكم</span>
                 </div>
 
                 <div className="header-actions">
@@ -156,8 +167,23 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ user, onLogout, children, onN
                         <i className="fas fa-bell"></i>
                         {pendingRequestsCount > 0 && <span className="badge">{pendingRequestsCount}</span>}
                     </button>
-                    <div onClick={() => onNavClick('accountSettings')} className="user-avatar" style={{background: 'linear-gradient(135deg, #a855f7, #ec4899)'}}>
-                        {user.name.charAt(0)}
+                    <div className="relative">
+                        <div onClick={() => setIsProfileMenuOpen(p => !p)} className="user-avatar" style={{background: 'linear-gradient(135deg, #a855f7, #ec4899)'}}>
+                            {user.name.charAt(0)}
+                        </div>
+                        {isProfileMenuOpen && (
+                            <div ref={profileMenuRef} className="absolute top-full mt-3 left-0 w-64 bg-[var(--bg-primary)] border border-[var(--border-secondary)] rounded-2xl shadow-lg z-50 fade-in-up overflow-hidden">
+                                <div className="p-4 border-b border-[var(--border-primary)]">
+                                    <p className="font-bold text-md text-[var(--text-primary)] truncate">{user.name}</p>
+                                    <p className="text-xs text-[var(--text-secondary)]">مدير النظام</p>
+                                </div>
+                                <div className="p-2 space-y-1">
+                                    <button onClick={() => { onNavClick('accountSettings'); setIsProfileMenuOpen(false); }} className="w-full flex items-center p-3 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 space-x-3 space-x-reverse text-right"><CogIcon className="w-5 h-5 text-[var(--text-secondary)]" /><span>إعدادات الحساب</span></button>
+                                </div>
+                                <div className="h-px bg-[var(--border-primary)] mx-2"></div>
+                                <div className="p-2"><button onClick={onLogout} className="w-full flex items-center p-3 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors duration-200 space-x-3 space-x-reverse text-right"><LogoutIcon className="w-5 h-5" /><span>تسجيل الخروج</span></button></div>
+                            </div>
+                        )}
                     </div>
                     <div className="menu-toggle md:hidden" onClick={() => setIsMobileNavOpen(true)}>
                         <span></span>
@@ -189,7 +215,16 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ user, onLogout, children, onN
                   <XIcon className="w-6 h-6" />
               </button>
             </div>
-            <NavContent activeView={activeView} onNavClick={handleMobileNavClick} onLogout={onLogout} pendingRequestsCount={pendingRequestsCount} />
+            <NavContent activeView={activeView} onNavClick={handleMobileNavClick} pendingRequestsCount={pendingRequestsCount} />
+             <div className="p-4 border-t border-[var(--border-primary)]">
+                <button
+                    onClick={onLogout}
+                    className="w-full flex items-center p-3 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors duration-200 space-x-4 space-x-reverse"
+                >
+                    <LogoutIcon className="w-6 h-6" />
+                    <span className="text-md font-semibold">تسجيل الخروج</span>
+                </button>
+            </div>
           </div>
         </div>
       )}

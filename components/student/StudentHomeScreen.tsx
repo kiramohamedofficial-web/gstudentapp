@@ -160,7 +160,14 @@ const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({ user, onNavigate 
             <header className="flex justify-between items-start fade-in">
                 <div>
                     <h1 className="text-2xl font-bold text-[var(--text-primary)]">أهلاً بعودتك، {user.name.split(' ')[0]}!</h1>
-                    <p className="text-md text-[var(--text-secondary)] mt-1">لنكمل رحلتنا نحو التفوق.</p>
+                    <p className="text-md text-[var(--text-secondary)] mt-1">
+                        {grade?.name}
+                        {user.track && user.track !== 'All' && (
+                            <span className="font-semibold mx-1">
+                                - المسار: {user.track === 'Scientific' ? 'علمي' : 'أدبي'}
+                            </span>
+                        )}
+                    </p>
                 </div>
                 <div className="home-card p-4 rounded-2xl text-center flex-shrink-0">
                     <p className="text-xs text-[var(--text-secondary)] mb-1">معدل الإنجاز</p>

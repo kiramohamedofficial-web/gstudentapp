@@ -4,6 +4,7 @@ import App from './App';
 import { ToastProvider } from './ToastContext';
 import { SessionProvider } from './hooks/useSession';
 import { SubscriptionProvider } from './hooks/useSubscription';
+import { initData } from './services/storageService';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -11,14 +12,18 @@ if (!rootElement) {
 }
 
 const root = ReactDOM.createRoot(rootElement);
-root.render(
-  <React.StrictMode>
-    <ToastProvider>
-      <SessionProvider>
-        <SubscriptionProvider>
-          <App />
-        </SubscriptionProvider>
-      </SessionProvider>
-    </ToastProvider>
-  </React.StrictMode>
-);
+
+// Initialize data before rendering the app to ensure all components have access to it.
+initData().then(() => {
+  root.render(
+    <React.StrictMode>
+      <ToastProvider>
+        <SessionProvider>
+          <SubscriptionProvider>
+            <App />
+          </SubscriptionProvider>
+        </SessionProvider>
+      </ToastProvider>
+    </React.StrictMode>
+  );
+});

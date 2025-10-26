@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import { Course, Book, ToastType } from '../../types';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { Course, Book, ToastType, Teacher } from '../../types';
 import { 
     getFeaturedCourses, addFeaturedCourse, updateFeaturedCourse, deleteFeaturedCourse,
     getFeaturedBooks, addFeaturedBook, updateFeaturedBook, deleteFeaturedBook, getTeachers
@@ -61,7 +61,15 @@ const HomeManagementView: React.FC = () => {
 
     const courses = useMemo(() => getFeaturedCourses(), [dataVersion]);
     const books = useMemo(() => getFeaturedBooks(), [dataVersion]);
-    const teachers = useMemo(() => getTeachers(), []);
+    
+    const [teachers, setTeachers] = useState<Teacher[]>([]);
+    useEffect(() => {
+        const fetchTeachers = async () => {
+            const teacherData = await getTeachers();
+            setTeachers(teacherData);
+        };
+        fetchTeachers();
+    }, [dataVersion]);
 
     const refreshData = useCallback(() => setDataVersion(v => v + 1), []);
     

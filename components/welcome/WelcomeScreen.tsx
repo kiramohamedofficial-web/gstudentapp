@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getAllGrades, getPlatformSettings, initData } from '../../services/storageService';
+import { getAllGrades, getPlatformSettings } from '../../services/storageService';
 import { Grade, PlatformSettings } from '../../types';
 import { AtomIcon, ArrowLeftIcon, PhoneIcon, YoutubeIcon, FacebookIcon, SparklesIcon, ChartBarIcon, VideoCameraIcon, BrainIcon, BookOpenIcon, ArrowRightIcon, MenuIcon, XIcon } from '../common/Icons';
 
@@ -241,14 +241,9 @@ const GradesSection: React.FC<{ onNavigateToLogin: () => void }> = ({ onNavigate
     const [grades, setGrades] = useState<Grade[]>([]);
 
     useEffect(() => {
-        // This effect ensures that grade data is loaded whenever this section is interacted with,
-        // solving potential race conditions on initial app load.
-        const loadAllGrades = async () => {
-            await initData();
-            setGrades(getAllGrades());
-        };
-        loadAllGrades();
-    }, [selectedLevel]);
+        // Data is pre-initialized in index.tsx, so we can just grab it synchronously.
+        setGrades(getAllGrades());
+    }, []);
 
     const middleSchoolGrades = grades.filter(g => g.level === 'Middle').sort((a, b) => a.id - b.id);
     const secondarySchoolGrades = grades.filter(g => g.level === 'Secondary').sort((a, b) => a.id - b.id);

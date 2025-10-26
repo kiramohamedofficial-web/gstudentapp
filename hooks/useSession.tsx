@@ -1,7 +1,6 @@
 import React, { createContext, useState, useEffect, useCallback, useContext } from 'react';
 import { User } from '../types';
 import { 
-    initData, 
     registerAndRedeemCode,
     signIn,
     signUp,
@@ -9,7 +8,9 @@ import {
     onAuthStateChange,
     getProfile,
     getSession,
-    addActivityLog
+    addActivityLog,
+    updateUser,
+    deleteUser
 } from '../services/storageService';
 import { useToast } from '../useToast';
 
@@ -38,13 +39,10 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     
     useEffect(() => {
         const initializeApp = async () => {
-            await initData();
-            
             const { data: { subscription } } = onAuthStateChange(async (session) => {
                 if (session) {
                     let profile: User | null = null;
                     let attempts = 0;
-                    // Retry logic to handle race condition with DB trigger on sign up
                     while (!profile && attempts < 5) {
                         profile = await getProfile(session.user.id);
                         if (!profile) {
@@ -94,18 +92,36 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   
     const handleRegister = useCallback(async (userData: any, codeToRegister: string | null): Promise<void> => {
         setAuthError('');
+        
+        const postSignUpUpdate = async (userId: string) => {
+            const { error: updateError } = await updateUser(userId, {
+                grade: userData.grade,
+                track: userData.track,
+            });
+            if (updateError) {
+                console.error("Post-registration update failed:", updateError.message);
+                addToast('تم إنشاء الحساب، ولكن قد تحتاج إلى تحديث صفك الدراسي يدويًا من ملفك الشخصي.', 'warning');
+            }
+        };
+
         if (codeToRegister) {
-            const { error } = await registerAndRedeemCode(userData, codeToRegister);
-            if (error) {
+            const { data, error } = await registerAndRedeemCode(userData, codeToRegister);
+            if (error && !data?.userId) { // A fatal error occurred
                 setAuthError(error);
-            } else {
-                 addToast(`مرحباً بك ${userData.name}! تم إنشاء حسابك وتفعيل اشتراكك.`, 'success');
+            } else if (data?.userId) {
+                await postSignUpUpdate(data.userId);
+                if (error) { // Non-fatal error (e.g., code redeem failed)
+                    setAuthError(error);
+                } else {
+                    addToast(`مرحباً بك ${userData.name}! تم إنشاء حسابك وتفعيل اشتراكك.`, 'success');
+                }
             }
         } else {
-            const { error } = await signUp(userData);
+            const { data, error } = await signUp(userData);
             if (error) {
                 setAuthError(error.message);
-            } else {
+            } else if (data.user) {
+                await postSignUpUpdate(data.user.id);
                 addToast(`تم إنشاء حسابك بنجاح! مرحباً بك.`, 'success');
             }
         }

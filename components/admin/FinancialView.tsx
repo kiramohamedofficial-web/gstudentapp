@@ -49,6 +49,11 @@ const ApprovalModal: React.FC<{
         <Modal isOpen={isOpen} onClose={onClose} title={`تفعيل اشتراك ${request.userName}`}>
             <div className="space-y-4">
                 <p>أنت على وشك تفعيل باقة <span className="font-bold">{request.plan}</span> للطالب.</p>
+                {request.subjectName && (
+                    <p className="text-sm bg-[var(--bg-tertiary)] p-2 rounded-md">
+                        المادة المطلوبة: <span className="font-bold text-[var(--text-primary)]">{request.subjectName}</span>
+                    </p>
+                )}
                 <div>
                     <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">تاريخ الانتهاء (اختياري)</label>
                     <input

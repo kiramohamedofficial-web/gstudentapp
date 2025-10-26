@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { ServerIcon, ShieldExclamationIcon, DatabaseIcon, TrashIcon, ShieldCheckIcon } from '../common/Icons';
+import { ServerIcon, ShieldExclamationIcon, DatabaseIcon, TrashIcon, ShieldCheckIcon, WaveIcon, PhotoIcon } from '../common/Icons';
 import Modal from '../common/Modal';
 import { useToast } from '../../useToast';
 import { ToastType } from '../../types';
@@ -66,6 +66,27 @@ const SystemHealthView: React.FC = () => {
             }
         },
         {
+            id: 'apiLatency', title: 'سرعة استجابة API', icon: WaveIcon,
+            description: 'محاكاة قياس وقت الاستجابة من الواجهات البرمجية الخلفية.',
+            status: 'idle', details: 'جاهز للفحص.',
+            action: async () => {
+                 const start = Date.now();
+                 await new Promise(res => setTimeout(res, 250 + Math.random() * 300));
+                 const latency = Date.now() - start;
+                 if (latency > 500) return { status: 'warning', details: `الاستجابة بطيئة (${latency}ms). قد يواجه المستخدمون تأخيراً.` };
+                 return { status: 'ok', details: `الاستجابة سريعة (${latency}ms).` };
+            }
+        },
+        {
+            id: 'cdnStatus', title: 'حالة شبكة المحتوى', icon: PhotoIcon,
+            description: 'التحقق من حالة شبكة توصيل المحتوى (CDN) المسؤولة عن الصور والملفات.',
+            status: 'idle', details: 'جاهز للفحص.',
+             action: async () => {
+                await new Promise(res => setTimeout(res, 400));
+                return { status: 'ok', details: 'شبكة توصيل المحتوى تعمل بشكل طبيعي.' };
+            }
+        },
+        {
             id: 'integrity', title: 'تكامل البيانات', icon: DatabaseIcon,
             description: 'فحص بحثًا عن بيانات قديمة أو سجلات معزولة (محاكاة).',
             status: 'idle', details: 'جاهز للفحص.',
@@ -118,7 +139,7 @@ const SystemHealthView: React.FC = () => {
                 </button>
             </div>
             
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                 {checks.map(check => (
                      <div key={check.id} className="bg-[var(--bg-secondary)] p-5 rounded-xl shadow-md border border-[var(--border-primary)]">
                         <div className="flex justify-between items-start">

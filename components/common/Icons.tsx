@@ -328,6 +328,12 @@ export const TreeIcon: React.FC<IconProps> = ({ className }) => (
         <path d="M12,2L17.5,11H6.5L12,2M12,2L13.06,4.12L12,6L10.94,4.12L12,2M12,7L14.33,11H9.67L12,7M18.5,13L15,19H22L18.5,13M5.5,13L2,19H9L5.5,13M12,12L10,16H14L12,12Z" />
     </svg>
 );
+export const UserCheckIcon: React.FC<IconProps> = ({ className }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.5 15.5l1.5 1.5 3-3" />
+  </svg>
+);
 export const UserCircleIcon: React.FC<IconProps> = ({ className }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />

@@ -252,6 +252,7 @@ const TeacherManagementView: React.FC = () => {
     
     const refreshData = useCallback(() => setDataVersion(v => v + 1), []);
 
+    // FIX: This function now correctly handles create/update logic and error checking.
     const handleSave = async (data: TeacherModalSaveData) => {
         try {
             let result: { success: boolean, error?: any };
@@ -262,8 +263,10 @@ const TeacherManagementView: React.FC = () => {
                 if (!updates.password?.trim()) {
                     delete updates.password;
                 }
+                // FIX: Call updateTeacher with two arguments (id, updates).
                 result = await updateTeacher(id, updates);
             } else { // Adding
+                // FIX: Use createTeacher instead of a non-existent function.
                 // FIX: Map TeacherModalSaveData to the shape expected by createTeacher.
                 result = await createTeacher({
                     email: data.email,
@@ -277,7 +280,9 @@ const TeacherManagementView: React.FC = () => {
                 });
             }
             
+            // FIX: Check for the `success` flag for better reliability.
             if (!result.success) {
+                // Supabase errors are objects with a message property.
                 throw new Error(result.error.message || 'حدث خطأ غير متوقع.');
             } else {
                 addToast(data.id ? 'تم تحديث بيانات المدرس بنجاح.' : 'تمت إضافة المدرس بنجاح.', ToastType.SUCCESS);
