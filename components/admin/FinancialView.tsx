@@ -115,7 +115,7 @@ const SubscriptionManagementView: React.FC = () => {
     const handleApproveConfirm = async (request: SubscriptionRequest, plan: Subscription['plan'], customEndDate?: string) => {
         const teacherId = request.unitId ? findTeacherIdForUnit(request.unitId) : undefined;
         
-        const { error } = await createOrUpdateSubscription(request.userId, plan, 'Active', customEndDate, teacherId, request.unitId);
+        const { error } = await createOrUpdateSubscription(request.userId, plan, 'Active', customEndDate, teacherId);
         
         if (error) {
             addToast(`فشل تفعيل الاشتراك: ${error.message}`, ToastType.ERROR);

@@ -307,9 +307,21 @@ export async function checkUserSubscription(userId: string) {
     };
 }
   
-export async function getUserSubscriptions(userId: string) {
-    const { data } = await supabase.from('subscriptions').select('*').eq('user_id', userId).order('created_at', { ascending: false });
-    return data;
+export async function getSubscriptionsByUserId(userId: string): Promise<Subscription[]> {
+    const { data, error } = await supabase.from('subscriptions').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+    if (error) {
+        console.error('Error fetching user subscriptions:', error);
+        return [];
+    }
+    return (data || []).map(s => ({
+        id: s.id,
+        userId: s.user_id,
+        plan: s.plan,
+        startDate: s.start_date,
+        endDate: s.end_date,
+        status: s.status,
+        teacherId: s.teacher_id,
+    }));
 }
 
 export async function createSubscription(subscriptionData: any) {
@@ -331,8 +343,7 @@ export const createOrUpdateSubscription = async (
     plan: Subscription['plan'],
     status: 'Active' | 'Expired',
     customEndDate?: string,
-    teacherId?: string,
-    unitId?: string
+    teacherId?: string
 ): Promise<{ error: Error | null }> => {
     const startDate = new Date();
     let endDate: Date;
@@ -357,18 +368,17 @@ export const createOrUpdateSubscription = async (
         end_date: endDate.toISOString(),
         status,
         teacher_id: teacherId,
-        unit_id: unitId
     };
 
     // 1. Check for an existing subscription matching the criteria
     let query = supabase.from('subscriptions').select('id').eq('user_id', userId);
 
-    if (unitId) {
-        // Subject-specific subscription: conflict on user_id + unit_id
-        query = query.eq('unit_id', unitId);
+    if (teacherId) {
+        // Teacher-specific subscription: conflict on user_id + teacher_id
+        query = query.eq('teacher_id', teacherId);
     } else {
-        // Comprehensive subscription: conflict on user_id where unit_id is NULL
-        query = query.is('unit_id', null);
+        // Comprehensive subscription: conflict on user_id where teacher_id is NULL
+        query = query.is('teacher_id', null);
     }
     
     const { data: existing, error: selectError } = await query.maybeSingle();
@@ -468,7 +478,7 @@ export const addUnitToSemester = (gradeId: number, semesterId: string, unitData:
 export const getSubscriptionsByTeacherId = async (teacherId: string): Promise<Subscription[]> => { 
     const { data, error } = await supabase.from('subscriptions').select('*').eq('teacher_id', teacherId); 
     if (error) { console.error('Error fetching subscriptions by teacher:', error); return []; } 
-    return (data || []).map(s => ({ id: s.id, userId: s.user_id, plan: s.plan, startDate: s.start_date, endDate: s.end_date, status: s.status, teacherId: s.teacher_id, unitId: s.unit_id })); 
+    return (data || []).map(s => ({ id: s.id, userId: s.user_id, plan: s.plan, startDate: s.start_date, endDate: s.end_date, status: s.status, teacherId: s.teacher_id })); 
 };
 
 export const getSubscriptionRequests = async (): Promise<SubscriptionRequest[]> => { const { data, error } = await supabase.from('subscription_requests').select('*').order('created_at', { ascending: false }); if (error) { console.error(error); return []; } return (data || []).map(r => ({ ...r, userId: r.user_id, userName: r.user_name, paymentFromNumber: r.payment_from_number, createdAt: r.created_at, subjectName: r.subject_name, unitId: r.unit_id }));};
@@ -568,9 +578,9 @@ export const answerStudentQuestion = async (questionId: string, answerText: stri
 export const getAllSubscriptions = async (): Promise<Subscription[]> => {
     const { data, error } = await supabase.from('subscriptions').select('*');
     if (error) { console.error('Error fetching subscriptions:', error); return []; }
-    return (data || []).map(s => ({ id: s.id, userId: s.user_id, plan: s.plan, startDate: s.start_date, endDate: s.end_date, status: s.status, teacherId: s.teacher_id, unitId: s.unit_id }));
+    return (data || []).map(s => ({ id: s.id, userId: s.user_id, plan: s.plan, startDate: s.start_date, endDate: s.end_date, status: s.status, teacherId: s.teacher_id }));
 };
 export const getSubscriptionByUserId = async (userId: string): Promise<Subscription | null> => {
-    const subs = await getUserSubscriptions(userId);
+    const subs = await getSubscriptionsByUserId(userId);
     return subs?.[0] || null;
 }

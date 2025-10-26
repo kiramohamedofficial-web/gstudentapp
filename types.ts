@@ -30,7 +30,6 @@ export interface Subscription {
   endDate: string;
   status: 'Active' | 'Expired';
   teacherId?: string;
-  unitId?: string;
 }
 
 export enum LessonType {

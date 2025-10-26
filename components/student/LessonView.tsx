@@ -19,7 +19,7 @@ interface LessonViewProps {
 
 const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, grade, onLessonComplete, onNavigate }) => {
     const { currentUser: user } = useSession();
-    const { subscription, isLoading: isSubLoading } = useSubscription();
+    const { subscriptions, isLoading: isSubLoading } = useSubscription();
 
     const [isHelpModalOpen, setHelpModalOpen] = useState(false);
     const [aiQuestion, setAiQuestion] = useState('');
@@ -32,10 +32,38 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, grade, onLesson
         setCurrentLesson(lesson);
     }, [lesson]);
 
-    const hasActiveSubscription = useMemo(() => {
-        if (!subscription || subscription.status !== 'Active') return false;
-        return new Date(subscription.endDate) >= new Date();
-    }, [subscription]);
+    const { hasActiveSubscription, lessonTeacherId } = useMemo(() => {
+        // Find the unit and teacher for the current lesson
+        let teacherId: string | undefined;
+        for (const semester of grade.semesters) {
+            const unit = semester.units.find(u => u.lessons.some(l => l.id === currentLesson.id));
+            if (unit) {
+                teacherId = unit.teacherId;
+                break;
+            }
+        }
+
+        const activeSubs = subscriptions.filter(s => s.status === 'Active' && new Date(s.endDate) >= new Date());
+        
+        if (activeSubs.length === 0) {
+            return { hasActiveSubscription: false, lessonTeacherId: teacherId };
+        }
+
+        // Check for comprehensive subscription (no teacherId)
+        const hasComprehensive = activeSubs.some(s => !s.teacherId);
+        if (hasComprehensive) {
+            return { hasActiveSubscription: true, lessonTeacherId: teacherId };
+        }
+        
+        // Check for teacher-specific subscription
+        if (teacherId) {
+            const hasTeacherSub = activeSubs.some(s => s.teacherId === teacherId);
+            return { hasActiveSubscription: hasTeacherSub, lessonTeacherId: teacherId };
+        }
+        
+        return { hasActiveSubscription: false, lessonTeacherId: teacherId };
+
+    }, [subscriptions, currentLesson, grade]);
 
     const subjectTitle = useMemo(() => {
         for (const semester of grade.semesters) {
