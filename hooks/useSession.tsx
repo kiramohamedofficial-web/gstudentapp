@@ -42,11 +42,22 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
             
             const { data: { subscription } } = onAuthStateChange(async (session) => {
                 if (session) {
-                    const profile = await getProfile(session.user.id);
+                    let profile: User | null = null;
+                    let attempts = 0;
+                    // Retry logic to handle race condition with DB trigger on sign up
+                    while (!profile && attempts < 5) {
+                        profile = await getProfile(session.user.id);
+                        if (!profile) {
+                            attempts++;
+                            await new Promise(res => setTimeout(res, 1000 * attempts));
+                        }
+                    }
+
                     if (profile) {
                         setCurrentUser(profile);
                     } else {
-                        console.error("User is logged in but profile data is missing.");
+                        console.error("User is logged in but profile data is missing after multiple attempts.");
+                        addToast('فشل تحميل بيانات الملف الشخصي. قد تحتاج إلى تسجيل الخروج والدخول مرة أخرى.', 'error');
                         await signOut();
                         setCurrentUser(null);
                     }
@@ -67,13 +78,17 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         };
         
         initializeApp();
-    }, []);
+    }, [addToast]);
 
     const handleLogin = useCallback(async (identifier: string, password: string): Promise<void> => {
         setAuthError('');
         const { error } = await signIn(identifier, password);
         if (error) {
-            setAuthError('بيانات الدخول غير صحيحة.');
+            if (error.message.includes('Invalid login credentials')) {
+                setAuthError('بيانات الدخول غير صحيحة. يرجى التحقق من البريد الإلكتروني/رقم الهاتف وكلمة المرور.');
+            } else {
+                setAuthError(error.message);
+            }
         }
     }, []);
   

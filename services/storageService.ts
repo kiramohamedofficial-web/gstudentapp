@@ -107,7 +107,12 @@ export const onAuthStateChange = (callback: (session: Session | null) => void) =
 
 export const getProfile = async (userId: string): Promise<User | null> => {
     const { data: userData, error } = await supabase.from('users').select('*, grades(*)').eq('id', userId).single();
-    if (error) { console.error("Error fetching full user profile:", error); return null; }
+    if (error) {
+        if (error.code !== 'PGRST116') { // PGRST116 => "The result contains 0 rows"
+            console.error("Error fetching full user profile:", error.message || error);
+        }
+        return null;
+    }
     const { data: { user: authUser } } = await supabase.auth.getUser();
     return {
         id: userData.id, email: authUser?.email || '', name: userData.name, phone: userData.phone,
