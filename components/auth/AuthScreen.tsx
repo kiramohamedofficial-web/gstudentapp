@@ -33,17 +33,27 @@ const normalizePhoneNumber = (phone: string): string => {
     return ''; // Invalid format
 };
 
+const deriveTrackFromGrade = (gradeId: number): 'Scientific' | 'Literary' | 'Science' | 'Math' | undefined => {
+    switch (gradeId) {
+        case 5: return 'Scientific';
+        case 6: return 'Literary';
+        case 7: return 'Science';
+        case 8: return 'Math';
+        case 9: return 'Literary';
+        default: return undefined;
+    }
+};
+
 
 const AuthScreen: React.FC<AuthScreenProps> = ({ onBack }) => {
     const { handleLogin, handleRegister, authError, clearAuthError } = useSession();
     const [view, setView] = useState<AuthView>('login');
-    const [formData, setFormData] = useState({ name: '', email: '', phone: '', guardianPhone: '', password: '', confirmPassword: '', level: '', grade: '', track: '' });
+    const [formData, setFormData] = useState({ name: '', email: '', phone: '', guardianPhone: '', password: '', confirmPassword: '', grade: '', track: '' });
     const [code, setCode] = useState('');
     const [formError, setFormError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     
     const [allGrades, setAllGrades] = useState<GradeForSelect[]>([]);
-    const [gradesForLevel, setGradesForLevel] = useState<GradeForSelect[]>([]);
     
     useEffect(() => {
         const fetchGrades = async () => {
@@ -61,20 +71,9 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onBack }) => {
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
-        setFormData(prev => {
-            const isPhone = name === 'phone' || name === 'guardianPhone';
-            const newValue = isPhone ? value.replace(/[^0-9]/g, '') : value;
-            const newState = { ...prev, [name]: newValue };
-            
-            if (name === 'level') {
-                newState.grade = '';
-                newState.track = '';
-                // Atomically update the dependent state to avoid race conditions
-                setGradesForLevel(value ? allGrades.filter(g => g.level === value) : []);
-            }
-            
-            return newState;
-        });
+        const isPhone = name === 'phone' || name === 'guardianPhone';
+        const newValue = isPhone ? value.replace(/[^0-9]/g, '') : value;
+        setFormData(prev => ({ ...prev, [name]: newValue }));
     };
 
     const handleNext = () => {
@@ -106,15 +105,21 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onBack }) => {
                 }
                 break;
             case 'register-step-2':
-                if (!formData.grade) return setFormError('يرجى تحديد الصف الدراسي.');
-                if ((formData.grade === '5' || formData.grade === '6') && !formData.track) return setFormError('يرجى تحديد الشعبة.');
+                if (!formData.grade) {
+                    setFormError('يرجى تحديد الصف الدراسي.');
+                    setIsLoading(false);
+                    return;
+                }
                 
+                const gradeId = parseInt(formData.grade, 10);
+                const derivedTrack = deriveTrackFromGrade(gradeId);
+
                 const registrationData = {
                     name: formData.name.trim(), email: formData.email.trim(), password: formData.password,
                     phone: `+20${normalizePhoneNumber(formData.phone)}`,
                     guardianPhone: `+20${normalizePhoneNumber(formData.guardianPhone)}`,
-                    grade: parseInt(formData.grade, 10),
-                    track: (formData.grade === '5' || formData.grade === '6') ? formData.track as any : undefined,
+                    grade: gradeId,
+                    track: derivedTrack,
                 };
                 await handleRegister(registrationData, code || null);
                 break;
@@ -181,29 +186,17 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onBack }) => {
                     {view === 'register-step-2' && (
                         <>
                             <div>
-                                <label htmlFor="level" className="block text-sm font-medium text-[var(--text-secondary)] mb-2">المرحلة الدراسية</label>
-                                <select name="level" id="level" value={formData.level} onChange={handleChange} required className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg">
-                                    <option value="" disabled>-- اختر المرحلة --</option>
-                                    <option value="Middle">الإعدادية</option>
-                                    <option value="Secondary">الثانوية</option>
-                                </select>
-                            </div>
-                            <div>
                                 <label htmlFor="grade" className="block text-sm font-medium text-[var(--text-secondary)] mb-2">الصف الدراسي</label>
-                                <select name="grade" id="grade" value={formData.grade} onChange={handleChange} required disabled={!formData.level} className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg disabled:opacity-50">
+                                <select name="grade" id="grade" value={formData.grade} onChange={handleChange} required className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg">
                                     <option value="" disabled>-- اختر الصف --</option>
-                                    {gradesForLevel.map(g=><option key={g.id} value={g.id}>{g.name}</option>)}
+                                    {allGrades.filter(g => g.level === 'Middle').length > 0 && <optgroup label="المرحلة الإعدادية">
+                                        {allGrades.filter(g => g.level === 'Middle').map(g=><option key={g.id} value={g.id}>{g.name}</option>)}
+                                    </optgroup>}
+                                    {allGrades.filter(g => g.level === 'Secondary').length > 0 && <optgroup label="المرحلة الثانوية">
+                                        {allGrades.filter(g => g.level === 'Secondary').map(g=><option key={g.id} value={g.id}>{g.name}</option>)}
+                                    </optgroup>}
                                 </select>
                             </div>
-                            {(formData.grade === '5' || formData.grade === '6') && (
-                                <div>
-                                    <label htmlFor="track" className="block text-sm font-medium text-[var(--text-secondary)] mb-2">الشعبة</label>
-                                    <select name="track" id="track" value={formData.track} onChange={handleChange} required className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg">
-                                        <option value="" disabled>-- اختر الشعبة --</option>
-                                        {formData.grade==='5' ? <><option value="Scientific">علمي</option><option value="Literary">أدبي</option></> : <><option value="Science">علمي علوم</option><option value="Math">علمي رياضيات</option><option value="Literary">أدبي</option></>}
-                                    </select>
-                                </div>
-                            )}
                             <div className="flex gap-4 pt-4">
                                 <button type="button" onClick={() => changeView('register-step-1')} className="w-1/3 py-3.5 font-bold bg-[#212121] text-white rounded-lg">السابق</button>
                                 <button type="submit" disabled={isLoading} className="w-2/3 py-3.5 font-bold text-white bg-green-600 rounded-lg disabled:opacity-60">{isLoading ? 'جاري الإنشاء...' : 'إنشاء الحساب'}</button>

@@ -22,9 +22,13 @@ const defaultGrades: Grade[] = [
     { id: 3, name: 'الصف الثالث الإعدادي', ordinal: '3rd', level: 'Middle', levelAr: 'الإعدادي', semesters: [{ id: 's3-1', title: 'الفصل الدراسي الأول', units: [] }, { id: 's3-2', title: 'الفصل الدراسي الثاني', units: [] }] },
     // Secondary School
     { id: 4, name: 'الصف الأول الثانوي', ordinal: '1st', level: 'Secondary', levelAr: 'الثانوي', semesters: [{ id: 's4-1', title: 'الفصل الدراسي الأول', units: [] }, { id: 's4-2', title: 'الفصل الدراسي الثاني', units: [] }] },
-    { id: 5, name: 'الصف الثاني الثانوي', ordinal: '2nd', level: 'Secondary', levelAr: 'الثانوي', semesters: [{ id: 's5-1', title: 'الفصل الدراسي الأول', units: [] }, { id: 's5-2', title: 'الفصل الدراسي الثاني', units: [] }] },
-    { id: 6, name: 'الصف الثالث الثانوي', ordinal: '3rd', level: 'Secondary', levelAr: 'الثانوي', semesters: [{ id: 's6-1', title: 'الفصل الدراسي الأول', units: [] }, { id: 's6-2', title: 'الفصل الدراسي الثاني', units: [] }] }
+    { id: 5, name: 'الصف الثاني الثانوي - علمي', ordinal: '2nd', level: 'Secondary', levelAr: 'الثانوي', semesters: [{ id: 's5-1', title: 'الفصل الدراسي الأول', units: [] }, { id: 's5-2', title: 'الفصل الدراسي الثاني', units: [] }] },
+    { id: 6, name: 'الصف الثاني الثانوي - أدبي', ordinal: '2nd', level: 'Secondary', levelAr: 'الثانوي', semesters: [{ id: 's6-1', title: 'الفصل الدراسي الأول', units: [] }, { id: 's6-2', title: 'الفصل الدراسي الثاني', units: [] }] },
+    { id: 7, name: 'الصف الثالث الثانوي - علمي علوم', ordinal: '3rd', level: 'Secondary', levelAr: 'الثانوي', semesters: [{ id: 's7-1', title: 'الفصل الدراسي الأول', units: [] }, { id: 's7-2', title: 'الفصل الدراسي الثاني', units: [] }] },
+    { id: 8, name: 'الصف الثالث الثانوي - علمي رياضيات', ordinal: '3rd', level: 'Secondary', levelAr: 'الثانوي', semesters: [{ id: 's8-1', title: 'الفصل الدراسي الأول', units: [] }, { id: 's8-2', title: 'الفصل الدراسي الثاني', units: [] }] },
+    { id: 9, name: 'الصف الثالث الثانوي - أدبي', ordinal: '3rd', level: 'Secondary', levelAr: 'الثانوي', semesters: [{ id: 's9-1', title: 'الفصل الدراسي الأول', units: [] }, { id: 's9-2', title: 'الفصل الدراسي الثاني', units: [] }] }
 ];
+
 
 const defaultCurriculumData = {
     grades: defaultGrades

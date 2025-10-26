@@ -85,6 +85,17 @@ const StatCard: React.FC<{ icon: React.FC<{className?:string}>; label: string; v
     </div>
 );
 
+const deriveTrackFromGrade = (gradeId: number): 'Scientific' | 'Literary' | 'Science' | 'Math' | undefined => {
+    switch (gradeId) {
+        case 5: return 'Scientific';
+        case 6: return 'Literary';
+        case 7: return 'Science';
+        case 8: return 'Math';
+        case 9: return 'Literary';
+        default: return undefined;
+    }
+};
+
 
 const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) => {
   const { addToast } = useToast();
@@ -158,18 +169,7 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
 
   const handleEditFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setEditFormData(prev => {
-        const newState = { ...prev, [name]: value };
-        if (name === 'grade') {
-            const gradeId = Number(value);
-            newState.grade = gradeId;
-            // If the new grade doesn't require a track, reset it
-            if (gradeId < 5) {
-                newState.track = undefined;
-            }
-        }
-        return newState;
-    });
+    setEditFormData(prev => ({ ...prev, [name]: value }));
 };
 
   const handleUpdateUser = async () => {
@@ -178,9 +178,18 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
             addToast("الرجاء ملء جميع الحقول.", ToastType.ERROR); return;
         }
         
-        const { id, password, ...profileData } = editFormData;
+        const gradeId = Number(editFormData.grade);
+        const derivedTrack = deriveTrackFromGrade(gradeId);
 
-        const result = await updateUser(id, profileData);
+        // FIX: The original destructuring of optional `id` and `password` properties caused a TypeScript error.
+        // This revised logic safely constructs the payload to avoid the issue.
+        const { id, password, ...profileUpdates } = editFormData;
+
+        const result = await updateUser(editFormData.id, {
+            ...profileUpdates,
+            grade: gradeId,
+            track: derivedTrack,
+        });
 
         if (result?.error) {
             addToast(`فشل تحديث البيانات: ${result.error.message}`, ToastType.ERROR);
@@ -297,24 +306,13 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
                 <input type="text" placeholder="رقم ولي الأمر" name="guardianPhone" value={editFormData.guardianPhone || ''} onChange={handleEditFormChange} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-primary)]" />
                 <select name="grade" value={editFormData.grade || ''} onChange={handleEditFormChange} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-primary)]">
                     <option value="" disabled>اختر الصف</option>
-                    {allGrades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                    {allGrades.filter(g => g.level === 'Middle').length > 0 && <optgroup label="المرحلة الإعدادية">
+                        {allGrades.filter(g => g.level === 'Middle').map(g=><option key={g.id} value={g.id}>{g.name}</option>)}
+                    </optgroup>}
+                    {allGrades.filter(g => g.level === 'Secondary').length > 0 && <optgroup label="المرحلة الثانوية">
+                        {allGrades.filter(g => g.level === 'Secondary').map(g=><option key={g.id} value={g.id}>{g.name}</option>)}
+                    </optgroup>}
                 </select>
-                {(editFormData.grade === 5 || editFormData.grade === 6) && (
-                    <div>
-                        <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">الشعبة</label>
-                        <select name="track" value={editFormData.track || ''} onChange={handleEditFormChange} required className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)]">
-                            <option value="" disabled>-- اختر الشعبة --</option>
-                            {editFormData.grade === 5 ? <>
-                                <option value="Scientific">علمي</option>
-                                <option value="Literary">أدبي</option>
-                            </> : <>
-                                <option value="Science">علمي علوم</option>
-                                <option value="Math">علمي رياضيات</option>
-                                <option value="Literary">أدبي</option>
-                            </>}
-                        </select>
-                    </div>
-                )}
                 <input type="password" placeholder="كلمة مرور جديدة (اتركها فارغة لعدم التغيير)" name="password" onChange={handleEditFormChange} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-primary)]" />
                 <div className="flex justify-end pt-4"><button onClick={handleUpdateUser} className="px-5 py-2 font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700">حفظ التغييرات</button></div>
             </div>

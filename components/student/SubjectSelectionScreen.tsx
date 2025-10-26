@@ -130,17 +130,6 @@ const SubjectSelectionScreen: React.FC<SubjectSelectionScreenProps> = ({ grade, 
         setActiveSubject('الكل');
     }, [activeSemesterId]);
 
-    const getGradeSuffix = () => {
-        if (!user.track) return 'عام';
-        const trackMap = {
-            'Scientific': 'علمي',
-            'Literary': 'أدبي',
-            'Science': 'علمي علوم',
-            'Math': 'علمي رياضيات'
-        };
-        return trackMap[user.track] || 'عام';
-    }
-
     return (
         <div>
             <button onClick={onBack} className="flex items-center space-x-2 space-x-reverse mb-6 text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
@@ -151,7 +140,7 @@ const SubjectSelectionScreen: React.FC<SubjectSelectionScreenProps> = ({ grade, 
             <div className="flex justify-between items-center mb-4">
                 <h1 className="text-3xl md:text-4xl font-extrabold text-[var(--text-primary)] flex items-center">
                     <span className="w-3 h-8 bg-amber-400 rounded-sm ml-3"></span>
-                     {grade.name} {getGradeSuffix()}
+                     {grade.name}
                 </h1>
             </div>
             <p className="text-md text-[var(--text-secondary)] mb-8">اختر المادة التي تود دراستها.</p>
