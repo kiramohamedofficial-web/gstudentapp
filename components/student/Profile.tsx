@@ -1,14 +1,14 @@
 import React, { useMemo, useState, useCallback, useEffect } from 'react';
-import { User, ToastType, Theme } from '../../types';
-import { getGradeById, getSubscriptionByUserId, getUserProgress, deleteSelf } from '../../services/storageService';
+import { User, ToastType, Theme, Subscription } from '../../types';
+import { getGradeById, getUserProgress, deleteSelf } from '../../services/storageService';
 import { CheckCircleIcon, ClockIcon, CreditCardIcon, KeyIcon, LogoutIcon, SparklesIcon, TemplateIcon, TrashIcon, ArrowsExpandIcon, ArrowsShrinkIcon } from '../common/Icons';
 import Modal from '../common/Modal';
 import { useToast } from '../../useToast';
 import ThemeSelectionModal from '../common/ThemeSelectionModal';
+import { useSession } from '../../hooks/useSession';
+import { useSubscription } from '../../hooks/useSubscription';
 
 interface ProfileProps {
-  user: User;
-  onLogout: () => void;
   theme: Theme;
   setTheme: (theme: Theme) => void;
 }
@@ -79,9 +79,11 @@ const getEvaluation = (progress: number) => {
 };
 
 
-const Profile: React.FC<ProfileProps> = ({ user, onLogout, theme, setTheme }) => {
-  const grade = useMemo(() => getGradeById(user.grade), [user.grade]);
-  const subscription = useMemo(() => getSubscriptionByUserId(user.id), [user.id]);
+const Profile: React.FC<ProfileProps> = ({ theme, setTheme }) => {
+  const { currentUser: user, handleLogout: onLogout } = useSession();
+  const { subscription } = useSubscription();
+
+  const grade = useMemo(() => user ? getGradeById(user.grade) : null, [user]);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -108,7 +110,7 @@ const Profile: React.FC<ProfileProps> = ({ user, onLogout, theme, setTheme }) =>
   };
 
   const { totalLessons, completedLessons, progress } = useMemo(() => {
-    if (!grade) return { totalLessons: 0, completedLessons: 0, progress: 0 };
+    if (!grade || !user) return { totalLessons: 0, completedLessons: 0, progress: 0 };
     const allLessons = grade.semesters.flatMap(s => s.units.flatMap(u => u.lessons));
     const total = allLessons.length;
     if (total === 0) return { totalLessons: 0, completedLessons: 0, progress: 0 };
@@ -116,7 +118,7 @@ const Profile: React.FC<ProfileProps> = ({ user, onLogout, theme, setTheme }) =>
     const completed = allLessons.filter(l => !!userProgress[l.id]).length;
     const prog = Math.round((completed / total) * 100);
     return { totalLessons: total, completedLessons: completed, progress: prog };
-  }, [grade, user.id]);
+  }, [grade, user]);
   
   const evaluation = useMemo(() => getEvaluation(progress), [progress]);
 
@@ -136,6 +138,10 @@ const Profile: React.FC<ProfileProps> = ({ user, onLogout, theme, setTheme }) =>
         onLogout(); 
     }
   };
+  
+  if (!user) return null;
+
+  const hasActiveSubscription = subscription?.status === 'Active' && new Date(subscription.endDate) >= new Date();
 
   return (
     <div>
@@ -163,8 +169,8 @@ const Profile: React.FC<ProfileProps> = ({ user, onLogout, theme, setTheme }) =>
                                 icon={CreditCardIcon} 
                                 title="حالة الاشتراك" 
                                 value={
-                                    <span className={`px-2 py-1 text-xs rounded-full font-semibold ${subscription?.status === 'Active' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
-                                    {subscription?.status === 'Active' ? 'نشط' : 'غير نشط'}
+                                    <span className={`px-2 py-1 text-xs rounded-full font-semibold ${hasActiveSubscription ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                                    {hasActiveSubscription ? 'نشط' : 'غير نشط'}
                                     </span>
                                 }
                                 delay={300}

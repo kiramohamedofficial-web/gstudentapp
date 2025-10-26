@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { User } from '../../types';
 import { CollectionIcon, QrcodeIcon, CreditCardIcon, HomeIcon, XIcon, TemplateIcon, CogIcon, LogoutIcon, UsersIcon, UserCircleIcon, BellIcon, QuestionMarkCircleIcon } from '../common/Icons';
 import { getPendingSubscriptionRequestCount } from '../../services/storageService';
@@ -106,7 +106,18 @@ const NavContent: React.FC<{ activeView: string; onNavClick: (view: AdminView) =
 
 const AdminLayout: React.FC<AdminLayoutProps> = ({ user, onLogout, children, onNavClick, activeView }) => {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
-  const pendingRequestsCount = useMemo(() => getPendingSubscriptionRequestCount(), [children]);
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
+
+  useEffect(() => {
+      const fetchPendingCount = async () => {
+          const count = await getPendingSubscriptionRequestCount();
+          setPendingRequestsCount(count);
+      };
+      fetchPendingCount();
+      // Optional: Set up an interval to refresh the count periodically
+      const interval = setInterval(fetchPendingCount, 60000); // every minute
+      return () => clearInterval(interval);
+  }, [children]); // Refetch when main content changes as it might affect the count
 
   const handleMobileNavClick = (view: AdminView) => {
     onNavClick(view);

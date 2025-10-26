@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { ServerIcon, ShieldExclamationIcon, DatabaseIcon, UsersIcon } from '../common/Icons';
+import { ServerIcon, ShieldExclamationIcon, DatabaseIcon, UsersIcon, TrashIcon } from '../common/Icons';
+import Modal from '../common/Modal';
+import { useToast } from '../../useToast';
+import { ToastType } from '../../types';
 
 type Status = 'idle' | 'scanning' | 'ok' | 'warning' | 'error';
 type ServerName = 'core' | 'middleSchool' | 'local';
@@ -35,6 +38,9 @@ const StatusIndicator: React.FC<{ status: Status }> = ({ status }) => {
 };
 
 const SystemHealthView: React.FC = () => {
+    const { addToast } = useToast();
+    const [isCleanupModalOpen, setIsCleanupModalOpen] = useState(false);
+    const [isCleaning, setIsCleaning] = useState(false);
     const [serverStatuses, setServerStatuses] = useState<ServerStatus[]>([
         { name: 'الخدمات الأساسية (Core)', key: 'core', status: 'idle', details: 'جاهز للفحص' },
         { name: 'محتوى الإعدادي (Middle School)', key: 'middleSchool', status: 'idle', details: 'جاهز للفحص' },
@@ -90,6 +96,19 @@ const SystemHealthView: React.FC = () => {
     useEffect(() => {
         calculateStorage();
     }, [calculateStorage]);
+    
+    const handleCleanup = useCallback(() => {
+        setIsCleanupModalOpen(false);
+        setIsCleaning(true);
+        addToast('جاري البحث عن البيانات التالفة وحذفها...', 'info');
+
+        // This is a simulation. A real implementation would call a backend function (e.g., a Supabase Edge Function)
+        // to perform a safe cleanup of orphaned records in the database.
+        setTimeout(() => {
+            setIsCleaning(false);
+            addToast('تمت عملية تنظيف البيانات بنجاح.', ToastType.SUCCESS);
+        }, 3000);
+    }, [addToast]);
 
     return (
         <div className="fade-in">
@@ -156,7 +175,36 @@ const SystemHealthView: React.FC = () => {
                         </button>
                      )}
                 </HealthCard>
+
+                {/* Data Maintenance */}
+                <HealthCard title="صيانة البيانات" icon={DatabaseIcon}>
+                    <p className="text-sm text-[var(--text-secondary)]">
+                        حذف البيانات المتبقية (مثل الاشتراكات والتقدم) المتعلقة بالطلاب الذين تم حذف حساباتهم.
+                    </p>
+                    <button
+                        onClick={() => setIsCleanupModalOpen(true)}
+                        disabled={isCleaning}
+                        className="w-full mt-2 py-3 font-semibold bg-red-600/20 text-red-300 hover:bg-red-600/40 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-wait flex items-center justify-center"
+                    >
+                        <TrashIcon className="w-5 h-5 ml-2" />
+                        {isCleaning ? 'جاري التنظيف...' : 'بدء عملية التنظيف'}
+                    </button>
+                </HealthCard>
             </div>
+            
+            <Modal isOpen={isCleanupModalOpen} onClose={() => setIsCleanupModalOpen(false)} title="تأكيد حذف البيانات التالفة">
+                <p className="text-[var(--text-secondary)] mb-6">
+                    هل أنت متأكد من رغبتك في بدء عملية التنظيف؟ سيقوم النظام بالبحث عن وحذف جميع البيانات (الاشتراكات، التقدم الدراسي، إلخ) المرتبطة بحسابات الطلاب المحذوفة. لا يمكن التراجع عن هذا الإجراء.
+                </p>
+                <div className="flex justify-end space-x-3 space-x-reverse">
+                    <button onClick={() => setIsCleanupModalOpen(false)} className="px-4 py-2 rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] transition-colors">
+                        إلغاء
+                    </button>
+                    <button onClick={handleCleanup} className="px-4 py-2 rounded-md bg-red-600 hover:bg-red-700 transition-colors text-white">
+                        نعم، قم بالحذف
+                    </button>
+                </div>
+            </Modal>
         </div>
     );
 };

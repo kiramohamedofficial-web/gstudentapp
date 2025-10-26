@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
-import { User, Unit, Lesson, StudentView, Theme, Subscription } from '../../types';
-import { getGradeById, getSubscriptionByUserId } from '../../services/storageService';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Unit, Lesson, StudentView, Theme } from '../../types';
+import { getGradeById } from '../../services/storageService';
 import StudentLayout from '../layout/StudentLayout';
 import CourseView from './CourseView';
 import SubscriptionView from './Subscription';
@@ -12,10 +12,11 @@ import CoursesStore from './CoursesStore';
 import SingleSubjectSubscription from './SingleSubjectSubscription';
 import ComprehensiveSubscription from './ComprehensiveSubscription';
 import ResultsView from './ResultsView';
-import { SparklesIcon, ArrowRightIcon, ShieldCheckIcon } from '../common/Icons';
+import { SparklesIcon, ArrowRightIcon } from '../common/Icons';
 import ChatbotView from './ChatbotView';
 import AskTheProfView from './AskTheProfView';
 import AdhkarView from './AdhkarView';
+import { useSession } from '../../hooks/useSession';
 
 // --- NEW COMPONENT: CartoonMoviesView START ---
 interface Movie {
@@ -46,7 +47,7 @@ const MoviePlayerView: React.FC<{ movie: Movie; onBack: () => void }> = ({ movie
       </button>
       <h2 className="text-2xl font-bold mb-4">{movie.title}</h2>
       {movie.embedSrc ? (
-        <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-black border border-[var(--border-primary)] group">
+        <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-black border border-[var(--border-primary)]">
           <iframe 
             src={movie.embedSrc} 
             frameBorder="0" 
@@ -56,13 +57,8 @@ const MoviePlayerView: React.FC<{ movie: Movie; onBack: () => void }> = ({ movie
             width="100%" 
             height="100%" 
             allowFullScreen
-            allow="fullscreen"
             className="absolute top-0 left-0"
           ></iframe>
-           <div className="absolute top-3 right-3 z-10 flex items-center gap-2 bg-black/40 text-green-400 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
-             <ShieldCheckIcon className="w-4 h-4"/>
-             <span>مشاهدة آمنة</span>
-          </div>
         </div>
       ) : (
         <div className="aspect-video rounded-lg bg-black flex items-center justify-center text-center text-gray-400">
@@ -119,18 +115,16 @@ const CartoonMoviesView: React.FC<{ onBack: () => void; }> = ({ onBack }) => {
 // --- NEW COMPONENT: CartoonMoviesView END ---
 
 interface StudentDashboardProps {
-  user: User;
-  onLogout: () => void;
   theme: Theme;
   setTheme: (theme: Theme) => void;
 }
 
 const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
-  const { user, onLogout, theme, setTheme } = props;
+  const { theme, setTheme } = props;
+  const { currentUser: user } = useSession();
   const [activeView, setActiveView] = useState<StudentView>('home');
   
-  const studentGrade = useMemo(() => getGradeById(user.grade), [user.grade]);
-  const subscription = useMemo(() => getSubscriptionByUserId(user.id), [user.id]);
+  const studentGrade = useMemo(() => user ? getGradeById(user.grade) : null, [user]);
   const [selectedUnit, setSelectedUnit] = useState<Unit | null>(null);
   const [initialLesson, setInitialLesson] = useState<Lesson | null>(null);
 
@@ -156,6 +150,11 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
     setSelectedUnit(unit);
     setInitialLesson(null);
   }
+  
+  if (!user) {
+    // This should technically not happen if App routing is correct, but it's a good safeguard.
+    return <div>Loading user...</div>;
+  }
 
   const renderContent = () => {
     if (activeView === 'grades' && !studentGrade) {
@@ -172,7 +171,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
         return <StudentHomeScreen user={user} onNavigate={handleHomeNavigation} />;
       case 'grades':
         if (selectedUnit) {
-            return <CourseView grade={studentGrade!} unit={selectedUnit} user={user} onBack={() => { setSelectedUnit(null); setInitialLesson(null); }} onNavigate={handleNavClick} initialLesson={initialLesson} />;
+            return <CourseView grade={studentGrade!} unit={selectedUnit} onBack={() => { setSelectedUnit(null); setInitialLesson(null); }} onNavigate={handleNavClick} initialLesson={initialLesson} />;
         }
         return <SubjectSelectionScreen 
             user={user}
@@ -183,9 +182,9 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
       case 'cartoonMovies':
         return <CartoonMoviesView onBack={() => setActiveView('home')} />;
       case 'chatbot':
-        return <ChatbotView user={user} subscription={subscription} onNavigate={setActiveView} />;
+        return <ChatbotView onNavigate={setActiveView} />;
       case 'askTheProf':
-        return <AskTheProfView user={user} />;
+        return <AskTheProfView />;
       case 'adhkar':
         return <AdhkarView />;
       case 'courses':
@@ -193,7 +192,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
       case 'teachers':
         return <TeachersView />;
       case 'results':
-        return <ResultsView user={user} />;
+        return <ResultsView />;
       case 'smartPlan':
         return (
             <div className="text-center p-12 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-primary)] flex flex-col items-center">
@@ -203,13 +202,13 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
             </div>
         );
       case 'subscription':
-        return <SubscriptionView user={user} onNavigate={setActiveView} />;
+        return <SubscriptionView onNavigate={setActiveView} />;
       case 'singleSubjectSubscription':
-        return <SingleSubjectSubscription user={user} onBack={() => setActiveView('subscription')} />;
+        return <SingleSubjectSubscription onBack={() => setActiveView('subscription')} />;
       case 'comprehensiveSubscription':
-        return <ComprehensiveSubscription user={user} onBack={() => setActiveView('subscription')} />;
+        return <ComprehensiveSubscription onBack={() => setActiveView('subscription')} />;
       case 'profile':
-        return <Profile user={user} onLogout={onLogout} theme={theme} setTheme={setTheme} />;
+        return <Profile theme={theme} setTheme={setTheme} />;
       default:
         return <StudentHomeScreen user={user} onNavigate={handleHomeNavigation} />;
     }
@@ -217,13 +216,10 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
 
   return (
     <StudentLayout 
-        user={user}
-        onLogout={onLogout}
         theme={theme}
         setTheme={setTheme}
         activeView={activeView} 
         onNavClick={handleNavClick} 
-        subscription={subscription}
         gradeName={studentGrade?.name}
     >
       {renderContent()}

@@ -4,6 +4,7 @@ import { addSubscriptionRequest } from '../../services/storageService';
 import { useToast } from '../../useToast';
 import Modal from '../common/Modal';
 import { ArrowRightIcon, CheckIcon } from '../common/Icons';
+import { useSession } from '../../hooks/useSession';
 
 type PlanName = 'Monthly' | 'Quarterly' | 'Annual';
 
@@ -142,11 +143,11 @@ const PurchaseModal: React.FC<{
 
 
 interface ComprehensiveSubscriptionProps {
-  user: User;
   onBack: () => void;
 }
 
-const ComprehensiveSubscription: React.FC<ComprehensiveSubscriptionProps> = ({ user, onBack }) => {
+const ComprehensiveSubscription: React.FC<ComprehensiveSubscriptionProps> = ({ onBack }) => {
+    const { currentUser: user } = useSession();
     const { addToast } = useToast();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
@@ -157,6 +158,7 @@ const ComprehensiveSubscription: React.FC<ComprehensiveSubscriptionProps> = ({ u
     };
 
     const handleConfirmPurchase = (plan: PlanName, paymentNumber: string) => {
+        if (!user) return;
         addSubscriptionRequest(user.id, user.name, plan as SubscriptionRequest['plan'], paymentNumber, 'الباقة الشاملة');
         addToast('تم إرسال طلب الاشتراك بنجاح. سيتم تفعيله بعد المراجعة.', ToastType.SUCCESS);
         setIsModalOpen(false);

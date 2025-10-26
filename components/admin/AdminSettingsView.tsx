@@ -4,6 +4,7 @@ import { LogoutIcon, KeyIcon, TemplateIcon, ArrowsExpandIcon, ArrowsShrinkIcon }
 import { useToast } from '../../useToast';
 import Modal from '../common/Modal';
 import ThemeSelectionModal from '../common/ThemeSelectionModal';
+import { useSession } from '../../hooks/useSession';
 
 const ChangePasswordModal: React.FC<{ isOpen: boolean, onClose: () => void }> = ({ isOpen, onClose }) => {
     const { addToast } = useToast();
@@ -37,13 +38,12 @@ const ChangePasswordModal: React.FC<{ isOpen: boolean, onClose: () => void }> = 
 
 
 interface AdminSettingsViewProps {
-  user: User;
   theme: Theme;
   setTheme: (theme: Theme) => void;
-  onLogout: () => void;
 }
 
-const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({ user, theme, setTheme, onLogout }) => {
+const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({ theme, setTheme }) => {
+  const { currentUser: user, handleLogout: onLogout } = useSession();
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
@@ -66,6 +66,8 @@ const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({ user, theme, setT
           document.exitFullscreen();
       }
   };
+
+  if (!user) return null;
 
   return (
     <div className="fade-in">

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { User, Theme, TeacherView, Teacher } from '../../types';
 import { getTeacherById, getSubscriptionsByTeacherId, getAllGrades } from '../../services/storageService';
 import TeacherLayout from './TeacherLayout';
@@ -7,10 +7,9 @@ import TeacherSubscriptionsView from './TeacherSubscriptionsView';
 import TeacherProfileView from './TeacherProfileView';
 import { CollectionIcon, UsersIcon } from '../common/Icons';
 import QuestionBankView from '../admin/QuestionBankView';
+import { useSession } from '../../hooks/useSession';
 
 interface TeacherDashboardProps {
-  user: User;
-  onLogout: () => void;
   theme: Theme;
   setTheme: (theme: Theme) => void;
 }
@@ -34,7 +33,17 @@ const MainDashboard: React.FC<{ teacher: Teacher }> = ({ teacher }) => {
         return allGrades.flatMap(g => g.semesters.flatMap(s => s.units)).filter(u => u.teacherId === teacher.id).length;
     }, [teacher.id]);
 
-    const totalStudents = useMemo(() => getSubscriptionsByTeacherId(teacher.id).length, [teacher.id]);
+    const [totalStudents, setTotalStudents] = useState(0);
+
+    useEffect(() => {
+        const fetchStudentCount = async () => {
+            if (teacher.id) {
+                const subscriptions = await getSubscriptionsByTeacherId(teacher.id);
+                setTotalStudents(subscriptions.length);
+            }
+        };
+        fetchStudentCount();
+    }, [teacher.id]);
 
     return (
         <div>
@@ -49,23 +58,31 @@ const MainDashboard: React.FC<{ teacher: Teacher }> = ({ teacher }) => {
 };
 
 const TeacherDashboard: React.FC<TeacherDashboardProps> = (props) => {
-  const { user, onLogout, theme, setTheme } = props;
+  const { theme, setTheme } = props;
+  const { currentUser: user, handleLogout: onLogout } = useSession();
   const [activeView, setActiveView] = useState<TeacherView>('dashboard');
-  
-  const teacherProfile = useMemo(() => {
-    if (user.teacherId) {
-      return getTeacherById(user.teacherId);
-    }
-    return null;
-  }, [user.teacherId]);
+  const [teacherProfile, setTeacherProfile] = useState<Teacher | null>(null);
+
+  useEffect(() => {
+    const fetchTeacherProfile = async () => {
+        if(user?.teacherId) {
+            const profile = await getTeacherById(user.teacherId);
+            setTeacherProfile(profile);
+        }
+    };
+    fetchTeacherProfile();
+  }, [user]);
+
 
   const handleNavClick = (view: TeacherView) => {
     setActiveView(view);
   };
 
+  if (!user) return null;
+
   const renderContent = () => {
       if (!teacherProfile) {
-          return <div className="p-8 text-center text-red-500">خطأ: لم يتم العثور على ملف المدرس المرتبط بهذا الحساب.</div>;
+          return <div className="p-8 text-center text-red-500">جاري تحميل ملف المدرس...</div>;
       }
 
       switch (activeView) {
@@ -74,7 +91,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = (props) => {
         case 'subscriptions':
             return <TeacherSubscriptionsView teacher={teacherProfile} />;
         case 'profile':
-            return <TeacherProfileView user={user} teacher={teacherProfile} onLogout={onLogout} />;
+            return <TeacherProfileView teacher={teacherProfile} />;
         case 'questionBank':
             return <QuestionBankView />;
         case 'dashboard':

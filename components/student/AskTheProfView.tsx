@@ -1,10 +1,9 @@
-
-
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { User, StudentQuestion, ToastType } from '../../types';
 import { getStudentQuestionsByUserId, addStudentQuestion } from '../../services/storageService';
 import { useToast } from '../../useToast';
 import { ClockIcon, CheckCircleIcon, ChevronDownIcon } from '../common/Icons';
+import { useSession } from '../../hooks/useSession';
 
 const QuestionCard: React.FC<{ question: StudentQuestion }> = ({ question }) => {
     const [isExpanded, setIsExpanded] = useState(false);
@@ -40,24 +39,33 @@ const QuestionCard: React.FC<{ question: StudentQuestion }> = ({ question }) => 
 };
 
 
-const AskTheProfView: React.FC<{ user: User }> = ({ user }) => {
-    const [dataVersion, setDataVersion] = useState(0);
+const AskTheProfView: React.FC = () => {
+    const { currentUser: user } = useSession();
+    const [questions, setQuestions] = useState<StudentQuestion[]>([]);
     const [newQuestion, setNewQuestion] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { addToast } = useToast();
 
-    const questions = useMemo(() => getStudentQuestionsByUserId(user.id), [user.id, dataVersion]);
+    useEffect(() => {
+        if (!user) return;
+        const fetchQuestions = async () => {
+            const data = await getStudentQuestionsByUserId(user.id);
+            setQuestions(data);
+        };
+        fetchQuestions();
+    }, [user]);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newQuestion.trim() || isSubmitting) return;
+        if (!newQuestion.trim() || isSubmitting || !user) return;
 
         setIsSubmitting(true);
         try {
-            addStudentQuestion(user.id, user.name, newQuestion.trim());
+            await addStudentQuestion(user.id, user.name, newQuestion.trim());
             addToast('تم إرسال سؤالك بنجاح!', ToastType.SUCCESS);
             setNewQuestion('');
-            setDataVersion(v => v + 1); // Refresh questions list
+            const updatedQuestions = await getStudentQuestionsByUserId(user.id);
+            setQuestions(updatedQuestions);
         } catch (error) {
             addToast('حدث خطأ أثناء إرسال سؤالك.', ToastType.ERROR);
             console.error(error);
@@ -65,6 +73,8 @@ const AskTheProfView: React.FC<{ user: User }> = ({ user }) => {
             setIsSubmitting(false);
         }
     };
+    
+    if (!user) return null;
 
     return (
         <div>

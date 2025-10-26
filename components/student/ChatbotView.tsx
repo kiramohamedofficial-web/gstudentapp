@@ -4,6 +4,8 @@ import { getChatUsage, incrementChatUsage } from '../../services/storageService'
 import { getChatbotResponseStream, ChatMode } from '../../services/geminiService';
 import { CreditCardIcon, BrainIcon, ChevronUpIcon } from '../common/Icons';
 import { useToast } from '../../useToast';
+import { useSession } from '../../hooks/useSession';
+import { useSubscription } from '../../hooks/useSubscription';
 
 const LockedChatView: React.FC<{ onNavigate: () => void }> = ({ onNavigate }) => (
     <div className="flex flex-col items-center justify-center h-full text-center p-8 bg-[var(--bg-secondary)] rounded-2xl">
@@ -51,8 +53,11 @@ const TypingIndicator: React.FC = () => (
 );
 
 
-const ChatbotView: React.FC<{ user: User; subscription: Subscription | null; onNavigate: (view: StudentView) => void }> = ({ user, subscription, onNavigate }) => {
+const ChatbotView: React.FC<{ onNavigate: (view: StudentView) => void }> = ({ onNavigate }) => {
+    const { currentUser: user } = useSession();
+    const { subscription } = useSubscription();
     const { addToast } = useToast();
+    
     const [messages, setMessages] = useState<ChatMessage[]>([
         { id: 'init', role: 'model', content: 'أهلاً بك! أنا مساعد Gstudent الذكي. كيف يمكنني مساعدتك في دراستك اليوم؟' }
     ]);
@@ -68,16 +73,18 @@ const ChatbotView: React.FC<{ user: User; subscription: Subscription | null; onN
     }, [subscription]);
 
     useEffect(() => {
-        const usage = getChatUsage(user.id);
-        setRemaining(usage.remaining);
-    }, [user.id]);
+        if (user) {
+            const usage = getChatUsage(user.id);
+            setRemaining(usage.remaining);
+        }
+    }, [user]);
 
     useEffect(() => {
         chatContainerRef.current?.scrollTo({ top: chatContainerRef.current.scrollHeight, behavior: 'smooth' });
     }, [messages, isLoading]);
 
     const handleSendMessage = useCallback(async () => {
-        if (!input.trim() || isLoading) return;
+        if (!input.trim() || isLoading || !user) return;
         if (remaining <= 0) {
             addToast('لقد وصلت إلى الحد الأقصى للرسائل اليومية (50 رسالة).', 'error');
             return;
@@ -110,7 +117,9 @@ const ChatbotView: React.FC<{ user: User; subscription: Subscription | null; onN
         } finally {
             setIsLoading(false);
         }
-    }, [input, isLoading, remaining, addToast, user.id, messages, mode]);
+    }, [input, isLoading, remaining, addToast, user, messages, mode]);
+    
+    if (!user) return null;
 
     if (!hasActiveSubscription) {
         return <LockedChatView onNavigate={() => onNavigate('subscription')} />;

@@ -3,9 +3,9 @@ import { User, SubscriptionRequest, Grade, ToastType, Unit } from '../../types';
 import { getGradeById, addSubscriptionRequest } from '../../services/storageService';
 import { useToast } from '../../useToast';
 import { ArrowRightIcon } from '../common/Icons';
+import { useSession } from '../../hooks/useSession';
 
 interface SingleSubjectSubscriptionProps {
-  user: User;
   onBack: () => void;
 }
 
@@ -42,9 +42,10 @@ const PlanPill: React.FC<{ plan: Plan; currentPlan: Plan; onSelect: (plan: Plan)
     </button>
 );
 
-const SingleSubjectSubscription: React.FC<SingleSubjectSubscriptionProps> = ({ user, onBack }) => {
+const SingleSubjectSubscription: React.FC<SingleSubjectSubscriptionProps> = ({ onBack }) => {
+    const { currentUser: user } = useSession();
     const { addToast } = useToast();
-    const grade = useMemo(() => getGradeById(user.grade), [user.grade]);
+    const grade = useMemo(() => user ? getGradeById(user.grade) : null, [user]);
 
     const [selectedUnitId, setSelectedUnitId] = useState<string>('');
     const [selectedPlan, setSelectedPlan] = useState<Plan>('Monthly');
@@ -52,15 +53,20 @@ const SingleSubjectSubscription: React.FC<SingleSubjectSubscriptionProps> = ({ u
     const [error, setError] = useState('');
 
     const availableSubjects = useMemo(() => {
-        if (!grade) return [];
+        if (!grade || !user) return [];
         return grade.semesters.flatMap(s => s.units.filter(u => 
             !u.track || u.track === 'All' || u.track === user.track
         ));
-    }, [grade, user.track]);
+    }, [grade, user]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
+
+        if (!user) {
+            setError('User not found.');
+            return;
+        }
 
         if (!selectedUnitId) {
             setError('الرجاء اختيار المادة أولاً.');
@@ -83,6 +89,8 @@ const SingleSubjectSubscription: React.FC<SingleSubjectSubscriptionProps> = ({ u
         addToast('تم إرسال طلب الاشتراك بنجاح. سيتم تفعيله بعد المراجعة.', ToastType.SUCCESS);
         onBack();
     };
+
+    if (!user) return null;
 
     return (
         <div className="max-w-2xl mx-auto">

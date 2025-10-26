@@ -34,6 +34,7 @@ const QrCodeGeneratorView: React.FC = () => {
     const [codeCount, setCodeCount] = useState(1);
     const [maxUses, setMaxUses] = useState(1);
     const [generatedCodes, setGeneratedCodes] = useState<SubscriptionCode[]>([]);
+    const [isGenerating, setIsGenerating] = useState(false);
     const printRef = useRef<HTMLDivElement>(null);
     const { addToast } = useToast();
 
@@ -49,17 +50,19 @@ const QrCodeGeneratorView: React.FC = () => {
 
     const teacherOptions = useMemo(() => teachers.map(t => ({ value: t.id, label: t.name })), [teachers]);
 
-    const handleGenerate = () => {
+    const handleGenerate = async () => {
         if (!selectedTeacherId || !durationDays || codeCount < 1 || maxUses < 1) {
             return;
         }
-        const codes = generateSubscriptionCodes({
+        setIsGenerating(true);
+        const codes = await generateSubscriptionCodes({
             teacherId: selectedTeacherId,
             durationDays: parseInt(durationDays),
             count: codeCount,
             maxUses: maxUses,
         });
         setGeneratedCodes(codes);
+        setIsGenerating(false);
     };
 
     const handleCopy = (code: string) => {
@@ -171,13 +174,13 @@ const QrCodeGeneratorView: React.FC = () => {
                     <div className="mt-8 pt-6 border-t border-[var(--border-primary)]">
                         <button
                             onClick={handleGenerate}
-                            disabled={!selectedTeacherId}
+                            disabled={!selectedTeacherId || isGenerating}
                             className="w-full flex items-center justify-center py-3 px-4 font-bold text-white bg-gradient-to-r from-blue-600 to-green-500 rounded-lg 
                                        hover:from-blue-700 hover:to-green-600 focus:outline-none focus:ring-4 focus:ring-blue-500/50
                                        transition-all duration-300 transform hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <PlusIcon className="w-6 h-6 ml-2" />
-                            إنشاء الأكواد
+                            {isGenerating ? 'جاري الإنشاء...' : 'إنشاء الأكواد'}
                         </button>
                     </div>
                 </div>

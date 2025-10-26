@@ -1,8 +1,9 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { StudentQuestion, ToastType } from '../../types';
 import { getAllStudentQuestions, answerStudentQuestion } from '../../services/storageService';
 import { useToast } from '../../useToast';
 import Modal from '../common/Modal';
+import Loader from '../common/Loader';
 
 const AnswerModal: React.FC<{ isOpen: boolean; onClose: () => void; question: StudentQuestion | null; onSave: (questionId: string, answer: string) => void; }> = ({ isOpen, onClose, question, onSave }) => {
     const [answer, setAnswer] = useState('');
@@ -47,14 +48,22 @@ const AnswerModal: React.FC<{ isOpen: boolean; onClose: () => void; question: St
 };
 
 const QuestionBankView: React.FC = () => {
-    const [dataVersion, setDataVersion] = useState(0);
+    const [allQuestions, setAllQuestions] = useState<StudentQuestion[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'Pending' | 'Answered'>('Pending');
     const [selectedQuestion, setSelectedQuestion] = useState<StudentQuestion | null>(null);
     const { addToast } = useToast();
 
-    const allQuestions = useMemo(() => getAllStudentQuestions(), [dataVersion]);
-    
-    const refreshData = useCallback(() => setDataVersion(v => v + 1), []);
+    const refreshData = useCallback(async () => {
+        setIsLoading(true);
+        const data = await getAllStudentQuestions();
+        setAllQuestions(data);
+        setIsLoading(false);
+    }, []);
+
+    useEffect(() => {
+        refreshData();
+    }, []);
 
     const filteredQuestions = useMemo(() => allQuestions.filter(q => q.status === activeTab), [allQuestions, activeTab]);
 
@@ -63,8 +72,8 @@ const QuestionBankView: React.FC = () => {
         Answered: 'أسئلة مجابة'
     };
     
-    const handleSaveAnswer = (questionId: string, answer: string) => {
-        answerStudentQuestion(questionId, answer);
+    const handleSaveAnswer = async (questionId: string, answer: string) => {
+        await answerStudentQuestion(questionId, answer);
         addToast('تم حفظ الإجابة بنجاح!', ToastType.SUCCESS);
         setSelectedQuestion(null);
         refreshData();
@@ -87,26 +96,28 @@ const QuestionBankView: React.FC = () => {
                 ))}
             </div>
 
-            <div className="space-y-4">
-                {filteredQuestions.length > 0 ? filteredQuestions.map(q => (
-                    <div key={q.id} className="bg-[var(--bg-secondary)] p-4 rounded-lg border border-[var(--border-primary)] flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-                        <div className="flex-1">
-                            <p className="font-semibold text-[var(--text-primary)]">{q.userName}</p>
-                            <p className="text-sm text-[var(--text-secondary)] mt-1 line-clamp-2">{q.questionText}</p>
-                             <p className="text-xs text-[var(--text-secondary)]/70 mt-2">
-                                {new Date(q.createdAt).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' })}
-                            </p>
+            {isLoading ? <div className="flex justify-center p-10"><Loader/></div> : (
+                <div className="space-y-4">
+                    {filteredQuestions.length > 0 ? filteredQuestions.map(q => (
+                        <div key={q.id} className="bg-[var(--bg-secondary)] p-4 rounded-lg border border-[var(--border-primary)] flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                            <div className="flex-1">
+                                <p className="font-semibold text-[var(--text-primary)]">{q.userName}</p>
+                                <p className="text-sm text-[var(--text-secondary)] mt-1 line-clamp-2">{q.questionText}</p>
+                                <p className="text-xs text-[var(--text-secondary)]/70 mt-2">
+                                    {new Date(q.createdAt).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' })}
+                                </p>
+                            </div>
+                            <button onClick={() => setSelectedQuestion(q)} className="w-full sm:w-auto flex-shrink-0 px-4 py-2 text-sm font-semibold bg-purple-600 hover:bg-purple-700 text-white rounded-md transition-colors">
+                                {q.status === 'Pending' ? 'الرد على السؤال' : 'عرض / تعديل الإجابة'}
+                            </button>
                         </div>
-                        <button onClick={() => setSelectedQuestion(q)} className="w-full sm:w-auto flex-shrink-0 px-4 py-2 text-sm font-semibold bg-purple-600 hover:bg-purple-700 text-white rounded-md transition-colors">
-                            {q.status === 'Pending' ? 'الرد على السؤال' : 'عرض / تعديل الإجابة'}
-                        </button>
-                    </div>
-                )) : (
-                    <div className="text-center p-12 bg-[var(--bg-secondary)] rounded-lg border border-dashed border-[var(--border-primary)]">
-                        <p className="text-[var(--text-secondary)]">لا توجد أسئلة في هذا القسم.</p>
-                    </div>
-                )}
-            </div>
+                    )) : (
+                        <div className="text-center p-12 bg-[var(--bg-secondary)] rounded-lg border border-dashed border-[var(--border-primary)]">
+                            <p className="text-[var(--text-secondary)]">لا توجد أسئلة في هذا القسم.</p>
+                        </div>
+                    )}
+                </div>
+            )}
 
             <AnswerModal 
                 isOpen={!!selectedQuestion}

@@ -2,6 +2,7 @@ export enum Role {
   STUDENT = 'student',
   ADMIN = 'admin',
   TEACHER = 'teacher',
+  SUPERVISOR = 'supervisor',
 }
 
 export type StudentView = 'home' | 'grades' | 'subscription' | 'profile' | 'teachers' | 'courses' | 'singleSubjectSubscription' | 'comprehensiveSubscription' | 'results' | 'smartPlan' | 'chatbot' | 'askTheProf' | 'adhkar' | 'cartoonMovies';
@@ -24,7 +25,7 @@ export interface User {
 export interface Subscription {
   id: string;
   userId: string;
-  plan: 'Monthly' | 'Quarterly' | 'Annual' | 'SemiAnnually';
+  plan: 'Monthly' | 'Quarterly' | 'Annual' | 'SemiAnnually' | 'Code';
   startDate: string;
   endDate: string;
   status: 'Active' | 'Expired';

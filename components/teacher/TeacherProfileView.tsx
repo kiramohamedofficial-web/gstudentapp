@@ -1,14 +1,14 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { User, Teacher } from '../../types';
 import { LogoutIcon, ArrowsExpandIcon, ArrowsShrinkIcon } from '../common/Icons';
+import { useSession } from '../../hooks/useSession';
 
 interface TeacherProfileViewProps {
-  user: User;
   teacher: Teacher;
-  onLogout: () => void;
 }
 
-const TeacherProfileView: React.FC<TeacherProfileViewProps> = ({ user, teacher, onLogout }) => {
+const TeacherProfileView: React.FC<TeacherProfileViewProps> = ({ teacher }) => {
+  const { currentUser: user, handleLogout: onLogout } = useSession();
   const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
 
   const handleFullscreenChange = useCallback(() => {
@@ -29,6 +29,8 @@ const TeacherProfileView: React.FC<TeacherProfileViewProps> = ({ user, teacher, 
           document.exitFullscreen();
       }
   };
+  
+  if (!user) return null;
 
   return (
     <div>

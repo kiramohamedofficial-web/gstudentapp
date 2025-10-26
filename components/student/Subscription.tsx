@@ -3,7 +3,6 @@ import { User, StudentView } from '../../types';
 import { BookOpenIcon, VideoCameraIcon, SparklesIcon, ArrowRightIcon } from '../common/Icons';
 
 interface SubscriptionViewProps {
-  user: User;
   onNavigate: (view: StudentView) => void;
 }
 
@@ -36,7 +35,7 @@ const SubscriptionOptionCard: React.FC<{
 };
 
 
-const SubscriptionView: React.FC<SubscriptionViewProps> = ({ user, onNavigate }) => {
+const SubscriptionView: React.FC<SubscriptionViewProps> = ({ onNavigate }) => {
 
     const options = [
         {

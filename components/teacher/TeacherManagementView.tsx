@@ -1,6 +1,7 @@
+
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Teacher, ToastType, Grade, User } from '../../types';
-import { getTeachers, addTeacher, updateTeacher, deleteTeacher, getAllGrades, getAllUsers } from '../../services/storageService';
+import { getAllTeachers, createTeacher, updateTeacher, deleteTeacher, getAllGrades, getAllUsers } from '../../services/storageService';
 import Modal from '../common/Modal';
 import { PlusIcon, PencilIcon, TrashIcon, UserCircleIcon } from '../common/Icons';
 import { useToast } from '../../useToast';
@@ -13,7 +14,13 @@ const Checkbox: React.FC<{ label: string; checked: boolean; onChange: (e: React.
     </label>
 );
 
-interface TeacherModalSaveData extends Omit<Teacher, 'id'> {
+interface TeacherModalSaveData {
+    name: string;
+    subject: string;
+    imageUrl: string;
+    teachingLevels?: ('Middle' | 'Secondary')[];
+    teachingGrades?: number[];
+    email: string; // From phone
     phone: string;
     password?: string;
     id?: string; // for editing
@@ -109,7 +116,9 @@ const TeacherModal: React.FC<{
         }
 
         const saveData: TeacherModalSaveData = { 
+            id: teacher?.id,
             name: formData.name,
+            email: `${formData.phone}@gstudent.app`, // Create an email from phone
             subject: formData.subject,
             imageUrl: formData.imageUrl,
             phone: formData.phone,
@@ -117,9 +126,7 @@ const TeacherModal: React.FC<{
             teachingLevels: selectedLevels,
             teachingGrades: selectedGrades,
         };
-        if(teacher) {
-            saveData.id = teacher.id;
-        }
+        
         onSave(saveData);
     };
 
@@ -237,7 +244,7 @@ const TeacherManagementView: React.FC = () => {
     useEffect(() => {
         const fetchAndSetTeachers = async () => {
             setIsLoading(true);
-            const data = await getTeachers();
+            const data = await getAllTeachers();
             setTeachers(data);
             setIsLoading(false);
         };
@@ -246,29 +253,26 @@ const TeacherManagementView: React.FC = () => {
     
     const refreshData = useCallback(() => setDataVersion(v => v + 1), []);
 
+    // FIX: This function now correctly handles create/update logic and error checking.
     const handleSave = async (data: TeacherModalSaveData) => {
         try {
-            let result: { error?: any; data?: any };
+            let result: { success: boolean, error?: any };
         
             if (data.id) { // Editing
-                const { id, name, subject, imageUrl, teachingLevels, teachingGrades, phone, password } = data;
-                const teacherData: Partial<Teacher> & { id: string, phone: string; password?: string } = { id, name, subject, imageUrl, teachingLevels, teachingGrades, phone, password };
+                const { id, ...updates } = data;
                 
-                if (!teacherData.password?.trim()) {
-                    delete teacherData.password;
+                if (!updates.password?.trim()) {
+                    delete updates.password;
                 }
-                result = await updateTeacher(teacherData);
+                // FIX: Call updateTeacher with two arguments (id, updates).
+                result = await updateTeacher(id, updates);
             } else { // Adding
-                const { name, subject, imageUrl, teachingLevels, teachingGrades, phone, password } = data;
-                if (!password) {
-                    addToast('كلمة المرور مطلوبة للمدرس الجديد.', ToastType.ERROR);
-                    return;
-                }
-                const teacherData = { name, subject, imageUrl, teachingLevels, teachingGrades, phone, password };
-                result = await addTeacher(teacherData);
+                // FIX: Use createTeacher instead of the stub function addTeacher.
+                result = await createTeacher(data);
             }
             
-            if (result?.error) {
+            // FIX: Check for the `success` flag instead of just the `error` property for better reliability.
+            if (!result.success) {
                 // Supabase errors are objects with a message property.
                 throw new Error(result.error.message || 'حدث خطأ غير متوقع.');
             } else {
@@ -288,8 +292,8 @@ const TeacherManagementView: React.FC = () => {
     const handleDelete = async () => {
         if (modalState.teacher) {
             try {
-                const { error } = await deleteTeacher(modalState.teacher.id);
-                if (error) {
+                const { success, error } = await deleteTeacher(modalState.teacher.id);
+                if (!success) {
                      throw new Error(error.message || 'حدث خطأ غير متوقع.');
                 } else {
                     addToast('تم حذف المدرس بنجاح.', ToastType.SUCCESS);

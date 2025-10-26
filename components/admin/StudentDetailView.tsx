@@ -163,10 +163,14 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
       }
   }
 
-  const handleSubscriptionUpdate = (plan: any, status: any, endDate: any) => {
-    createOrUpdateSubscription(user.id, plan, status, endDate);
-    addToast("تم تحديث اشتراك الطالب", ToastType.SUCCESS);
-    refreshData();
+  const handleSubscriptionUpdate = async (plan: any, status: any, endDate?: string) => {
+    const { error } = await createOrUpdateSubscription(user.id, plan, status, endDate);
+    if (error) {
+        addToast(`فشل تحديث الاشتراك: ${error.message}`, ToastType.ERROR);
+    } else {
+        addToast("تم تحديث اشتراك الطالب", ToastType.SUCCESS);
+        refreshData();
+    }
   };
 
   if (!grade) return <div>لا يمكن تحميل بيانات الطالب.</div>;

@@ -1,74 +1,20 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { User, Role, Theme } from './types';
-import { 
-    initData, 
-    registerAndRedeemCode,
-    signIn,
-    signUp,
-    signOut,
-    onAuthStateChange,
-    getProfile,
-    getSession,
-    addActivityLog
-} from './services/storageService';
+import React, { useState, useEffect } from 'react';
+import { Role, Theme } from './types';
+import { useSession } from './hooks/useSession';
 import StudentDashboard from './components/student/StudentDashboard';
 import AdminDashboard from './components/admin/AdminDashboard';
 import TeacherDashboard from './components/teacher/TeacherDashboard';
 import Loader from './components/common/Loader';
 import { ToastContainer } from './components/common/Toast';
-import { useToast } from './useToast';
 import WelcomeScreen from './components/welcome/WelcomeScreen';
 import AuthScreen from './components/auth/AuthScreen';
 import ScreenSecurity from './components/common/ScreenSecurity';
 
 const App: React.FC = () => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [authError, setAuthError] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [authView, setAuthView] = useState<'welcome' | 'auth'>('welcome');
+  const { currentUser, isLoading, authView, setAuthView } = useSession();
   const [theme, setTheme] = useState<Theme>('light');
-  const { addToast } = useToast();
 
   useEffect(() => {
-    const initializeApp = async () => {
-        try {
-            await initData();
-            
-            const { data: { subscription } } = onAuthStateChange(async (session) => {
-                if (session) {
-                    const profile = await getProfile(session.user.id);
-                    if (profile) {
-                        setCurrentUser({
-                            ...profile,
-                            email: session.user.email!,
-                        });
-                    } else {
-                        console.error("User is logged in but profile data is missing.");
-                        await signOut();
-                        setCurrentUser(null);
-                    }
-                } else {
-                    setCurrentUser(null);
-                }
-                setIsLoading(false);
-            });
-
-            const session = await getSession();
-            if (!session) {
-                setIsLoading(false);
-            }
-
-            return () => {
-                subscription?.unsubscribe();
-            };
-        } catch (error) {
-            console.error("Initialization failed:", error);
-            setIsLoading(false);
-        }
-    };
-    
-    initializeApp();
-
     const storedTheme = localStorage.getItem('theme') as Theme | null;
     if (storedTheme) {
         setTheme(storedTheme);
@@ -79,41 +25,6 @@ const App: React.FC = () => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
   }, [theme]);
-
-  const handleLogin = useCallback(async (identifier: string, password: string): Promise<void> => {
-    setAuthError('');
-    const { error } = await signIn(identifier, password);
-    if (error) {
-      setAuthError('بيانات الدخول غير صحيحة.');
-    }
-  }, []);
-  
-  const handleRegister = useCallback(async (userData: any, codeToRegister: string | null): Promise<void> => {
-      setAuthError('');
-      if (codeToRegister) {
-          const result = await registerAndRedeemCode(userData, codeToRegister);
-          if (result.error) {
-              setAuthError(result.error);
-          } else {
-               addToast(`مرحباً بك ${userData.name}! تم إنشاء حسابك وتفعيل اشتراكك.`, 'success');
-          }
-      } else {
-          const { error } = await signUp(userData);
-          if (error) {
-              setAuthError(error.message);
-          } else {
-              addToast(`تم إنشاء حسابك بنجاح! مرحباً بك.`, 'success');
-          }
-      }
-  }, [addToast]);
-
-  const handleLogout = useCallback(async (): Promise<void> => {
-    if (currentUser) {
-      addActivityLog('User Logout', `User "${currentUser.name}" logged out.`);
-    }
-    await signOut();
-    setAuthView('welcome');
-  }, [currentUser]);
 
   const renderContent = () => {
     if (isLoading) {
@@ -128,13 +39,7 @@ const App: React.FC = () => {
     if (!currentUser) {
       switch (authView) {
         case 'auth':
-          return <AuthScreen 
-            onLogin={handleLogin}
-            onRegister={handleRegister}
-            error={authError}
-            clearError={() => setAuthError('')}
-            onBack={() => setAuthView('welcome')}
-          />
+          return <AuthScreen onBack={() => setAuthView('welcome')} />;
         case 'welcome':
         default:
           return <WelcomeScreen 
@@ -147,10 +52,10 @@ const App: React.FC = () => {
     return (
       <ScreenSecurity>
         {currentUser.role === Role.ADMIN
-          ? <AdminDashboard user={currentUser} onLogout={handleLogout} theme={theme} setTheme={setTheme} />
+          ? <AdminDashboard theme={theme} setTheme={setTheme} />
           : currentUser.role === Role.TEACHER
-          ? <TeacherDashboard user={currentUser} onLogout={handleLogout} theme={theme} setTheme={setTheme} />
-          : <StudentDashboard user={currentUser} onLogout={handleLogout} theme={theme} setTheme={setTheme} />
+          ? <TeacherDashboard theme={theme} setTheme={setTheme} />
+          : <StudentDashboard theme={theme} setTheme={setTheme} />
         }
       </ScreenSecurity>
     );

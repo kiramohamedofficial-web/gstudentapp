@@ -1,14 +1,13 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { User, StudentView, Subscription, Theme } from '../../types';
-import { HomeIcon, UserCircleIcon, CreditCardIcon, UsersIcon, LogoutIcon, TemplateIcon, XIcon, SparklesIcon, ChartBarIcon, BrainIcon, BellIcon, CogIcon, QuestionMarkCircleIcon, MoonIcon } from '../common/Icons';
+import { StudentView, Subscription, Theme } from '../../types';
+import { HomeIcon, UserCircleIcon, CreditCardIcon, UsersIcon, LogoutIcon, TemplateIcon, XIcon, SparklesIcon, ChartBarIcon, BrainIcon, BellIcon, CogIcon, QuestionMarkCircleIcon, MoonIcon, ShieldCheckIcon, ShieldExclamationIcon } from '../common/Icons';
+import { useSession } from '../../hooks/useSession';
+import { useSubscription } from '../../hooks/useSubscription';
 
 interface StudentLayoutProps {
-  user: User;
-  onLogout: () => void;
   children: React.ReactNode;
   onNavClick: (view: StudentView) => void;
   activeView: string;
-  subscription: Subscription | null;
   theme: Theme;
   setTheme: (theme: Theme) => void;
   gradeName?: string;
@@ -59,7 +58,7 @@ const NavButton: React.FC<{ onClick: () => void; label: string; icon: React.FC<{
 
 const SubscriptionStatusCard: React.FC<{ subscription: Subscription; onNavClick: () => void; }> = ({ subscription, onNavClick }) => {
     const days = Math.ceil(Math.max(0, (new Date(subscription.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
-    const planLabels: Record<Subscription['plan'], string> = { Monthly: 'الشهرية', Quarterly: 'ربع السنوية', Annual: 'السنوية', SemiAnnually: 'نصف السنوية' };
+    const planLabels: Record<Subscription['plan'], string> = { Monthly: 'الشهرية', Quarterly: 'ربع السنوية', Annual: 'السنوية', SemiAnnually: 'نصف السنوية', Code: 'كود' };
 
     return (
         <div className="px-4 pb-4">
@@ -75,7 +74,7 @@ const SubscriptionStatusCard: React.FC<{ subscription: Subscription; onNavClick:
 const NavContent: React.FC<{ navItems: any[]; activeView: string; onNavClick: (view: StudentView) => void; onLogout: () => void; subscription: Subscription | null; }> = ({ navItems, activeView, onNavClick, onLogout, subscription }) => (
     <div className="flex flex-col flex-1 overflow-y-auto">
         <nav className="mt-2 flex-grow p-4 space-y-1.5">{navItems.map((item) => <NavButton key={item.id} onClick={() => onNavClick(item.id as StudentView)} label={item.label} icon={item.icon} isActive={activeView === item.id} />)}</nav>
-        {subscription && subscription.status === 'Active' && (<SubscriptionStatusCard subscription={subscription} onNavClick={() => onNavClick('subscription')} />)}
+        {subscription && subscription.status === 'Active' && (new Date(subscription.endDate) >= new Date()) && (<SubscriptionStatusCard subscription={subscription} onNavClick={() => onNavClick('subscription')} />)}
         <div className="p-4 border-t border-[var(--border-primary)]"><button onClick={onLogout} className="w-full flex items-center p-3 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors duration-200 space-x-4 space-x-reverse"><LogoutIcon className="w-6 h-6" /><span className="text-md font-semibold">تسجيل الخروج</span></button></div>
     </div>
 );
@@ -87,12 +86,20 @@ const BottomNavItem: React.FC<{ onClick: () => void; label: string; icon: React.
     </button>
 );
 
-const StudentLayout: React.FC<StudentLayoutProps> = ({ user, onLogout, children, onNavClick, activeView, subscription, theme, setTheme, gradeName }) => {
+const StudentLayout: React.FC<StudentLayoutProps> = ({ children, onNavClick, activeView, theme, setTheme, gradeName }) => {
+    const { currentUser: user, handleLogout: onLogout } = useSession();
+    const { subscription, isLoading: isSubLoading } = useSubscription();
+
     const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
     const profileMenuRef = useRef<HTMLDivElement>(null);
     const notificationsRef = useRef<HTMLDivElement>(null);
+
+    const hasActiveSubscription = useMemo(() => {
+        if (!subscription || subscription.status !== 'Active') return false;
+        return new Date(subscription.endDate) >= new Date();
+    }, [subscription]);
 
     const navItems = useMemo(() => [
         { id: 'home', label: 'الرئيسية', icon: HomeIcon },
@@ -119,6 +126,8 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ user, onLogout, children,
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
   
+    if (!user) return null;
+
     return (
     <div className="h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] p-0 md:p-3">
       <div className="flex w-full h-full md:gap-3">
@@ -143,6 +152,12 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ user, onLogout, children,
                 </h1>
 
                 <div className="header-actions">
+                    {!isSubLoading && (
+                        <div className={`hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold ${hasActiveSubscription ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                            {hasActiveSubscription ? <ShieldCheckIcon className="w-4 h-4" /> : <ShieldExclamationIcon className="w-4 h-4" />}
+                            <span>{hasActiveSubscription ? 'الاشتراك فعال' : 'الاشتراك غير فعال'}</span>
+                        </div>
+                    )}
                     <div className="relative">
                         <button onClick={() => { setIsNotificationsOpen(p => !p); setIsProfileMenuOpen(false); }} className="notification-btn">
                             <i className="fas fa-bell"></i>

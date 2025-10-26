@@ -1,13 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowRightIcon } from '../common/Icons';
 import { Grade } from '../../types';
-import { validateSubscriptionCode, getAllGrades } from '../../services/storageService';
+import { validateSubscriptionCode, getGradesForSelection } from '../../services/storageService';
+import { useSession } from '../../hooks/useSession';
 
 interface AuthScreenProps {
-    onLogin: (email: string, password: string) => Promise<void>;
-    onRegister: (userData: any, code: string | null) => Promise<void>;
-    error: string;
-    clearError: () => void;
     onBack: () => void;
 }
 
@@ -37,7 +34,8 @@ const normalizePhoneNumber = (phone: string): string => {
 };
 
 
-const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, error, clearError, onBack }) => {
+const AuthScreen: React.FC<AuthScreenProps> = ({ onBack }) => {
+    const { handleLogin, handleRegister, authError, clearAuthError } = useSession();
     const [view, setView] = useState<AuthView>('login');
     const [formData, setFormData] = useState({ name: '', email: '', phone: '', guardianPhone: '', password: '', confirmPassword: '', level: '', grade: '', track: '' });
     const [code, setCode] = useState('');
@@ -48,29 +46,35 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, error, cle
     const [gradesForLevel, setGradesForLevel] = useState<GradeForSelect[]>([]);
     
     useEffect(() => {
-        // FIX: Use getAllGrades to ensure consistency with the rest of the app,
-        // which relies on a cached/initialized data source for grade information.
-        // This prevents a mismatch where a grade ID is saved from one source (DB)
-        // but cannot be found in the other (local cache) for display.
-        const grades = getAllGrades().map(g => ({ id: g.id, name: g.name, level: g.level }));
-        setAllGrades(grades);
+        const fetchGrades = async () => {
+            const grades = await getGradesForSelection();
+            setAllGrades(grades);
+        };
+        fetchGrades();
     }, []);
-
-    useEffect(() => {
-        setGradesForLevel(formData.level ? allGrades.filter(g => g.level === formData.level) : []);
-    }, [formData.level, allGrades]);
     
     const changeView = (newView: AuthView) => {
-        clearError();
+        clearAuthError();
         setFormError('');
         setView(newView);
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
-        const isPhone = name === 'phone' || name === 'guardianPhone';
-        setFormData(prev => ({ ...prev, [name]: isPhone ? value.replace(/[^0-9]/g, '') : value }));
-        if (name === 'level') setFormData(prev => ({...prev, grade: '', track: ''}));
+        setFormData(prev => {
+            const isPhone = name === 'phone' || name === 'guardianPhone';
+            const newValue = isPhone ? value.replace(/[^0-9]/g, '') : value;
+            const newState = { ...prev, [name]: newValue };
+            
+            if (name === 'level') {
+                newState.grade = '';
+                newState.track = '';
+                // Atomically update the dependent state to avoid race conditions
+                setGradesForLevel(value ? allGrades.filter(g => g.level === value) : []);
+            }
+            
+            return newState;
+        });
     };
 
     const handleNext = () => {
@@ -78,12 +82,8 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, error, cle
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) return setFormError('الرجاء إدخال بريد إلكتروني صالح.');
         if (formData.password.length < 6) return setFormError('يجب أن تتكون كلمة المرور من 6 أحرف على الأقل.');
         if (formData.password !== formData.confirmPassword) return setFormError('كلمتا المرور غير متطابقتين.');
-        
-        // FIX: Added more explicit validation for phone numbers to ensure they are exactly
-        // 10 digits after normalization, which helps prevent invalid data from being submitted.
         if (normalizePhoneNumber(formData.phone).length !== 10) return setFormError('الرجاء إدخال رقم هاتف مصري صحيح (11 رقم يبدأ بـ 0).');
         if (normalizePhoneNumber(formData.guardianPhone).length !== 10) return setFormError('الرجاء إدخال رقم هاتف ولي أمر مصري صحيح (11 رقم يبدأ بـ 0).');
-        
         changeView('register-step-2');
     };
 
@@ -91,14 +91,14 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, error, cle
         e.preventDefault();
         setIsLoading(true);
         setFormError('');
-        clearError();
+        clearAuthError();
         
         switch (view) {
             case 'login':
-                await onLogin(formData.email, formData.password);
+                await handleLogin(formData.email, formData.password);
                 break;
             case 'code-login':
-                const { valid, error } = validateSubscriptionCode(code);
+                const { valid, error } = await validateSubscriptionCode(code);
                 if(valid) {
                     changeView('register-step-1');
                 } else {
@@ -107,16 +107,16 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, error, cle
                 break;
             case 'register-step-2':
                 if (!formData.grade) return setFormError('يرجى تحديد الصف الدراسي.');
-                if ((formData.grade === '11' || formData.grade === '12') && !formData.track) return setFormError('يرجى تحديد الشعبة.');
+                if ((formData.grade === '5' || formData.grade === '6') && !formData.track) return setFormError('يرجى تحديد الشعبة.');
                 
                 const registrationData = {
                     name: formData.name.trim(), email: formData.email.trim(), password: formData.password,
                     phone: `+20${normalizePhoneNumber(formData.phone)}`,
                     guardianPhone: `+20${normalizePhoneNumber(formData.guardianPhone)}`,
                     grade: parseInt(formData.grade, 10),
-                    track: (formData.grade === '11' || formData.grade === '12') ? formData.track as any : undefined,
+                    track: (formData.grade === '5' || formData.grade === '6') ? formData.track as any : undefined,
                 };
-                await onRegister(registrationData, code || null);
+                await handleRegister(registrationData, code || null);
                 break;
         }
         setIsLoading(false);
@@ -180,12 +180,31 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, error, cle
                     {/* Register Step 2 */}
                     {view === 'register-step-2' && (
                         <>
-                            <select name="level" value={formData.level} onChange={handleChange} required className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg"><option value="">اختر المرحلة</option><option value="Middle">الإعدادية</option><option value="Secondary">الثانوية</option></select>
-                            <select name="grade" value={formData.grade} onChange={handleChange} required disabled={!formData.level} className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg disabled:opacity-50"><option value="">اختر الصف</option>{gradesForLevel.map(g=><option key={g.id} value={g.id}>{g.name}</option>)}</select>
-                            {(formData.grade === '11' || formData.grade === '12') && (
-                                <select name="track" value={formData.track} onChange={handleChange} required className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg"><option value="">اختر الشعبة</option>{formData.grade==='11' ? <><option value="Scientific">علمي</option><option value="Literary">أدبي</option></> : <><option value="Science">علمي علوم</option><option value="Math">علمي رياضيات</option><option value="Literary">أدبي</option></>}</select>
+                            <div>
+                                <label htmlFor="level" className="block text-sm font-medium text-[var(--text-secondary)] mb-2">المرحلة الدراسية</label>
+                                <select name="level" id="level" value={formData.level} onChange={handleChange} required className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg">
+                                    <option value="" disabled>-- اختر المرحلة --</option>
+                                    <option value="Middle">الإعدادية</option>
+                                    <option value="Secondary">الثانوية</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label htmlFor="grade" className="block text-sm font-medium text-[var(--text-secondary)] mb-2">الصف الدراسي</label>
+                                <select name="grade" id="grade" value={formData.grade} onChange={handleChange} required disabled={!formData.level} className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg disabled:opacity-50">
+                                    <option value="" disabled>-- اختر الصف --</option>
+                                    {gradesForLevel.map(g=><option key={g.id} value={g.id}>{g.name}</option>)}
+                                </select>
+                            </div>
+                            {(formData.grade === '5' || formData.grade === '6') && (
+                                <div>
+                                    <label htmlFor="track" className="block text-sm font-medium text-[var(--text-secondary)] mb-2">الشعبة</label>
+                                    <select name="track" id="track" value={formData.track} onChange={handleChange} required className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg">
+                                        <option value="" disabled>-- اختر الشعبة --</option>
+                                        {formData.grade==='5' ? <><option value="Scientific">علمي</option><option value="Literary">أدبي</option></> : <><option value="Science">علمي علوم</option><option value="Math">علمي رياضيات</option><option value="Literary">أدبي</option></>}
+                                    </select>
+                                </div>
                             )}
-                            <div className="flex gap-4">
+                            <div className="flex gap-4 pt-4">
                                 <button type="button" onClick={() => changeView('register-step-1')} className="w-1/3 py-3.5 font-bold bg-[#212121] text-white rounded-lg">السابق</button>
                                 <button type="submit" disabled={isLoading} className="w-2/3 py-3.5 font-bold text-white bg-green-600 rounded-lg disabled:opacity-60">{isLoading ? 'جاري الإنشاء...' : 'إنشاء الحساب'}</button>
                             </div>
@@ -193,7 +212,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, error, cle
                     )}
                 </form>
 
-                {(formError || error) && <p className="text-red-400 text-sm text-center pt-4">{formError || error}</p>}
+                {(formError || authError) && <p className="text-red-400 text-sm text-center pt-4">{formError || authError}</p>}
             </>
         );
     };

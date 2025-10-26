@@ -2,34 +2,38 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Lesson, User, QuizAttempt } from '../../types';
 import { getLatestQuizAttemptForLesson, addQuizAttempt } from '../../services/storageService';
 import { ClockIcon, CheckCircleIcon, XCircleIcon, DocumentTextIcon } from '../common/Icons';
+import { useSession } from '../../hooks/useSession';
 
 interface QuizTakerProps {
   lesson: Lesson;
-  user: User;
   onComplete: (lessonId: string) => void;
 }
 
-const QuizTaker: React.FC<QuizTakerProps> = ({ lesson, user, onComplete }) => {
+const QuizTaker: React.FC<QuizTakerProps> = ({ lesson, onComplete }) => {
+    const { currentUser: user } = useSession();
     const [view, setView] = useState<'start' | 'taking' | 'result'>('start');
     const [studentAnswers, setStudentAnswers] = useState<string[]>([]);
     const [timeLeft, setTimeLeft] = useState(lesson.timeLimit ? lesson.timeLimit * 60 : 0);
     const [startTime, setStartTime] = useState<number | null>(null);
-    const [currentAttempt, setCurrentAttempt] = useState<QuizAttempt | null>(null);
+    const [currentAttempt, setCurrentAttempt] = useState<QuizAttempt | null | undefined>(undefined);
     
-    const previousAttempt = useMemo(() => getLatestQuizAttemptForLesson(user.id, lesson.id), [user.id, lesson.id]);
-
     useEffect(() => {
-        if (previousAttempt) {
-            setCurrentAttempt(previousAttempt);
-            setView('result');
-        }
-    }, [previousAttempt]);
+        if (!user) return;
+        const fetchPreviousAttempt = async () => {
+            const attempt = await getLatestQuizAttemptForLesson(user.id, lesson.id);
+            setCurrentAttempt(attempt);
+            if (attempt) {
+                setView('result');
+            }
+        };
+        fetchPreviousAttempt();
+    }, [user, lesson.id]);
 
-    const handleSubmit = useCallback(() => {
+    const handleSubmit = useCallback(async () => {
+        if (!user) return;
         const correctAnswers = lesson.correctAnswers || [];
         if (correctAnswers.length === 0) return;
 
-        // Simple case-insensitive and trim matching
         const correctCount = studentAnswers.filter(ans => 
             correctAnswers.some(correctAns => correctAns.trim().toLowerCase() === ans.trim().toLowerCase())
         ).length;
@@ -48,12 +52,12 @@ const QuizTaker: React.FC<QuizTakerProps> = ({ lesson, user, onComplete }) => {
             isPass: score >= passingScore,
         };
         
-        addQuizAttempt(attempt);
+        await addQuizAttempt(attempt);
         if (attempt.isPass) {
             onComplete(lesson.id);
         }
 
-        const newAttemptData = getLatestQuizAttemptForLesson(user.id, lesson.id);
+        const newAttemptData = await getLatestQuizAttemptForLesson(user.id, lesson.id);
         if(newAttemptData) setCurrentAttempt(newAttemptData);
         
         setView('result');
@@ -76,6 +80,8 @@ const QuizTaker: React.FC<QuizTakerProps> = ({ lesson, user, onComplete }) => {
         return () => clearInterval(timer);
     }, [view, lesson.timeLimit, handleSubmit]);
     
+    if (!user) return null;
+
     const startQuiz = () => {
         setView('taking');
         setStartTime(Date.now());
@@ -104,6 +110,10 @@ const QuizTaker: React.FC<QuizTakerProps> = ({ lesson, user, onComplete }) => {
         );
     }
     
+    if (currentAttempt === undefined) {
+        return <div className="text-center p-8">جاري تحميل بيانات الاختبار...</div>;
+    }
+
     // Start Screen
     if (view === 'start') {
         return (

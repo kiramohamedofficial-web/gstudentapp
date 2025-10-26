@@ -1,38 +1,36 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Lesson, LessonType, Grade, User, StudentView } from '../../types';
+import { Lesson, LessonType, Grade, User, StudentView, Subscription } from '../../types';
 import { getAIExplanation } from '../../services/geminiService';
 import Modal from '../common/Modal';
 import { SparklesIcon, ChevronLeftIcon, ChevronRightIcon, DocumentTextIcon, ArrowLeftIcon, LockClosedIcon } from '../common/Icons';
 import { useToast } from '../../useToast';
 import QuizTaker from './QuizTaker';
 import CustomYouTubePlayer from './CustomYouTubePlayer';
-import { getSubscriptionByUserId } from '../../services/storageService';
+import { useSession } from '../../hooks/useSession';
+import { useSubscription } from '../../hooks/useSubscription';
 
 interface LessonViewProps {
   lesson: Lesson;
   onBack: () => void;
   grade: Grade;
-  user: User;
   onLessonComplete: (lessonId: string) => void;
   onNavigate: (view: StudentView) => void;
 }
 
-const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, grade, user, onLessonComplete, onNavigate }) => {
+const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, grade, onLessonComplete, onNavigate }) => {
+    const { currentUser: user } = useSession();
+    const { subscription, isLoading: isSubLoading } = useSubscription();
+
     const [isHelpModalOpen, setHelpModalOpen] = useState(false);
     const [aiQuestion, setAiQuestion] = useState('');
     const [aiResponse, setAiResponse] = useState('');
     const [displayedResponse, setDisplayedResponse] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-
-    // Manage current lesson state for playlist navigation
     const [currentLesson, setCurrentLesson] = useState(lesson);
     
-    // Update current lesson if the initial lesson prop changes
     useEffect(() => {
         setCurrentLesson(lesson);
     }, [lesson]);
-
-    const subscription = useMemo(() => getSubscriptionByUserId(user.id), [user.id]);
 
     const hasActiveSubscription = useMemo(() => {
         if (!subscription || subscription.status !== 'Active') return false;
@@ -47,7 +45,7 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, grade, user, on
                 }
             }
         }
-        return currentLesson.title; // Fallback to lesson title
+        return currentLesson.title;
     }, [grade, currentLesson]);
 
     const playlist = useMemo(() => {
@@ -90,11 +88,15 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, grade, user, on
       }
     }, [aiResponse, displayedResponse]);
 
+    if (!user) return null;
+
     const renderContent = () => {
+        if (isSubLoading) {
+             return <div className="text-center p-8 bg-[var(--bg-secondary)] rounded-lg">جاري التحقق من الاشتراك...</div>
+        }
         if (currentLesson.type === LessonType.EXPLANATION && !hasActiveSubscription) {
             return (
                 <div className="relative w-full max-w-4xl mx-auto aspect-video bg-gradient-to-br from-[rgba(var(--bg-secondary-rgb),0.5)] to-[rgba(var(--bg-primary-rgb),0.5)] rounded-2xl shadow-2xl border border-purple-500/30 flex flex-col items-center justify-center p-8 text-center overflow-hidden backdrop-blur-lg">
-                    {/* Glows */}
                     <div className="absolute -top-1/4 -right-1/4 w-72 h-72 bg-purple-600/30 rounded-full filter blur-3xl animate-blob"></div>
                     <div className="absolute -bottom-1/4 -left-1/4 w-72 h-72 bg-sky-600/30 rounded-full filter blur-3xl animate-blob animation-delay-4000"></div>
                     
@@ -154,7 +156,7 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, grade, user, on
                 );
             case LessonType.HOMEWORK:
             case LessonType.EXAM:
-                return <QuizTaker lesson={currentLesson} user={user} onComplete={onLessonComplete} />;
+                return <QuizTaker lesson={currentLesson} onComplete={onLessonComplete} />;
             case LessonType.SUMMARY:
                 return <div className="p-6 bg-[var(--bg-secondary)] rounded-lg prose" dangerouslySetInnerHTML={{ __html: currentLesson.content }} />;
             default:

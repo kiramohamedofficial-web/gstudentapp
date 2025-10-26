@@ -24,11 +24,10 @@ import TeacherManagementView from './TeacherManagementView';
 import QuestionBankView from './QuestionBankView';
 import SystemHealthView from './SystemHealthView';
 import Loader from '../common/Loader';
+import { useSession } from '../../hooks/useSession';
 
 
 interface AdminDashboardProps {
-  user: User;
-  onLogout: () => void;
   theme: Theme;
   setTheme: (theme: Theme) => void;
 }
@@ -67,18 +66,21 @@ const StudentManagementView: React.FC<{ onViewDetails: (user: User) => void }> =
     const [searchQuery, setSearchQuery] = useState('');
     const [gradeFilter, setGradeFilter] = useState('');
     const [allUsers, setAllUsers] = useState<User[]>([]);
+    const [subscriptions, setSubscriptions] = useState<Map<string, any>>(new Map());
     const [isLoading, setIsLoading] = useState(true);
 
     const allGrades = useMemo(() => getAllGrades(), []);
     
     useEffect(() => {
-        const fetchUsers = async () => {
+        const fetchData = async () => {
             setIsLoading(true);
             const users = await getAllUsers();
+            const subs = await getAllSubscriptions();
             setAllUsers(users.filter(u => u.role === 'student'));
+            setSubscriptions(new Map(subs.map(s => [s.userId, s])));
             setIsLoading(false);
         };
-        fetchUsers();
+        fetchData();
     }, []);
 
     const filteredUsers = useMemo(() => {
@@ -86,7 +88,7 @@ const StudentManagementView: React.FC<{ onViewDetails: (user: User) => void }> =
             .map(user => ({
                 ...user,
                 progress: calculateStudentProgress(user, allGrades),
-                subscription: getSubscriptionByUserId(user.id),
+                subscription: subscriptions.get(user.id),
             }))
             .filter(user => {
                 const query = searchQuery.toLowerCase();
@@ -94,7 +96,7 @@ const StudentManagementView: React.FC<{ onViewDetails: (user: User) => void }> =
                 const gradeMatch = gradeFilter ? user.grade != null && user.grade.toString() === gradeFilter : true;
                 return searchMatch && gradeMatch;
             });
-    }, [allUsers, allGrades, searchQuery, gradeFilter]);
+    }, [allUsers, allGrades, searchQuery, gradeFilter, subscriptions]);
     
     const uniqueGrades = useMemo(() => {
         const gradeSet = new Set<string>();
@@ -182,8 +184,8 @@ const StudentManagementView: React.FC<{ onViewDetails: (user: User) => void }> =
 
 
 const MainDashboard: React.FC<{ onNavigate: (view: AdminView) => void }> = ({ onNavigate }) => {
-    const [students, setStudents] = useState<User[]>([]);
-    const [teachers, setTeachers] = useState<Teacher[]>([]);
+    const [stats, setStats] = useState({ students: 0, teachers: 0, activeSubs: 0, pendingRequests: 0 });
+    const [latestUsers, setLatestUsers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
@@ -191,23 +193,26 @@ const MainDashboard: React.FC<{ onNavigate: (view: AdminView) => void }> = ({ on
             setIsLoading(true);
             const usersPromise = getAllUsers();
             const teachersPromise = getTeachers();
-            
-            const [users, teacherData] = await Promise.all([usersPromise, teachersPromise]);
+            const subsPromise = getAllSubscriptions();
+            const pendingPromise = getPendingSubscriptionRequestCount();
 
-            setStudents(users.filter(u => u.role === 'student'));
-            setTeachers(teacherData);
+            const [users, teacherData, subscriptions, pendingCount] = await Promise.all([usersPromise, teachersPromise, subsPromise, pendingPromise]);
+
+            const students = users.filter(u => u.role === 'student');
+            setStats({
+                students: students.length,
+                teachers: teacherData.length,
+                activeSubs: subscriptions.filter(s => s.status === 'Active').length,
+                pendingRequests: pendingCount,
+            });
+            setLatestUsers([...students].reverse().slice(0, 5));
             setIsLoading(false);
         };
         fetchData();
     }, []);
-
-    const latestUsers = useMemo(() => [...students].reverse().slice(0, 5), [students]);
-    const subscriptions = useMemo(() => getAllSubscriptions(), [students]); 
-    const activityLogs = useMemo(() => getActivityLogs().slice(0, 5), []);
-    const pendingRequestsCount = useMemo(() => getPendingSubscriptionRequestCount(), []);
     
-    const activeSubscriptions = subscriptions.filter(s => s.status === 'Active').length;
-
+    const activityLogs = useMemo(() => getActivityLogs().slice(0, 5), []);
+    
     if (isLoading) {
         return <div className="flex justify-center items-center h-64"><Loader /></div>;
     }
@@ -216,12 +221,12 @@ const MainDashboard: React.FC<{ onNavigate: (view: AdminView) => void }> = ({ on
         <div className="fade-in">
             <h1 className="text-3xl font-bold mb-6 text-[var(--text-primary)]">لوحة التحكم الرئيسية</h1>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <StatCard title="إجمالي الطلاب" value={students.length.toString()} icon={UsersIcon} delay={100} onClick={() => onNavigate('students')} />
-                <StatCard title="إجمالي المدرسين" value={teachers.length.toString()} icon={UserCircleIcon} delay={200} onClick={() => onNavigate('teachers')} />
-                <StatCard title="الاشتراكات النشطة" value={activeSubscriptions.toString()} icon={ChartBarIcon} delay={300} onClick={() => onNavigate('subscriptions')} />
+                <StatCard title="إجمالي الطلاب" value={stats.students.toString()} icon={UsersIcon} delay={100} onClick={() => onNavigate('students')} />
+                <StatCard title="إجمالي المدرسين" value={stats.teachers.toString()} icon={UserCircleIcon} delay={200} onClick={() => onNavigate('teachers')} />
+                <StatCard title="الاشتراكات النشطة" value={stats.activeSubs.toString()} icon={ChartBarIcon} delay={300} onClick={() => onNavigate('subscriptions')} />
                 <div className="relative">
-                     <StatCard title="طلبات جديدة" value={pendingRequestsCount.toString()} icon={InformationCircleIcon} delay={400} onClick={() => onNavigate('subscriptions')} />
-                     {pendingRequestsCount > 0 && <span className="absolute top-4 right-4 flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span></span>}
+                     <StatCard title="طلبات جديدة" value={stats.pendingRequests.toString()} icon={InformationCircleIcon} delay={400} onClick={() => onNavigate('subscriptions')} />
+                     {stats.pendingRequests > 0 && <span className="absolute top-4 right-4 flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span></span>}
                 </div>
             </div>
             
@@ -263,7 +268,8 @@ const MainDashboard: React.FC<{ onNavigate: (view: AdminView) => void }> = ({ on
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
-  const { user, onLogout, theme, setTheme } = props;
+  const { theme, setTheme } = props;
+  const { currentUser: user, handleLogout: onLogout } = useSession();
   const [activeView, setActiveView] = useState<AdminView>('dashboard');
   const [selectedStudent, setSelectedStudent] = useState<User | null>(null);
 
@@ -281,6 +287,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
     setActiveView(view);
   };
 
+  if (!user) return null; // Should be handled by App router
+
   const renderContent = () => {
     if (selectedStudent) {
       return <StudentDetailView user={selectedStudent} onBack={handleBackToStudents} />;
@@ -296,7 +304,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
       case 'questionBank': return <QuestionBankView />;
       case 'platformSettings': return <PlatformSettingsView user={user} />;
       case 'systemHealth': return <SystemHealthView />;
-      case 'accountSettings': return <AdminSettingsView user={user} theme={theme} setTheme={setTheme} onLogout={onLogout} />;
+      case 'accountSettings': return <AdminSettingsView theme={theme} setTheme={setTheme} />;
       case 'dashboard':
       default:
         return <MainDashboard onNavigate={setActiveView} />;
@@ -304,7 +312,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
   };
 
   return (
-    <AdminLayout {...props} activeView={activeView} onNavClick={handleNavClick}>
+    <AdminLayout user={user} onLogout={onLogout} activeView={activeView} onNavClick={handleNavClick}>
       {renderContent()}
     </AdminLayout>
   );
