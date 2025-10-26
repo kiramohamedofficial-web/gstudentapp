@@ -97,10 +97,15 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }, [addToast]);
 
     const handleLogout = useCallback(async (): Promise<void> => {
-        await signOut();
-        setCurrentUser(null);
-        setAuthView('welcome');
-        addToast('تم تسجيل خروجك بنجاح.', 'info');
+        const { error } = await signOut();
+        if (error) {
+            console.error("Logout failed:", error);
+            addToast('حدث خطأ أثناء تسجيل الخروج. يرجى المحاولة مرة أخرى.', 'error');
+        } else {
+            setCurrentUser(null);
+            setAuthView('welcome');
+            addToast('تم تسجيل خروجك بنجاح.', 'info');
+        }
     }, [addToast]);
     
     const clearAuthError = () => setAuthError('');
