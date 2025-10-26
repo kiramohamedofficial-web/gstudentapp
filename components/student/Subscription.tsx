@@ -1,6 +1,10 @@
-import React from 'react';
-import { User, StudentView } from '../../types';
-import { BookOpenIcon, VideoCameraIcon, SparklesIcon, ArrowRightIcon } from '../common/Icons';
+import React, { useState } from 'react';
+import { StudentView, ToastType } from '../../types';
+import { BookOpenIcon, VideoCameraIcon, SparklesIcon, ArrowRightIcon, QrcodeIcon } from '../common/Icons';
+import { useSession } from '../../hooks/useSession';
+import { useToast } from '../../useToast';
+import { redeemCode } from '../../services/storageService';
+import { useSubscription } from '../../hooks/useSubscription';
 
 interface SubscriptionViewProps {
   onNavigate: (view: StudentView) => void;
@@ -36,6 +40,36 @@ const SubscriptionOptionCard: React.FC<{
 
 
 const SubscriptionView: React.FC<SubscriptionViewProps> = ({ onNavigate }) => {
+    const { currentUser } = useSession();
+    const { refetchSubscription } = useSubscription();
+    const { addToast } = useToast();
+    const [code, setCode] = useState('');
+    const [isRedeeming, setIsRedeeming] = useState(false);
+
+    const handleRedeemCode = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!code.trim() || !currentUser) return;
+        setIsRedeeming(true);
+
+        const userGrade = currentUser.grade;
+        const userTrack = currentUser.track;
+        if (userGrade === null || !userTrack) {
+            addToast('بيانات صفك الدراسي غير مكتملة. يرجى تحديث ملفك الشخصي أولاً.', ToastType.ERROR);
+            setIsRedeeming(false);
+            return;
+        }
+
+        const result = await redeemCode(code, userGrade, userTrack);
+
+        if (result.success) {
+            addToast('تم تفعيل اشتراكك بنجاح!', ToastType.SUCCESS);
+            setCode('');
+            await refetchSubscription();
+        } else {
+            addToast(result.error || 'فشل تفعيل الكود. يرجى التأكد من صحة الكود والمحاولة مرة أخرى.', ToastType.ERROR);
+        }
+        setIsRedeeming(false);
+    };
 
     const options = [
         {
@@ -75,6 +109,36 @@ const SubscriptionView: React.FC<SubscriptionViewProps> = ({ onNavigate }) => {
                         />
                     </div>
                 ))}
+            </div>
+            
+            <div className="mt-12 pt-8 border-t border-[var(--border-primary)]">
+                <div className="bg-[var(--bg-secondary)] p-6 rounded-2xl border border-[var(--border-primary)]">
+                    <div className="flex items-center gap-4 mb-4">
+                        <div className="p-3 bg-green-500/10 rounded-xl">
+                            <QrcodeIcon className="w-8 h-8 text-green-400" />
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-bold text-[var(--text-primary)]">لديك كود اشتراك؟</h2>
+                            <p className="text-[var(--text-secondary)] text-sm mt-1">أدخله هنا لتفعيل اشتراكك فوراً.</p>
+                        </div>
+                    </div>
+                    <form onSubmit={handleRedeemCode} className="flex items-center gap-3 p-1 bg-[var(--bg-tertiary)] rounded-lg border border-[var(--border-primary)] focus-within:ring-2 focus-within:ring-green-500 transition-all">
+                        <input 
+                            type="text"
+                            value={code}
+                            onChange={(e) => setCode(e.target.value.toUpperCase())}
+                            placeholder="أدخل الكود هنا..."
+                            className="flex-grow bg-transparent px-4 py-2 text-center text-lg tracking-widest border-none focus:ring-0 placeholder:text-sm placeholder:tracking-normal"
+                        />
+                        <button 
+                            type="submit"
+                            disabled={isRedeeming || !code.trim()}
+                            className="px-6 py-2.5 font-bold text-white bg-green-600 rounded-md transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isRedeeming ? 'جاري...' : 'تفعيل'}
+                        </button>
+                    </form>
+                </div>
             </div>
         </div>
     );

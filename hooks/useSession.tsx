@@ -10,11 +10,13 @@ import {
     getSession,
     addActivityLog,
     updateUser,
-    deleteUser
+    deleteUser,
+    sendPasswordResetEmail,
+    updateUserPassword
 } from '../services/storageService';
 import { useToast } from '../useToast';
 
-type AuthView = 'welcome' | 'auth';
+type AuthView = 'welcome' | 'auth' | 'reset-password' | 'update-password';
 
 interface SessionContextType {
     currentUser: User | null;
@@ -26,6 +28,8 @@ interface SessionContextType {
     handleLogin: (identifier: string, password: string) => Promise<void>;
     handleRegister: (userData: any, codeToRegister: string | null) => Promise<void>;
     handleLogout: () => Promise<void>;
+    handleSendPasswordReset: (email: string) => Promise<void>;
+    handleUpdatePassword: (password: string) => Promise<void>;
 }
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
@@ -38,44 +42,49 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const { addToast } = useToast();
     
     useEffect(() => {
-        const initializeApp = async () => {
-            const { data: { subscription } } = onAuthStateChange(async (session) => {
-                if (session) {
-                    let profile: User | null = null;
-                    let attempts = 0;
-                    while (!profile && attempts < 5) {
-                        profile = await getProfile(session.user.id);
-                        if (!profile) {
-                            attempts++;
-                            await new Promise(res => setTimeout(res, 1000 * attempts));
-                        }
-                    }
+        const { data: { subscription } } = onAuthStateChange(async (event, session) => {
+            if (event === 'PASSWORD_RECOVERY') {
+                setAuthView('update-password');
+                addToast('مرحباً بك مجدداً. الرجاء إدخال كلمة المرور الجديدة.', 'info');
+                setIsLoading(false);
+                return;
+            }
 
-                    if (profile) {
-                        setCurrentUser(profile);
-                    } else {
-                        console.error("User is logged in but profile data is missing after multiple attempts.");
-                        addToast('فشل تحميل بيانات الملف الشخصي. قد تحتاج إلى تسجيل الخروج والدخول مرة أخرى.', 'error');
-                        await signOut();
-                        setCurrentUser(null);
+            if (session) {
+                let profile: User | null = null;
+                let attempts = 0;
+                while (!profile && attempts < 5) {
+                    profile = await getProfile(session.user.id);
+                    if (!profile) {
+                        attempts++;
+                        await new Promise(res => setTimeout(res, 1000 * attempts));
                     }
+                }
+
+                if (profile) {
+                    setCurrentUser(profile);
                 } else {
+                    console.error("User is logged in but profile data is missing after multiple attempts.");
+                    addToast('فشل تحميل بيانات الملف الشخصي. قد تحتاج إلى تسجيل الخروج والدخول مرة أخرى.', 'error');
+                    await signOut();
                     setCurrentUser(null);
                 }
-                setIsLoading(false);
-            });
+            } else {
+                setCurrentUser(null);
+            }
+            setIsLoading(false);
+        });
 
+        (async () => {
             const session = await getSession();
             if (!session) {
                 setIsLoading(false);
             }
+        })();
 
-            return () => {
-                subscription?.unsubscribe();
-            };
+        return () => {
+            subscription?.unsubscribe();
         };
-        
-        initializeApp();
     }, [addToast]);
 
     const handleLogin = useCallback(async (identifier: string, password: string): Promise<void> => {
@@ -138,6 +147,32 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
             addToast('تم تسجيل خروجك بنجاح.', 'info');
         }
     }, [addToast]);
+
+    const handleSendPasswordReset = useCallback(async (email: string): Promise<void> => {
+        setAuthError('');
+        const { error } = await sendPasswordResetEmail(email);
+        if (error) {
+            setAuthError(error.message);
+            addToast('حدث خطأ أثناء إرسال الرابط. تأكد من البريد الإلكتروني.', 'error');
+        } else {
+            addToast('إذا كان الحساب موجودًا، فسيتم إرسال رابط إعادة التعيين إلى بريدك الإلكتروني.', 'success');
+            setAuthView('auth');
+        }
+    }, [addToast]);
+    
+    const handleUpdatePassword = useCallback(async (password: string): Promise<void> => {
+        setAuthError('');
+        const { error } = await updateUserPassword(password);
+        if (error) {
+            setAuthError(error.message);
+            addToast('فشل تحديث كلمة المرور. قد يكون الرابط منتهي الصلاحية أو كلمة المرور ضعيفة.', 'error');
+        } else {
+            addToast('تم تحديث كلمة المرور بنجاح. يمكنك الآن تسجيل الدخول.', 'success');
+            await signOut(); 
+            setCurrentUser(null);
+            setAuthView('auth');
+        }
+    }, [addToast]);
     
     const clearAuthError = () => setAuthError('');
     
@@ -150,7 +185,9 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setAuthView,
         handleLogin,
         handleRegister,
-        handleLogout
+        handleLogout,
+        handleSendPasswordReset,
+        handleUpdatePassword
     };
 
     return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

@@ -95,7 +95,7 @@ export async function signIn(identifier: string, password: string) {
 
 export const signOut = async () => supabase.auth.signOut();
 export const getSession = async () => { const { data: { session } } = await supabase.auth.getSession(); return session; };
-export const onAuthStateChange = (callback: (session: Session | null) => void) => supabase.auth.onAuthStateChange((_event, session) => callback(session));
+export const onAuthStateChange = (callback: (event: string, session: Session | null) => void) => supabase.auth.onAuthStateChange((event, session) => callback(event, session));
 
 export const getProfile = async (userId: string): Promise<User | null> => {
     const { data: profileData, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
@@ -113,6 +113,20 @@ export const getProfile = async (userId: string): Promise<User | null> => {
         role: profileData.role as Role, teacherId: profileData.teacher_id, stage: profileData.stage
     };
 };
+
+// =================================================================
+// PASSWORD RECOVERY
+// =================================================================
+export const sendPasswordResetEmail = async (email: string) => {
+    return supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin,
+    });
+};
+
+export const updateUserPassword = async (password: string) => {
+    return supabase.auth.updateUser({ password });
+};
+
 
 // =================================================================
 // TEACHER MANAGEMENT

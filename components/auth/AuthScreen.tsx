@@ -8,7 +8,7 @@ interface AuthScreenProps {
     onBack: () => void;
 }
 
-type AuthView = 'login' | 'register-step-1' | 'register-step-2' | 'code-login';
+type AuthView = 'login' | 'register-step-1' | 'register-step-2' | 'code-login' | 'reset-password' | 'update-password';
 type GradeForSelect = Pick<Grade, 'id' | 'name' | 'level'>;
 
 
@@ -119,7 +119,7 @@ const deriveTrackFromGrade = (gradeId: number): 'Scientific' | 'Literary' | unde
 };
 
 const AuthScreen: React.FC<AuthScreenProps> = ({ onBack }) => {
-    const { handleLogin, handleRegister, authError, clearAuthError } = useSession();
+    const { handleLogin, handleRegister, authError, clearAuthError, handleSendPasswordReset, handleUpdatePassword } = useSession();
     const [view, setView] = useState<AuthView>('login');
     const [formData, setFormData] = useState({ name: '', email: '', phone: '', guardianPhone: '', password: '', confirmPassword: '', grade: '', track: '' });
     const [code, setCode] = useState('');
@@ -182,6 +182,22 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onBack }) => {
                     setFormError(error || 'الكود غير صالح.');
                 }
                 break;
+            case 'reset-password':
+                await handleSendPasswordReset(formData.email);
+                break;
+            case 'update-password':
+                if (formData.password.length < 6) {
+                    setFormError('يجب أن تتكون كلمة المرور من 6 أحرف على الأقل.');
+                    setIsLoading(false);
+                    return;
+                }
+                if (formData.password !== formData.confirmPassword) {
+                    setFormError('كلمتا المرور غير متطابقتين.');
+                    setIsLoading(false);
+                    return;
+                }
+                await handleUpdatePassword(formData.password);
+                break;
             case 'register-step-2':
                 if (!formData.grade) {
                     setFormError('الرجاء اختيار الصف الدراسي.');
@@ -207,12 +223,15 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onBack }) => {
     const renderContent = () => {
         const title = {
             'login': 'تسجيل الدخول', 'code-login': 'تسجيل الدخول بالكود',
-            'register-step-1': 'إنشاء حساب جديد', 'register-step-2': 'إنشاء حساب جديد'
+            'register-step-1': 'إنشاء حساب جديد', 'register-step-2': 'إنشاء حساب جديد',
+            'reset-password': 'إعادة تعيين كلمة المرور', 'update-password': 'تحديث كلمة المرور'
         }[view];
 
         const subtitle = {
             'login': 'مرحباً بعودتك! أدخل بياناتك للمتابعة.', 'code-login': 'أدخل كود الاشتراك الخاص بك.',
-            'register-step-1': 'الخطوة 1: المعلومات الشخصية.', 'register-step-2': 'الخطوة 2: المعلومات الدراسية.'
+            'register-step-1': 'الخطوة 1: المعلومات الشخصية.', 'register-step-2': 'الخطوة 2: المعلومات الدراسية.',
+            'reset-password': 'أدخل بريدك الإلكتروني وسنرسل لك رابطًا لإعادة التعيين.',
+            'update-password': 'أدخل كلمة مرور جديدة قوية لحسابك.'
         }[view];
 
         return (
@@ -237,6 +256,9 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onBack }) => {
                         <>
                             <input name="email" type="text" value={formData.email} onChange={handleChange} required placeholder="البريد الإلكتروني أو رقم الهاتف" className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg" />
                             <input name="password" type="password" value={formData.password} onChange={handleChange} required placeholder="كلمة المرور" className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg" />
+                            <div className="text-right">
+                                <button type="button" onClick={() => changeView('reset-password')} className="text-sm font-semibold text-blue-400 hover:text-blue-300">نسيت كلمة المرور؟</button>
+                            </div>
                             <button type="submit" disabled={isLoading} className="w-full py-3.5 font-bold text-white bg-gradient-to-r from-indigo-500 to-blue-500 rounded-lg disabled:opacity-60">{isLoading ? 'جاري التحقق...' : 'تسجيل الدخول'}</button>
                         </>
                     )}
@@ -245,6 +267,21 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onBack }) => {
                         <>
                              <input type="text" value={code} onChange={(e) => setCode(e.target.value)} required placeholder="أدخل كود الاشتراك" className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg text-center tracking-widest" />
                              <button type="submit" disabled={isLoading} className="w-full py-3.5 font-bold text-white bg-green-600 rounded-lg disabled:opacity-60">{isLoading ? 'جاري التحقق...' : 'متابعة'}</button>
+                        </>
+                    )}
+                    {/* Reset Password View */}
+                    {view === 'reset-password' && (
+                         <>
+                             <input name="email" type="email" value={formData.email} onChange={handleChange} required placeholder="البريد الإلكتروني المسجل" className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg" />
+                             <button type="submit" disabled={isLoading} className="w-full py-3.5 font-bold text-white bg-[var(--accent-primary)] rounded-lg disabled:opacity-60">{isLoading ? 'جاري الإرسال...' : 'أرسل رابط إعادة التعيين'}</button>
+                        </>
+                    )}
+                    {/* Update Password View */}
+                    {view === 'update-password' && (
+                         <>
+                            <input name="password" type="password" value={formData.password} onChange={handleChange} required placeholder="كلمة المرور الجديدة" className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg" />
+                            <input name="confirmPassword" type="password" value={formData.confirmPassword} onChange={handleChange} required placeholder="تأكيد كلمة المرور الجديدة" className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg" />
+                             <button type="submit" disabled={isLoading} className="w-full py-3.5 font-bold text-white bg-green-600 rounded-lg disabled:opacity-60">{isLoading ? 'جاري التحديث...' : 'تحديث كلمة المرور'}</button>
                         </>
                     )}
                     {/* Register Step 1 */}
@@ -303,8 +340,13 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onBack }) => {
                                 <p className="text-sm text-[var(--text-secondary)]">أو <button onClick={() => changeView('code-login')} className="font-semibold text-green-400 hover:text-green-300">تسجيل الدخول بكود اشتراك</button></p>
                             </>
                         )}
-                        {(view === 'register-step-1' || view === 'register-step-2' || view === 'code-login') && (
-                            <p className="text-sm text-[var(--text-secondary)]">لديك حساب بالفعل؟ <button onClick={() => changeView('login')} className="font-semibold text-blue-400 hover:text-blue-300">تسجيل الدخول</button></p>
+                        {(view === 'register-step-1' || view === 'register-step-2' || view === 'code-login' || view === 'reset-password' || view === 'update-password') && (
+                             <p className="text-sm text-[var(--text-secondary)]">
+                                {view === 'update-password' ? 'تذكرت كلمة المرور؟' : 'لديك حساب بالفعل؟'}
+                                <button onClick={() => changeView('login')} className="font-semibold text-blue-400 hover:text-blue-300 mr-1">
+                                    تسجيل الدخول
+                                </button>
+                            </p>
                         )}
                     </div>
                 </div>
