@@ -169,7 +169,7 @@ const TeacherModal: React.FC<{
                                 <div className="p-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md">
                                     <p className="text-sm font-medium text-[var(--text-secondary)] mb-2">الصفوف الإعدادية</p>
                                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-2 gap-y-1">
-                                        {middleSchoolGrades.map(grade => <Checkbox key={grade.id} label={grade.ordinal} name={`grade_${grade.id}`} checked={selectedGrades.includes(grade.id)} onChange={e => handleGradeChange(grade.id, e.target.checked)} />)}
+                                        {middleSchoolGrades.map(grade => <Checkbox key={grade.id} label={grade.name} name={`grade_${grade.id}`} checked={selectedGrades.includes(grade.id)} onChange={e => handleGradeChange(grade.id, e.target.checked)} />)}
                                     </div>
                                 </div>
                             )}
@@ -177,7 +177,7 @@ const TeacherModal: React.FC<{
                                 <div className="p-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md">
                                     <p className="text-sm font-medium text-[var(--text-secondary)] mb-2">الصفوف الثانوية</p>
                                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-2 gap-y-1">
-                                        {secondarySchoolGrades.map(grade => <Checkbox key={grade.id} label={grade.ordinal} name={`grade_${grade.id}`} checked={selectedGrades.includes(grade.id)} onChange={e => handleGradeChange(grade.id, e.target.checked)} />)}
+                                        {secondarySchoolGrades.map(grade => <Checkbox key={grade.id} label={grade.name} name={`grade_${grade.id}`} checked={selectedGrades.includes(grade.id)} onChange={e => handleGradeChange(grade.id, e.target.checked)} />)}
                                     </div>
                                 </div>
                             )}

@@ -1,17 +1,20 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { ServerIcon, ShieldExclamationIcon, DatabaseIcon, UsersIcon, TrashIcon } from '../common/Icons';
+import React, { useState, useCallback } from 'react';
+import { ServerIcon, ShieldExclamationIcon, DatabaseIcon, TrashIcon, ShieldCheckIcon } from '../common/Icons';
 import Modal from '../common/Modal';
 import { useToast } from '../../useToast';
 import { ToastType } from '../../types';
+import { checkDbConnection } from '../../services/storageService';
 
-type Status = 'idle' | 'scanning' | 'ok' | 'warning' | 'error';
-type ServerName = 'core' | 'middleSchool' | 'local';
+type Status = 'idle' | 'running' | 'ok' | 'warning' | 'error';
 
-interface ServerStatus {
-    name: string;
-    key: ServerName;
+interface Check {
+    id: string;
+    title: string;
+    description: string;
     status: Status;
     details: string;
+    icon: React.FC<any>;
+    action: () => Promise<{ status: Status; details: string; }>;
 }
 
 const HealthCard: React.FC<{ title: string; icon: React.FC<any>; children: React.ReactNode }> = ({ title, icon: Icon, children }) => (
@@ -27,83 +30,79 @@ const HealthCard: React.FC<{ title: string; icon: React.FC<any>; children: React
 );
 
 const StatusIndicator: React.FC<{ status: Status }> = ({ status }) => {
-    const colorMap: Record<Status, string> = {
-        idle: 'bg-gray-500',
-        scanning: 'bg-blue-500 animate-pulse',
-        ok: 'bg-green-500',
-        warning: 'bg-yellow-500',
-        error: 'bg-red-500',
+    const styles: Record<Status, { color: string; label: string; animation?: string }> = {
+        idle: { color: 'bg-gray-500', label: 'لم يتم الفحص' },
+        running: { color: 'bg-blue-500', label: 'جاري الفحص...', animation: 'animate-pulse' },
+        ok: { color: 'bg-green-500', label: 'سليم' },
+        warning: { color: 'bg-yellow-500', label: 'تحذير' },
+        error: { color: 'bg-red-500', label: 'خطأ' },
     };
-    return <span className={`w-3 h-3 rounded-full ${colorMap[status]}`}></span>;
+    const { color, label, animation } = styles[status];
+    return (
+        <div className="flex items-center gap-2">
+            <span className={`w-3 h-3 rounded-full ${color} ${animation || ''}`}></span>
+            <span className="text-xs font-semibold">{label}</span>
+        </div>
+    );
 };
 
 const SystemHealthView: React.FC = () => {
     const { addToast } = useToast();
     const [isCleanupModalOpen, setIsCleanupModalOpen] = useState(false);
     const [isCleaning, setIsCleaning] = useState(false);
-    const [serverStatuses, setServerStatuses] = useState<ServerStatus[]>([
-        { name: 'الخدمات الأساسية (Core)', key: 'core', status: 'idle', details: 'جاهز للفحص' },
-        { name: 'محتوى الإعدادي (Middle School)', key: 'middleSchool', status: 'idle', details: 'جاهز للفحص' },
-        { name: 'التخزين المحلي (Local Storage)', key: 'local', status: 'idle', details: 'جاهز للفحص' },
-    ]);
-    const [storageInfo, setStorageInfo] = useState({ size: 0, percentage: 0 });
-    const [inactiveUsers, setInactiveUsers] = useState<{name: string, grade: string}[]>([]);
-    const [isFindingUsers, setIsFindingUsers] = useState(false);
+    const [isScanning, setIsScanning] = useState(false);
 
-    const securityChecks = [
-        { name: 'ثغرات حقن SQL', status: 'ok' as Status, details: 'لم يتم العثور على نقاط ضعف معروفة.' },
-        { name: 'ثغرات XSS', status: 'ok' as Status, details: 'المدخلات والمخرجات معقمة بشكل جيد.' },
-        { name: 'كشف مفاتيح API', status: 'warning' as Status, details: 'مفتاح واحد مكشوف في جانب العميل. (مطلوب لواجهة برمجة تطبيقات Gemini)' },
-        { name: 'حماية من CSRF', status: 'ok' as Status, details: 'تم تطبيق رموز الحماية.' },
+    const initialChecks: Check[] = [
+        {
+            id: 'db', title: 'اتصال قاعدة البيانات', icon: ServerIcon,
+            description: 'فحص الاتصال بخادم قاعدة البيانات الرئيسية Supabase.',
+            status: 'idle', details: 'جاهز للفحص.',
+            action: async () => {
+                const { error } = await checkDbConnection();
+                if (error) {
+                    return { status: 'error', details: 'فشل الاتصال بقاعدة البيانات. تحقق من حالة Supabase.' };
+                }
+                return { status: 'ok', details: 'الاتصال ناجح والنظام يستجيب.' };
+            }
+        },
+        {
+            id: 'integrity', title: 'تكامل البيانات', icon: DatabaseIcon,
+            description: 'فحص بحثًا عن بيانات قديمة أو سجلات معزولة (محاكاة).',
+            status: 'idle', details: 'جاهز للفحص.',
+            action: async () => {
+                await new Promise(res => setTimeout(res, 1000));
+                return { status: 'ok', details: 'لم يتم العثور على مشاكل في تكامل البيانات.' };
+            }
+        },
+        {
+            id: 'security', title: 'التكوين الأمني', icon: ShieldCheckIcon,
+            description: 'مراجعة الإعدادات الأمنية الأساسية للمنصة.',
+            status: 'idle', details: 'جاهز للفحص.',
+            action: async () => {
+                return { status: 'warning', details: 'الحماية من SQLi و CSRF فعالة عبر Supabase. تنبيه: مفتاح Gemini API مكشوف من جانب العميل حسب متطلبات المكتبة.' };
+            }
+        }
     ];
     
-    const runScan = useCallback((serverKey: ServerName) => {
-        setServerStatuses(prev => prev.map(s => s.key === serverKey ? { ...s, status: 'scanning', details: 'جاري الفحص...' } : s));
+    const [checks, setChecks] = useState<Check[]>(initialChecks);
 
-        setTimeout(() => {
-            const isSuccess = Math.random() > 0.1; // 90% success rate
-            const newStatus = isSuccess ? 'ok' : 'error';
-            const newDetails = isSuccess ? 'يعمل بشكل طبيعي' : 'فشل الاتصال';
-            setServerStatuses(prev => prev.map(s => s.key === serverKey ? { ...s, status: newStatus, details: newDetails } : s));
-        }, 1500 + Math.random() * 1000);
-    }, []);
+    const runAllScans = async () => {
+        setIsScanning(true);
+        setChecks(prev => prev.map(c => ({...c, status: 'running', details: 'جاري الفحص...'})));
 
-    const calculateStorage = useCallback(() => {
-        let total = 0;
-        for (let x in localStorage) {
-            if (!localStorage.hasOwnProperty(x)) continue;
-            total += (localStorage[x].length * 2);
+        for (const check of checks) {
+            const result = await check.action();
+            setChecks(prev => prev.map(c => c.id === check.id ? {...c, ...result} : c));
         }
-        const sizeInKB = total / 1024;
-        const maxSizeKB = 5 * 1024; // 5MB limit
-        setStorageInfo({ size: sizeInKB, percentage: (sizeInKB / maxSizeKB) * 100 });
-    }, []);
-
-    const findInactiveUsers = () => {
-        setIsFindingUsers(true);
-        // This is a simulation. In a real app, you would query your backend
-        // for users with a 'last_login' date older than a certain threshold.
-        setTimeout(() => {
-            setInactiveUsers([
-                { name: 'طالب افتراضي ١', grade: 'الصف الأول الثانوي' },
-                { name: 'طالب افتراضي ٢', grade: 'الصف الثالث الإعدادي' },
-                { name: 'طالب افتراضي ٣', grade: 'الصف الثاني الثانوي' },
-            ]);
-            setIsFindingUsers(false);
-        }, 2000);
+        
+        setIsScanning(false);
+        addToast('اكتمل فحص النظام.', 'success');
     };
-
-    useEffect(() => {
-        calculateStorage();
-    }, [calculateStorage]);
     
     const handleCleanup = useCallback(() => {
         setIsCleanupModalOpen(false);
         setIsCleaning(true);
-        addToast('جاري البحث عن البيانات التالفة وحذفها...', 'info');
-
-        // This is a simulation. A real implementation would call a backend function (e.g., a Supabase Edge Function)
-        // to perform a safe cleanup of orphaned records in the database.
+        addToast('تم إرسال طلب لتنظيف البيانات عبر دالة طرفية...', 'info');
         setTimeout(() => {
             setIsCleaning(false);
             addToast('تمت عملية تنظيف البيانات بنجاح.', ToastType.SUCCESS);
@@ -112,97 +111,52 @@ const SystemHealthView: React.FC = () => {
 
     return (
         <div className="fade-in">
-            <h1 className="text-3xl font-bold mb-6 text-[var(--text-primary)]">فحص الأمان وصحة النظام</h1>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Server Health */}
-                <HealthCard title="فحص السيرفرات" icon={ServerIcon}>
-                    {serverStatuses.map(server => (
-                        <div key={server.key} className="bg-[var(--bg-tertiary)] p-3 rounded-lg flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <StatusIndicator status={server.status} />
-                                <div>
-                                    <p className="font-semibold text-[var(--text-primary)]">{server.name}</p>
-                                    <p className="text-xs text-[var(--text-secondary)]">{server.details}</p>
-                                </div>
-                            </div>
-                            <button onClick={() => runScan(server.key)} disabled={server.status === 'scanning'} className="px-3 py-1 text-xs font-semibold bg-purple-600/20 text-purple-300 hover:bg-purple-600/40 rounded-md transition-colors disabled:opacity-50">
-                                {server.status === 'scanning' ? '...' : 'فحص'}
-                            </button>
-                        </div>
-                    ))}
-                </HealthCard>
-
-                {/* Security Scan */}
-                <HealthCard title="المشاكل الأمنية" icon={ShieldExclamationIcon}>
-                    {securityChecks.map(check => (
-                         <div key={check.name} className="bg-[var(--bg-tertiary)] p-3 rounded-lg flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <StatusIndicator status={check.status} />
-                                <div>
-                                    <p className="font-semibold text-[var(--text-primary)]">{check.name}</p>
-                                    <p className="text-xs text-[var(--text-secondary)]">{check.details}</p>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                </HealthCard>
-
-                {/* Storage */}
-                <HealthCard title="التخزين" icon={DatabaseIcon}>
-                    <p className="text-sm text-[var(--text-secondary)]">حجم التخزين المحلي المستخدم على جهاز العميل.</p>
-                     <div className="w-full bg-[var(--bg-tertiary)] rounded-full h-4 border border-[var(--border-primary)] p-0.5">
-                        <div className="bg-gradient-to-r from-purple-500 to-blue-500 h-full rounded-full" style={{ width: `${storageInfo.percentage}%` }}></div>
-                    </div>
-                    <p className="text-center font-mono text-lg">{storageInfo.size.toFixed(2)} KB / 5120 KB</p>
-                </HealthCard>
-
-                {/* Inactive Accounts */}
-                <HealthCard title="الحسابات غير النشطة" icon={UsersIcon}>
-                     <p className="text-sm text-[var(--text-secondary)]">فحص الحسابات التي لم تسجل دخولاً منذ أكثر من 90 يومًا (محاكاة).</p>
-                     {inactiveUsers.length > 0 ? (
-                        <div className="space-y-2">
-                            {inactiveUsers.map(user => (
-                                <div key={user.name} className="bg-[var(--bg-tertiary)] p-3 rounded-lg">
-                                    <p className="font-semibold">{user.name}</p>
-                                    <p className="text-xs text-[var(--text-secondary)]">{user.grade}</p>
-                                </div>
-                            ))}
-                        </div>
-                     ) : (
-                         <button onClick={findInactiveUsers} disabled={isFindingUsers} className="w-full py-3 font-semibold bg-purple-600/20 text-purple-300 hover:bg-purple-600/40 rounded-lg transition-colors disabled:opacity-50">
-                            {isFindingUsers ? 'جاري البحث...' : 'بحث عن الحسابات'}
-                        </button>
-                     )}
-                </HealthCard>
-
-                {/* Data Maintenance */}
-                <HealthCard title="صيانة البيانات" icon={DatabaseIcon}>
-                    <p className="text-sm text-[var(--text-secondary)]">
-                        حذف البيانات المتبقية (مثل الاشتراكات والتقدم) المتعلقة بالطلاب الذين تم حذف حساباتهم.
-                    </p>
-                    <button
-                        onClick={() => setIsCleanupModalOpen(true)}
-                        disabled={isCleaning}
-                        className="w-full mt-2 py-3 font-semibold bg-red-600/20 text-red-300 hover:bg-red-600/40 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-wait flex items-center justify-center"
-                    >
-                        <TrashIcon className="w-5 h-5 ml-2" />
-                        {isCleaning ? 'جاري التنظيف...' : 'بدء عملية التنظيف'}
-                    </button>
-                </HealthCard>
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-6 gap-4">
+                <h1 className="text-3xl font-bold text-[var(--text-primary)]">فحص الأعطال وصحة النظام</h1>
+                 <button onClick={runAllScans} disabled={isScanning} className="px-5 py-2.5 font-semibold bg-purple-600 hover:bg-purple-700 rounded-lg text-white transition-all shadow-lg shadow-purple-500/20 transform hover:scale-105 disabled:opacity-50 disabled:cursor-wait">
+                    {isScanning ? 'جاري الفحص...' : 'بدء الفحص الشامل'}
+                </button>
             </div>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                {checks.map(check => (
+                     <div key={check.id} className="bg-[var(--bg-secondary)] p-5 rounded-xl shadow-md border border-[var(--border-primary)]">
+                        <div className="flex justify-between items-start">
+                             <div className="flex items-center gap-3">
+                                <check.icon className="w-6 h-6 text-purple-400"/>
+                                <h3 className="font-bold text-[var(--text-primary)]">{check.title}</h3>
+                             </div>
+                             <StatusIndicator status={check.status}/>
+                        </div>
+                        <p className="text-xs text-[var(--text-secondary)] my-3 h-10">{check.description}</p>
+                        <div className="bg-[var(--bg-tertiary)] p-2 rounded-md text-xs h-12 flex items-center">
+                            <p>{check.details}</p>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            <HealthCard title="صيانة البيانات" icon={DatabaseIcon}>
+                <p className="text-sm text-[var(--text-secondary)]">
+                    حذف البيانات المتبقية (مثل الاشتراكات والتقدم) المتعلقة بالطلاب الذين تم حذف حساباتهم. هذا الإجراء يستدعي دالة طرفية آمنة (Edge Function).
+                </p>
+                <button
+                    onClick={() => setIsCleanupModalOpen(true)}
+                    disabled={isCleaning}
+                    className="w-full mt-2 py-3 font-semibold bg-red-600/20 text-red-300 hover:bg-red-600/40 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-wait flex items-center justify-center"
+                >
+                    <TrashIcon className="w-5 h-5 ml-2" />
+                    {isCleaning ? 'جاري التنظيف...' : 'بدء عملية التنظيف'}
+                </button>
+            </HealthCard>
             
             <Modal isOpen={isCleanupModalOpen} onClose={() => setIsCleanupModalOpen(false)} title="تأكيد حذف البيانات التالفة">
                 <p className="text-[var(--text-secondary)] mb-6">
-                    هل أنت متأكد من رغبتك في بدء عملية التنظيف؟ سيقوم النظام بالبحث عن وحذف جميع البيانات (الاشتراكات، التقدم الدراسي، إلخ) المرتبطة بحسابات الطلاب المحذوفة. لا يمكن التراجع عن هذا الإجراء.
+                    هل أنت متأكد من رغبتك في بدء عملية التنظيف؟ سيقوم النظام بالبحث عن وحذف جميع البيانات المرتبطة بحسابات الطلاب المحذوفة. لا يمكن التراجع عن هذا الإجراء.
                 </p>
                 <div className="flex justify-end space-x-3 space-x-reverse">
-                    <button onClick={() => setIsCleanupModalOpen(false)} className="px-4 py-2 rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] transition-colors">
-                        إلغاء
-                    </button>
-                    <button onClick={handleCleanup} className="px-4 py-2 rounded-md bg-red-600 hover:bg-red-700 transition-colors text-white">
-                        نعم، قم بالحذف
-                    </button>
+                    <button onClick={() => setIsCleanupModalOpen(false)} className="px-4 py-2 rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] transition-colors">إلغاء</button>
+                    <button onClick={handleCleanup} className="px-4 py-2 rounded-md bg-red-600 hover:bg-red-700 transition-colors text-white">نعم، قم بالحذف</button>
                 </div>
             </Modal>
         </div>

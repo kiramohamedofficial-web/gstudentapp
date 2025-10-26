@@ -170,9 +170,12 @@ export async function createTeacher(teacherData: any) {
     password: teacherData.password,
     options: { data: { name: teacherData.name, role: 'teacher' } }
   });
-  if (authError) return { success: false, error: authError };
 
-  // 2. Add teacher data
+  if (authError || !authData.user) {
+    return { success: false, error: authError || new Error("Failed to create auth user.") };
+  }
+
+  // 2. Add teacher profile data
   const { data: teacher, error: teacherError } = await supabase
     .from('teachers')
     .insert({
@@ -182,13 +185,31 @@ export async function createTeacher(teacherData: any) {
       teaching_levels: teacherData.teachingLevels,
       image_url: teacherData.imageUrl || null
     }).select().single();
-  if (teacherError) return { success: false, error: teacherError };
 
-  // 3. Add teacher role
-  await supabase.from('user_roles').insert({ user_id: authData.user!.id, role: 'teacher' });
+  if (teacherError || !teacher) {
+    // Attempt to clean up the created auth user if this step fails.
+    // This requires the admin client, so it's best done in an edge function.
+    // For now, we just report the error.
+    console.error("Failed to insert into teachers table, orphaned auth user may exist:", authData.user.id);
+    return { success: false, error: teacherError || new Error("Failed to create teacher profile.") };
+  }
 
-  // 4. Update users table
-  await supabase.from('users').update({ role: 'teacher', teacher_id: teacher.id }).eq('id', authData.user!.id);
+  // 3. Create the user profile in the public 'users' table, linking it to the teacher profile.
+  const { error: userProfileError } = await supabase
+    .from('users')
+    .insert({
+        id: authData.user.id,
+        name: teacherData.name,
+        phone: `+2${teacherData.phone}`,
+        role: 'teacher',
+        teacher_id: teacher.id
+    });
+  
+  if (userProfileError) {
+      console.error("Failed to create public user profile, orphaned teacher and auth user may exist:", authData.user.id);
+      // In a real transactional setup, you'd delete the auth user and the teacher record here.
+      return { success: false, error: userProfileError };
+  }
 
   return { success: true, teacher };
 }
@@ -672,7 +693,6 @@ export const deleteUser = async (id: string) => {
     const { error } = await supabase.from('users').delete().eq('id', id);
     return { error };
 };
-export const addTeacher = async (teacher: any) => ({ error: { message: "Use createTeacher" }});
 export const getGradesForSelection = async (): Promise<{id: number, name: string, level: 'Middle' | 'Secondary'}[]> => {
     // This ensures that even if called before App.tsx's init, the data is fetched.
     if (!curriculumCache) {
@@ -708,3 +728,7 @@ export const getSubscriptionByUserId = async (userId: string): Promise<Subscript
     const subs = await getSubscriptionsByUserId(userId);
     return subs?.[0] || null;
 }
+
+export const checkDbConnection = async () => {
+    return supabase.from('teachers').select('id', { count: 'exact', head: true });
+};

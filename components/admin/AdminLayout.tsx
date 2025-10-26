@@ -27,7 +27,7 @@ const navItems = [
     { id: 'tools', label: 'أكواد الاشتراكات', icon: QrcodeIcon },
     { id: 'questionBank', label: 'بنك الأسئلة', icon: QuestionMarkCircleIcon },
     { id: 'platformSettings', label: 'إعدادات المنصة', icon: CogIcon },
-    { id: 'systemHealth', label: 'الأمان والصحة', icon: SystemHealthIcon },
+    { id: 'systemHealth', label: 'فحص الأعطال', icon: SystemHealthIcon },
     { id: 'accountSettings', label: 'إعدادات الحساب', icon: UserCircleIcon },
 ];
 
@@ -117,7 +117,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ user, onLogout, children, onN
       // Optional: Set up an interval to refresh the count periodically
       const interval = setInterval(fetchPendingCount, 60000); // every minute
       return () => clearInterval(interval);
-  }, []); // Refetch when main content changes as it might affect the count
+  }, [children]); // Refetch when main content changes as it might affect the count
 
   const handleMobileNavClick = (view: AdminView) => {
     onNavClick(view);
