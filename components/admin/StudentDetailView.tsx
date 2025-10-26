@@ -135,12 +135,9 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
             addToast("الرجاء ملء جميع الحقول.", ToastType.ERROR); return;
         }
         
-        // FIX: Destructure from `editFormData` directly. It contains the full updated user object.
-        // The previous spread `{ ...user, ...editFormData }` caused a type error because the result
-        // was inferred as type `User`, which does not have a `password` property.
-        const { password, ...profileData } = editFormData;
+        const { id, password, ...profileData } = editFormData;
 
-        const result = await updateUser(profileData as User);
+        const result = await updateUser(id, profileData);
 
         if (result?.error) {
             addToast(`فشل تحديث البيانات: ${result.error.message}`, ToastType.ERROR);

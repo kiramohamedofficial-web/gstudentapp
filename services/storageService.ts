@@ -195,7 +195,19 @@ export async function createTeacher(teacherData: any) {
 
 export async function getAllTeachers() {
   const { data, error } = await supabase.from('teachers').select('*').order('created_at', { ascending: false });
-  return data || [];
+  if (error) {
+    console.error('Error fetching all teachers:', error);
+    return [];
+  }
+  // Map snake_case fields from the database to camelCase fields for the frontend type
+  return (data || []).map((teacher: any) => ({
+    id: teacher.id,
+    name: teacher.name,
+    subject: teacher.subject,
+    imageUrl: teacher.image_url,
+    teachingLevels: teacher.teaching_levels,
+    teachingGrades: teacher.teaching_grades,
+  }));
 }
 
 export async function deleteTeacher(teacherId: string) {
@@ -209,16 +221,48 @@ export async function deleteTeacher(teacherId: string) {
 }
 
 export async function updateTeacher(teacherId: string, updates: any) {
-  const { data, error } = await supabase
+  const teacherPayload: Record<string, any> = {};
+  if (updates.name) teacherPayload.name = updates.name;
+  if (updates.subject) teacherPayload.subject = updates.subject;
+  if (updates.teachingGrades) teacherPayload.teaching_grades = updates.teachingGrades;
+  if (updates.teachingLevels) teacherPayload.teaching_levels = updates.teachingLevels;
+  if (updates.imageUrl) teacherPayload.image_url = updates.imageUrl;
+
+  const { data, error: teacherError } = await supabase
     .from('teachers')
-    .update({
-      name: updates.name,
-      subject: updates.subject,
-      teaching_grades: updates.teachingGrades,
-      teaching_levels: updates.teachingLevels,
-      image_url: updates.imageUrl
-    }).eq('id', teacherId).select().single();
-  return { success: !error, data, error };
+    .update(teacherPayload)
+    .eq('id', teacherId)
+    .select()
+    .single();
+
+  if (teacherError) {
+    return { success: false, data: null, error: teacherError };
+  }
+  
+  // Also update associated user record
+  if (updates.name || updates.phone) {
+      const { data: userData, error: userSelectError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('teacher_id', teacherId)
+        .single();
+      
+      if (userData) {
+          const userPayload: Record<string, any> = {};
+          if (updates.name) userPayload.name = updates.name;
+          if (updates.phone) userPayload.phone = `+2${updates.phone}`;
+          
+          await supabase.from('users').update(userPayload).eq('id', userData.id);
+      }
+  }
+
+  // Client-side can't update other users' auth details (phone login, password) without admin key.
+  // This requires an edge function. We log a warning if a password was attempted.
+  if (updates.password) {
+      console.warn("Password update for other users is not supported from the client-side and was ignored.");
+  }
+
+  return { success: true, data, error: null };
 }
 
 
@@ -469,8 +513,63 @@ export const addUnitToSemester = (gradeId: number, semesterId: string, unitData:
     const semester = grade?.semesters.find(s => s.id === semesterId);
     semester?.units.push({ ...unitData, id: `u${Date.now()}`, lessons: [] });
 });
-// ... other modification functions (addLesson, updateUnit, etc.) would follow a similar pattern ...
-// For brevity, these are omitted but would be needed for full functionality.
+
+export const addLessonToUnit = (gradeId: number, semesterId: string, unitId: string, lessonData: Omit<Lesson, 'id'>) => modifyCurriculum(grades => {
+    const grade = grades.find(g => g.id === gradeId);
+    const semester = grade?.semesters.find(s => s.id === semesterId);
+    const unit = semester?.units.find(u => u.id === unitId);
+    if (unit) {
+        unit.lessons.push({ ...lessonData, id: `l${Date.now()}` });
+    }
+});
+
+export const updateLesson = (gradeId: number, semesterId: string, unitId: string, updatedLesson: Lesson) => modifyCurriculum(grades => {
+    const unit = grades.find(g => g.id === gradeId)?.semesters.find(s => s.id === semesterId)?.units.find(u => u.id === unitId);
+    if (unit) {
+        const lessonIndex = unit.lessons.findIndex(l => l.id === updatedLesson.id);
+        if (lessonIndex > -1) {
+            // Smart update: if the base title changes, propagate it to other lessons in the same group.
+            const oldLesson = unit.lessons[lessonIndex];
+            const oldBaseTitle = oldLesson.title.replace(/^(شرح|واجب|امتحان|ملخص)\s/, '').trim();
+            const newBaseTitle = updatedLesson.title.replace(/^(شرح|واجب|امتحان|ملخص)\s/, '').trim();
+
+            if (oldBaseTitle !== newBaseTitle) {
+                unit.lessons.forEach(lesson => {
+                    const lessonBaseTitle = lesson.title.replace(/^(شرح|واجب|امتحان|ملخص)\s/, '').trim();
+                    if(lessonBaseTitle === oldBaseTitle) {
+                         lesson.title = lesson.title.replace(oldBaseTitle, newBaseTitle);
+                    }
+                });
+            }
+            // Ensure the primary lesson being edited is updated correctly
+            unit.lessons[lessonIndex] = updatedLesson;
+        }
+    }
+});
+
+export const deleteLesson = (gradeId: number, semesterId: string, unitId: string, lessonId: string) => modifyCurriculum(grades => {
+    const unit = grades.find(g => g.id === gradeId)?.semesters.find(s => s.id === semesterId)?.units.find(u => u.id === unitId);
+    if (unit) {
+        unit.lessons = unit.lessons.filter(l => l.id !== lessonId);
+    }
+});
+
+export const updateUnit = (gradeId: number, semesterId: string, updatedUnit: Partial<Unit> & { id: string }) => modifyCurriculum(grades => {
+    const semester = grades.find(g => g.id === gradeId)?.semesters.find(s => s.id === semesterId);
+    if (semester) {
+        const unitIndex = semester.units.findIndex(u => u.id === updatedUnit.id);
+        if (unitIndex > -1) {
+            semester.units[unitIndex] = { ...semester.units[unitIndex], ...updatedUnit };
+        }
+    }
+});
+
+export const deleteUnit = (gradeId: number, semesterId: string, unitId: string) => modifyCurriculum(grades => {
+    const semester = grades.find(g => g.id === gradeId)?.semesters.find(s => s.id === semesterId);
+    if (semester) {
+        semester.units = semester.units.filter(u => u.id !== unitId);
+    }
+});
 
 // =================================================================
 // OTHER FUNCTIONS (Kept from old service as they are not in the guide)
@@ -513,11 +612,6 @@ export const getTeacherById = async (id: string): Promise<Teacher | null> => {
     const teachers = await getTeachers();
     return teachers.find(t => t.id === id) || null;
 };
-export const addLessonToUnit = (gradeId: number, semesterId: string, unitId: string, lessonData: Omit<Lesson, 'id'>) => console.warn('addLessonToUnit not fully implemented with new service');
-export const updateLesson = (gradeId: number, semesterId: string, unitId: string, updatedLesson: Lesson) => console.warn('updateLesson not fully implemented');
-export const deleteLesson = (gradeId: number, semesterId: string, unitId: string, lessonId: string) => console.warn('deleteLesson not fully implemented');
-export const updateUnit = (gradeId: number, semesterId: string, updatedUnit: Partial<Unit> & { id: string }) => console.warn('updateUnit not fully implemented');
-export const deleteUnit = (gradeId: number, semesterId: string, unitId: string) => console.warn('deleteUnit not fully implemented');
 export const addActivityLog = (action: string, details: string) => console.log(`Activity: ${action} - ${details}`);
 export const getActivityLogs = () => [];
 export const getChatUsage = (userId: string) => ({ remaining: 50 });
@@ -541,18 +635,22 @@ export const deleteFeaturedCourse = (id: string) => {};
 export const addFeaturedBook = (book: any) => {};
 export const updateFeaturedBook = (book: any) => {};
 export const deleteFeaturedBook = (id: string) => {};
-export const updateUser = async (user: User) => {
-    const { id, name, phone, guardianPhone, grade, track } = user;
+export const updateUser = async (userId: string, updates: Partial<User>) => {
+    const payload: Record<string, any> = {};
+    if (updates.name) payload.name = updates.name;
+    if (updates.phone) payload.phone = updates.phone;
+    if (updates.guardianPhone) payload.guardian_phone = updates.guardianPhone;
+    if (updates.grade) payload.grade_id = updates.grade;
+    if (updates.track !== undefined) payload.track = updates.track;
+
+    if (Object.keys(payload).length === 0) {
+        return { error: null }; // No changes to save
+    }
+
     const { error } = await supabase
         .from('users')
-        .update({
-            name,
-            phone,
-            guardian_phone: guardianPhone,
-            grade_id: grade,
-            track,
-        })
-        .eq('id', id);
+        .update(payload)
+        .eq('id', userId);
 
     return { error };
 };
@@ -570,7 +668,20 @@ export const getGradesForSelection = async (): Promise<{id: number, name: string
     const grades = getAllGrades();
     return grades.map(({ id, name, level }) => ({ id, name, level }));
 };
-export const deleteSelf = async () => ({error: null});
+export const deleteSelf = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+        return { error: { message: 'User not authenticated.' } };
+    }
+    // Note: This only deletes from the public 'users' table.
+    // The auth.user record remains and must be deleted via an edge function or manually in Supabase dashboard.
+    const { error } = await supabase.from('users').delete().eq('id', user.id);
+    if (!error) {
+        // Also sign the user out if their profile was successfully deleted.
+        await signOut();
+    }
+    return { error };
+};
 export const addStudentQuestion = async (userId: string, userName: string, questionText: string): Promise<void> => { await supabase.from('student_questions').insert({ user_id: userId, user_name: userName, question_text: questionText }); };
 export const getStudentQuestionsByUserId = async (userId: string): Promise<StudentQuestion[]> => { const { data, error } = await supabase.from('student_questions').select('*').eq('user_id', userId).order('created_at', { ascending: false }); if (error) { console.error(error); return []; } return (data || []).map(q => ({ ...q, userId: q.user_id, userName: q.user_name, questionText: q.question_text, answerText: q.answer_text, createdAt: q.created_at }));};
 export const getAllStudentQuestions = async (): Promise<StudentQuestion[]> => { const { data, error } = await supabase.from('student_questions').select('*').order('created_at', { ascending: false }); if (error) { console.error(error); return []; } return (data || []).map(q => ({ ...q, userId: q.user_id, userName: q.user_name, questionText: q.question_text, answerText: q.answer_text, createdAt: q.created_at }));};

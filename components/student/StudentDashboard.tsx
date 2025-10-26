@@ -171,7 +171,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
         return <StudentHomeScreen user={user} onNavigate={handleHomeNavigation} />;
       case 'grades':
         if (selectedUnit) {
-            return <CourseView grade={studentGrade!} unit={selectedUnit} onBack={() => { setSelectedUnit(null); setInitialLesson(null); }} onNavigate={handleNavClick} initialLesson={initialLesson} />;
+            return <CourseView grade={studentGrade!} unit={selectedUnit} user={user} onBack={() => { setSelectedUnit(null); setInitialLesson(null); }} onNavigate={handleNavClick} initialLesson={initialLesson} />;
         }
         return <SubjectSelectionScreen 
             user={user}

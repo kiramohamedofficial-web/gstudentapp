@@ -258,6 +258,10 @@ const TeacherManagementView: React.FC = () => {
         
             if (data.id) { // Editing
                 const { id, ...updates } = data;
+                
+                if (!updates.password?.trim()) {
+                    delete updates.password;
+                }
                 result = await updateTeacher(id, updates);
             } else { // Adding
                 result = await createTeacher(data);

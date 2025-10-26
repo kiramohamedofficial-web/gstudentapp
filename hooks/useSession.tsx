@@ -97,13 +97,11 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }, [addToast]);
 
     const handleLogout = useCallback(async (): Promise<void> => {
-        if (currentUser) {
-            addActivityLog('User Logout', `User "${currentUser.name}" logged out.`);
-        }
         await signOut();
-        setCurrentUser(null); // Explicitly set user to null on logout
+        setCurrentUser(null);
         setAuthView('welcome');
-    }, [currentUser]);
+        addToast('تم تسجيل خروجك بنجاح.', 'info');
+    }, [addToast]);
     
     const clearAuthError = () => setAuthError('');
     
