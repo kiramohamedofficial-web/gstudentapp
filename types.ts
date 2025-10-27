@@ -7,8 +7,9 @@ export enum Role {
   SUPERVISOR = 'supervisor',
 }
 
-export type StudentView = 'home' | 'grades' | 'subscription' | 'profile' | 'teachers' | 'courses' | 'singleSubjectSubscription' | 'comprehensiveSubscription' | 'results' | 'smartPlan' | 'chatbot' | 'askTheProf' | 'adhkar' | 'cartoonMovies';
+export type StudentView = 'home' | 'grades' | 'subscription' | 'profile' | 'teachers' | 'courses' | 'singleSubjectSubscription' | 'comprehensiveSubscription' | 'results' | 'smartPlan' | 'chatbot' | 'askTheProf' | 'adhkar' | 'cartoonMovies' | 'teacherProfile' | 'courseDetail';
 export type TeacherView = 'dashboard' | 'content' | 'subscriptions' | 'profile' | 'questionBank';
+export type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'courseManagement' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers' | 'subscriptionPrices';
 
 
 export interface User {
@@ -142,17 +143,25 @@ export interface Teacher {
     teachingGrades?: number[];
 }
 
-export interface Course {
-  id: string; // could be unit id or a special course id
+export interface CourseVideo {
+  id: string;
   title: string;
-  subtitle: string;
+  videoUrl: string; // The full YouTube URL
+  isFree: boolean;
+}
+
+export interface Course {
+  id: string; 
+  title: string;
+  description: string;
   teacherId: string;
   coverImage: string;
-  fileCount: number;
-  videoCount: number;
-  quizCount: number;
   price: number;
+  isFree: boolean;
+  pdfUrl?: string; // Google Drive link
+  videos: CourseVideo[];
 }
+
 
 export interface Book {
   id: string;
@@ -179,6 +188,19 @@ export interface PlatformFeature {
     description: string;
 }
 
+export interface SubscriptionPrices {
+  comprehensive: {
+    monthly: number;
+    quarterly: number;
+    annual: number;
+  };
+  singleSubject: {
+    monthly: number;
+    semiAnnually: number;
+    annually: number;
+  };
+}
+
 export interface PlatformSettings {
   platformName: string;
   heroTitle: string;
@@ -193,6 +215,10 @@ export interface PlatformSettings {
   contactPhone: string;
   contactFacebookUrl: string;
   contactYoutubeUrl: string;
+  subscriptionPrices: SubscriptionPrices;
+  paymentNumbers: {
+    vodafoneCash: string;
+  };
 }
 
 export type Theme = 'dark' | 'light' | 'royal' | 'gold' | 'pink' | 'sunset' | 'forest' | 'ocean' | 'wave' | 'matrix';

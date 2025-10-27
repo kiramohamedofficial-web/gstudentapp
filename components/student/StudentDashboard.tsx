@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, lazy, Suspense } from 'react';
-import { Unit, Lesson, StudentView, Theme } from '../../types';
+import { Unit, Lesson, StudentView, Theme, Teacher, Course } from '../../types';
 import { getGradeById } from '../../services/storageService';
 import StudentLayout from '../layout/StudentLayout';
 import { SparklesIcon } from '../common/Icons';
@@ -13,6 +13,7 @@ const Profile = lazy(() => import('./Profile'));
 const SubjectSelectionScreen = lazy(() => import('./SubjectSelectionScreen'));
 const StudentHomeScreen = lazy(() => import('./StudentHomeScreen'));
 const TeachersView = lazy(() => import('./TeachersView'));
+const TeacherProfileView = lazy(() => import('./TeacherProfileView'));
 const CoursesStore = lazy(() => import('./CoursesStore'));
 const SingleSubjectSubscription = lazy(() => import('./SingleSubjectSubscription'));
 const ComprehensiveSubscription = lazy(() => import('./ComprehensiveSubscription'));
@@ -21,6 +22,7 @@ const ChatbotView = lazy(() => import('./ChatbotView'));
 const AskTheProfView = lazy(() => import('./AskTheProfView'));
 const AdhkarView = lazy(() => import('./AdhkarView'));
 const CartoonMoviesView = lazy(() => import('./CartoonMoviesView'));
+const CourseDetailView = lazy(() => import('./CourseDetailView'));
 
 
 interface StudentDashboardProps {
@@ -41,21 +43,29 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
   
   const studentGrade = useMemo(() => user ? getGradeById(user.grade) : null, [user]);
   const [selectedUnit, setSelectedUnit] = useState<Unit | null>(null);
+  const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [initialLesson, setInitialLesson] = useState<Lesson | null>(null);
 
   const handleNavClick = (view: StudentView) => {
-    if (view === 'grades') {
-      setSelectedUnit(null);
-      setInitialLesson(null);
-    }
+    setSelectedUnit(null);
+    setInitialLesson(null);
+    setSelectedTeacher(null);
+    setSelectedCourse(null);
     setActiveView(view);
   };
   
-  const handleHomeNavigation = (view: StudentView, data?: { unit: Unit; lesson: Lesson }) => {
-      if (view === 'grades' && data) {
+  const handleHomeNavigation = (view: StudentView, data?: { unit?: Unit; lesson?: Lesson; teacher?: Teacher; course?: Course; }) => {
+      if (view === 'grades' && data?.unit) {
           setSelectedUnit(data.unit);
           setInitialLesson(data.lesson);
           setActiveView('grades');
+      } else if (view === 'teacherProfile' && data?.teacher) {
+        setSelectedTeacher(data.teacher);
+        setActiveView('teacherProfile');
+      } else if (view === 'courseDetail' && data?.course) {
+        setSelectedCourse(data.course);
+        setActiveView('courseDetail');
       } else {
           setActiveView(view);
       }
@@ -65,6 +75,12 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
     setSelectedUnit(unit);
     setInitialLesson(null);
   }
+
+  const handleCourseSelectFromTeacher = (unit: Unit) => {
+    setSelectedUnit(unit);
+    setInitialLesson(null);
+    setActiveView('grades');
+  };
   
   if (!user) {
     // This should technically not happen if App routing is correct, but it's a good safeguard.
@@ -94,6 +110,32 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
             onSubjectSelect={handleSubjectSelect} 
             onBack={() => setActiveView('home')} 
         />;
+      case 'teacherProfile':
+        return selectedTeacher ? (
+            <TeacherProfileView
+                teacher={selectedTeacher}
+                user={user}
+                onBack={() => {
+                    setSelectedTeacher(null);
+                    setActiveView('teachers');
+                }}
+                onNavigateToCourse={handleCourseSelectFromTeacher}
+            />
+        ) : (
+            <div className="text-center p-8">لم يتم اختيار مدرس. الرجاء العودة واختيار مدرس.</div>
+        );
+      case 'courseDetail':
+        return selectedCourse ? (
+            <CourseDetailView
+                course={selectedCourse}
+                onBack={() => {
+                    setSelectedCourse(null);
+                    setActiveView('courses');
+                }}
+            />
+        ) : (
+            <div className="text-center p-8">لم يتم اختيار كورس. الرجاء العودة واختيار كورس.</div>
+        );
       case 'cartoonMovies':
         return <CartoonMoviesView onBack={() => setActiveView('home')} />;
       case 'chatbot':
@@ -103,9 +145,9 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
       case 'adhkar':
         return <AdhkarView />;
       case 'courses':
-        return <CoursesStore />;
+        return <CoursesStore onNavigate={handleHomeNavigation} />;
       case 'teachers':
-        return <TeachersView />;
+        return <TeachersView onSelectTeacher={(teacher) => handleHomeNavigation('teacherProfile', { teacher })} />;
       case 'results':
         return <ResultsView />;
       case 'smartPlan':

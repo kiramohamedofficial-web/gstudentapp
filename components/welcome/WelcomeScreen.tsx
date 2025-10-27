@@ -50,8 +50,9 @@ const CosmicFlowBackground: React.FC = () => (
 );
 
 const HeroSection: React.FC<{ onNavigateToRegister: () => void; settings: PlatformSettings; }> = ({ onNavigateToRegister, settings }) => {
-    const titleParts = settings.heroTitle.split(' ');
-    const firstPart = titleParts.length > 1 ? titleParts[0] : settings.heroTitle;
+    const title = settings.heroTitle || '';
+    const titleParts = title.split(' ');
+    const firstPart = titleParts.length > 1 ? titleParts[0] : title;
     const secondPart = titleParts.length > 1 ? titleParts.slice(1).join(' ') : '';
     
     return (
@@ -307,7 +308,9 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onNavigateToLogin, onNavi
     const [settings, setSettings] = useState<PlatformSettings | null>(null);
     const [isNavOpen, setIsNavOpen] = useState(false);
     
-    useEffect(() => { setSettings(getPlatformSettings()); }, []);
+    useEffect(() => {
+        getPlatformSettings().then(setSettings);
+    }, []);
     
     if (!settings) return <div className="h-screen w-screen flex items-center justify-center bg-[var(--bg-primary)] text-white">جاري التحميل...</div>;
 

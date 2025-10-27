@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
-import { User, ToastType, SubscriptionRequest } from '../../types';
-import { addSubscriptionRequest } from '../../services/storageService';
+import React, { useState, useEffect, useMemo } from 'react';
+import { User, ToastType, SubscriptionRequest, PlatformSettings } from '../../types';
+import { addSubscriptionRequest, getPlatformSettings } from '../../services/storageService';
 import { useToast } from '../../useToast';
 import Modal from '../common/Modal';
 import { ArrowRightIcon, CheckIcon } from '../common/Icons';
 import { useSession } from '../../hooks/useSession';
+import Loader from '../common/Loader';
 
 type PlanName = 'Monthly' | 'Quarterly' | 'Annual';
 
@@ -17,34 +18,6 @@ interface Plan {
     features: string[];
     isPopular: boolean;
 }
-
-const plans: Plan[] = [
-    {
-        name: 'شهري',
-        plan: 'Monthly',
-        price: 100,
-        features: ['الوصول إلى جميع الدروس', 'تصحيح الواجبات', 'امتحانات شهرية'],
-        isPopular: false,
-    },
-    {
-        name: 'ربع سنوي',
-        plan: 'Quarterly',
-        price: 249,
-        originalPrice: 300,
-        savePercent: 17,
-        features: ['جميع ميزات الباقة الشهرية', 'دعم ذو أولوية', 'ملخصات قابلة للتنزيل'],
-        isPopular: true,
-    },
-    {
-        name: 'سنوي',
-        plan: 'Annual',
-        price: 799,
-        originalPrice: 1200,
-        savePercent: 33,
-        features: ['جميع ميزات الباقة الربع سنوية', 'جلسات مراجعة مباشرة', 'وصول حصري للكورسات'],
-        isPopular: false,
-    },
-];
 
 const PlanCard: React.FC<{ plan: Plan, onSelect: (plan: Plan) => void }> = ({ plan, onSelect }) => (
     <div className={`relative bg-[var(--bg-secondary)] rounded-2xl p-6 border-2 flex flex-col transition-all duration-300 ${plan.isPopular ? 'border-amber-400 shadow-lg shadow-amber-500/10' : 'border-[var(--border-primary)] hover:border-[var(--border-secondary)]'}`}>
@@ -87,7 +60,8 @@ const PurchaseModal: React.FC<{
     onClose: () => void;
     plan: Plan | null;
     onConfirm: (plan: PlanName, paymentNumber: string) => void;
-}> = ({ isOpen, onClose, plan, onConfirm }) => {
+    vodafoneCashNumber: string;
+}> = ({ isOpen, onClose, plan, onConfirm, vodafoneCashNumber }) => {
     const [paymentNumber, setPaymentNumber] = useState('');
     const [error, setError] = useState('');
 
@@ -115,7 +89,7 @@ const PurchaseModal: React.FC<{
                  <div>
                     <h4 className="font-semibold mb-2">تعليمات الدفع:</h4>
                     <p className="text-sm text-[var(--text-secondary)]">
-                        لإتمام الاشتراك، يرجى تحويل المبلغ المطلوب عبر فودافون كاش على الرقم <span className="font-bold text-[var(--text-primary)] dir-ltr d-inline-block">01012345678</span>.
+                        لإتمام الاشتراك، يرجى تحويل المبلغ المطلوب عبر فودافون كاش على الرقم <span className="font-bold text-[var(--text-primary)] dir-ltr d-inline-block">{vodafoneCashNumber}</span>.
                     </p>
                 </div>
                  <div>
@@ -151,6 +125,27 @@ const ComprehensiveSubscription: React.FC<ComprehensiveSubscriptionProps> = ({ o
     const { addToast } = useToast();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+    const [settings, setSettings] = useState<PlatformSettings | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchSettings = async () => {
+            const data = await getPlatformSettings();
+            setSettings(data);
+            setIsLoading(false);
+        };
+        fetchSettings();
+    }, []);
+
+    const plans = useMemo((): Plan[] => {
+        if (!settings) return [];
+        const { monthly, quarterly, annual } = settings.subscriptionPrices.comprehensive;
+        return [
+            { name: 'شهري', plan: 'Monthly', price: monthly, features: ['الوصول إلى جميع الدروس', 'تصحيح الواجبات', 'امتحانات شهرية'], isPopular: false },
+            { name: 'ربع سنوي', plan: 'Quarterly', price: quarterly, originalPrice: monthly * 3, savePercent: Math.round((1 - quarterly / (monthly * 3)) * 100), features: ['جميع ميزات الباقة الشهرية', 'دعم ذو أولوية', 'ملخصات قابلة للتنزيل'], isPopular: true },
+            { name: 'سنوي', plan: 'Annual', price: annual, originalPrice: monthly * 12, savePercent: Math.round((1 - annual / (monthly * 12)) * 100), features: ['جميع ميزات الباقة الربع سنوية', 'جلسات مراجعة مباشرة', 'وصول حصري للكورسات'], isPopular: false },
+        ];
+    }, [settings]);
 
     const handleSelectPlan = (plan: Plan) => {
         setSelectedPlan(plan);
@@ -164,6 +159,10 @@ const ComprehensiveSubscription: React.FC<ComprehensiveSubscriptionProps> = ({ o
         setIsModalOpen(false);
         onBack();
     };
+
+    if (isLoading) {
+        return <div className="flex justify-center items-center h-64"><Loader /></div>;
+    }
 
     return (
         <div className="max-w-5xl mx-auto">
@@ -189,6 +188,7 @@ const ComprehensiveSubscription: React.FC<ComprehensiveSubscriptionProps> = ({ o
                 onClose={() => setIsModalOpen(false)}
                 plan={selectedPlan}
                 onConfirm={handleConfirmPurchase}
+                vodafoneCashNumber={settings?.paymentNumbers.vodafoneCash || ''}
             />
         </div>
     );

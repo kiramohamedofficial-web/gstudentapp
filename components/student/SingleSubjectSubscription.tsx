@@ -1,9 +1,10 @@
-import React, { useState, useMemo } from 'react';
-import { User, SubscriptionRequest, Grade, ToastType, Unit } from '../../types';
-import { getGradeById, addSubscriptionRequest } from '../../services/storageService';
+import React, { useState, useMemo, useEffect } from 'react';
+import { User, SubscriptionRequest, Grade, ToastType, Unit, PlatformSettings } from '../../types';
+import { getGradeById, addSubscriptionRequest, getPlatformSettings } from '../../services/storageService';
 import { useToast } from '../../useToast';
 import { ArrowRightIcon } from '../common/Icons';
 import { useSession } from '../../hooks/useSession';
+import Loader from '../common/Loader';
 
 interface SingleSubjectSubscriptionProps {
   onBack: () => void;
@@ -11,19 +12,13 @@ interface SingleSubjectSubscriptionProps {
 
 type Plan = 'Monthly' | 'SemiAnnually' | 'Annually';
 
-const prices: Record<Plan, number> = {
-    Monthly: 75,
-    SemiAnnually: 400,
-    Annually: 700,
-};
-
 const planLabels: Record<Plan, string> = {
     Monthly: 'شهري',
     SemiAnnually: 'نصف سنوي',
     Annually: 'سنوي',
 };
 
-const PlanPill: React.FC<{ plan: Plan; currentPlan: Plan; onSelect: (plan: Plan) => void; }> = ({ plan, currentPlan, onSelect }) => (
+const PlanPill: React.FC<{ plan: Plan; currentPlan: Plan; onSelect: (plan: Plan) => void; price: number }> = ({ plan, currentPlan, onSelect, price }) => (
     <button
         onClick={() => onSelect(plan)}
         className={`w-full p-4 rounded-xl text-right transition-all duration-300 border-2 ${
@@ -37,7 +32,7 @@ const PlanPill: React.FC<{ plan: Plan; currentPlan: Plan; onSelect: (plan: Plan)
                 <p className="font-bold text-lg text-[var(--text-primary)]">{planLabels[plan]}</p>
                 <p className="text-sm text-[var(--text-secondary)]">فاتورة كل {plan === 'Monthly' ? 'شهر' : plan === 'SemiAnnually' ? '6 أشهر' : 'سنة'}</p>
             </div>
-            <p className="text-xl font-extrabold text-[var(--text-accent)]">{prices[plan]} ج.م</p>
+            <p className="text-xl font-extrabold text-[var(--text-accent)]">{price} ج.م</p>
         </div>
     </button>
 );
@@ -47,10 +42,21 @@ const SingleSubjectSubscription: React.FC<SingleSubjectSubscriptionProps> = ({ o
     const { addToast } = useToast();
     const grade = useMemo(() => user ? getGradeById(user.grade) : null, [user]);
 
+    const [settings, setSettings] = useState<PlatformSettings | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
     const [selectedUnitId, setSelectedUnitId] = useState<string>('');
     const [selectedPlan, setSelectedPlan] = useState<Plan>('Monthly');
     const [paymentNumber, setPaymentNumber] = useState('');
     const [error, setError] = useState('');
+
+    useEffect(() => {
+        const fetchSettings = async () => {
+            const data = await getPlatformSettings();
+            setSettings(data);
+            setIsLoading(false);
+        };
+        fetchSettings();
+    }, []);
 
     const availableSubjects = useMemo(() => {
         if (!grade || !user) return [];
@@ -90,7 +96,11 @@ const SingleSubjectSubscription: React.FC<SingleSubjectSubscriptionProps> = ({ o
         onBack();
     };
 
-    if (!user) return null;
+    if (isLoading || !user || !settings) {
+        return <div className="flex justify-center items-center h-64"><Loader /></div>;
+    }
+
+    const prices = settings.subscriptionPrices.singleSubject;
 
     return (
         <div className="max-w-2xl mx-auto">
@@ -122,9 +132,9 @@ const SingleSubjectSubscription: React.FC<SingleSubjectSubscriptionProps> = ({ o
                 <div>
                      <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3">2. اختر مدة الاشتراك</h2>
                      <div className="space-y-3">
-                        <PlanPill plan="Monthly" currentPlan={selectedPlan} onSelect={setSelectedPlan} />
-                        <PlanPill plan="SemiAnnually" currentPlan={selectedPlan} onSelect={setSelectedPlan} />
-                        <PlanPill plan="Annually" currentPlan={selectedPlan} onSelect={setSelectedPlan} />
+                        <PlanPill plan="Monthly" currentPlan={selectedPlan} onSelect={setSelectedPlan} price={prices.monthly} />
+                        <PlanPill plan="SemiAnnually" currentPlan={selectedPlan} onSelect={setSelectedPlan} price={prices.semiAnnually} />
+                        <PlanPill plan="Annually" currentPlan={selectedPlan} onSelect={setSelectedPlan} price={prices.annually} />
                      </div>
                 </div>
 
@@ -134,7 +144,7 @@ const SingleSubjectSubscription: React.FC<SingleSubjectSubscriptionProps> = ({ o
                     <div className="bg-[var(--bg-secondary)] p-5 rounded-xl border border-[var(--border-primary)] space-y-4">
                         <div className="text-center bg-[var(--bg-tertiary)] p-4 rounded-lg">
                             <p className="text-[var(--text-secondary)]">قم بتحويل المبلغ إلى رقم فودافون كاش التالي:</p>
-                            <p className="text-2xl font-bold text-[var(--text-primary)] tracking-widest mt-1">01012345678</p>
+                            <p className="text-2xl font-bold text-[var(--text-primary)] tracking-widest mt-1">{settings.paymentNumbers.vodafoneCash}</p>
                         </div>
                          <div>
                             <label htmlFor="paymentNumber" className="block font-medium text-[var(--text-secondary)] mb-2">أدخل الرقم الذي قمت بالتحويل منه:</label>

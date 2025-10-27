@@ -73,7 +73,7 @@ const ContinueLearningCard: React.FC<{
 // Main Component
 interface StudentHomeScreenProps {
     user: User;
-    onNavigate: (view: StudentView, data?: { unit: Unit, lesson: Lesson }) => void;
+    onNavigate: (view: StudentView, data?: { unit?: Unit, lesson?: Lesson, teacher?: Teacher }) => void;
 }
 
 const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({ user, onNavigate }) => {
@@ -205,7 +205,7 @@ const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({ user, onNavigate 
                         style={{ scrollbarWidth: 'none', '-ms-overflow-style': 'none' }}
                     >
                          {teachers.slice(0, 6).map(teacher => (
-                             <div key={teacher.id} className="flex-shrink-0 w-28 text-center group cursor-pointer" onClick={() => onNavigate('teachers')}>
+                             <div key={teacher.id} className="flex-shrink-0 w-28 text-center group cursor-pointer" onClick={() => onNavigate('teacherProfile', { teacher })}>
                                 <img src={teacher.imageUrl} alt={teacher.name} className="w-24 h-24 rounded-full mx-auto mb-2 border-4 border-transparent group-hover:border-[var(--accent-primary)] transition-all duration-300" />
                                 <h3 className="font-bold text-sm text-[var(--text-primary)] truncate">{teacher.name}</h3>
                             </div>

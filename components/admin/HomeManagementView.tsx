@@ -98,7 +98,7 @@ const HomeManagementView: React.FC = () => {
                     <img src={course.coverImage} alt={course.title} className="w-full h-40 object-cover" />
                     <div className="p-4 flex-grow flex flex-col">
                         <h3 className="font-bold text-lg text-[var(--text-primary)]">{course.title}</h3>
-                        <p className="text-sm text-[var(--text-secondary)] flex-grow">{course.subtitle}</p>
+                        <p className="text-sm text-[var(--text-secondary)] flex-grow">{course.description}</p>
                         <div className="flex justify-end gap-2 mt-4">
                             <button onClick={() => openModal('edit-course', course)} className="p-2 text-yellow-500 hover:bg-yellow-500/10 rounded-md"><PencilIcon className="w-5 h-5"/></button>
                             <button onClick={() => openModal('delete-course', course)} className="p-2 text-red-500 hover:bg-red-500/10 rounded-md"><TrashIcon className="w-5 h-5"/></button>
@@ -162,7 +162,7 @@ const HomeManagementView: React.FC = () => {
             <Modal isOpen={['add-course', 'edit-course'].includes(modalState.type || '')} onClose={closeModal} title={modalState.type === 'add-course' ? 'إضافة كورس جديد' : 'تعديل كورس'}>
                 <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="space-y-4">
                     <FormInput label="العنوان" name="title" value={formData.title || ''} onChange={handleFormChange} />
-                    <FormInput label="العنوان الفرعي" name="subtitle" value={formData.subtitle || ''} onChange={handleFormChange} />
+                    <FormInput label="العنوان الفرعي" name="subtitle" value={formData.description || ''} onChange={handleFormChange} />
                     <div>
                         <label htmlFor="teacherId" className="block text-sm font-medium text-[var(--text-secondary)] mb-1">المدرس</label>
                         <select name="teacherId" id="teacherId" value={formData.teacherId || ''} onChange={handleFormChange} required className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)] focus:ring-purple-500 focus:border-purple-500">

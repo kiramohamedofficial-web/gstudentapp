@@ -14,7 +14,6 @@ import {
 } from '../../services/storageService';
 import { ChartBarIcon, UsersIcon, BellIcon, SearchIcon, InformationCircleIcon, UserCircleIcon, ChevronLeftIcon } from '../common/Icons';
 import RevenueChart from './RevenueChart';
-import ContentManagementView from './ContentManagementView';
 import QrCodeGeneratorView from './QrCodeGeneratorView';
 import HomeManagementView from './HomeManagementView';
 import PlatformSettingsView from './PlatformSettingsView';
@@ -25,15 +24,16 @@ import SystemHealthView from './SystemHealthView';
 import Loader from '../common/Loader';
 import { useSession } from '../../hooks/useSession';
 
-const AccountCreationDiagnosticsView = lazy(() => import('./AccountCreationDiagnosticsView'));
-const TeacherCreationDiagnosticsView = lazy(() => import('./TeacherCreationDiagnosticsView'));
+const SubscriptionPriceControlView = lazy(() => import('./SubscriptionPriceControlView'));
+const CourseManagementView = lazy(() => import('./CourseManagementView'));
+
 
 interface AdminDashboardProps {
   theme: Theme;
   setTheme: (theme: Theme) => void;
 }
 
-type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'content' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'systemHealth' | 'accountCreationDiagnostics' | 'accountSettings' | 'teachers' | 'teacherCreationDiagnostics';
+type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'courseManagement' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers' | 'subscriptionPrices';
 
 const StatCard: React.FC<{ title: string; value: string; icon: React.FC<{ className?: string; }>; delay: number; onClick?: () => void; }> = React.memo(({ title, value, icon: Icon, delay, onClick }) => (
     <div 
@@ -322,19 +322,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
     if (selectedStudent) {
       return <StudentDetailView user={selectedStudent} onBack={handleBackToStudents} />;
     }
+    
+    const suspenseLoader = <div className="flex justify-center items-center h-64"><Loader /></div>;
 
     switch (activeView) {
       case 'subscriptions': return <SubscriptionManagementView />;
+      case 'subscriptionPrices': return <Suspense fallback={suspenseLoader}><SubscriptionPriceControlView /></Suspense>;
       case 'students': return <StudentManagementView onViewDetails={handleViewStudentDetails} />;
       case 'teachers': return <TeacherManagementView />;
       case 'homeManagement': return <HomeManagementView />;
-      case 'content': return <ContentManagementView />;
+      case 'courseManagement': return <Suspense fallback={suspenseLoader}><CourseManagementView /></Suspense>;
       case 'tools': return <QrCodeGeneratorView />;
       case 'questionBank': return <QuestionBankView />;
       case 'platformSettings': return <PlatformSettingsView user={user} />;
       case 'systemHealth': return <SystemHealthView />;
-      case 'accountCreationDiagnostics': return <Suspense fallback={<div className="flex justify-center items-center h-64"><Loader /></div>}><AccountCreationDiagnosticsView /></Suspense>;
-      case 'teacherCreationDiagnostics': return <Suspense fallback={<div className="flex justify-center items-center h-64"><Loader /></div>}><TeacherCreationDiagnosticsView /></Suspense>;
       case 'accountSettings': return <AdminSettingsView theme={theme} setTheme={setTheme} />;
       case 'dashboard':
       default:

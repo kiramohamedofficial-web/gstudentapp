@@ -3,15 +3,19 @@ import { getAllTeachers } from '../../services/storageService';
 import { Teacher } from '../../types';
 import Loader from '../common/Loader';
 
-const TeacherCard: React.FC<{ teacher: Teacher }> = ({ teacher }) => (
-    <div className="bg-[var(--bg-secondary)] rounded-xl shadow-md border border-[var(--border-primary)] text-center p-6 transition-transform transform hover:-translate-y-2 group">
+const TeacherCard: React.FC<{ teacher: Teacher; onClick: () => void; }> = ({ teacher, onClick }) => (
+    <button onClick={onClick} className="w-full text-center bg-[var(--bg-secondary)] rounded-xl shadow-md border border-[var(--border-primary)] p-6 transition-transform transform hover:-translate-y-2 group">
         <img src={teacher.imageUrl} alt={teacher.name} className="w-28 h-28 rounded-full mx-auto mb-4 border-4 border-[var(--bg-tertiary)] group-hover:border-[var(--accent-primary)] transition-colors duration-300" />
         <h3 className="text-xl font-bold text-[var(--text-primary)]">{teacher.name}</h3>
         <p className="text-[var(--text-secondary)]">{teacher.subject}</p>
-    </div>
+    </button>
 );
 
-const TeachersView: React.FC = () => {
+interface TeachersViewProps {
+    onSelectTeacher: (teacher: Teacher) => void;
+}
+
+const TeachersView: React.FC<TeachersViewProps> = ({ onSelectTeacher }) => {
     const [teachers, setTeachers] = useState<Teacher[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -41,7 +45,7 @@ const TeachersView: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                 {teachers.map((teacher, index) => (
                     <div key={teacher.id} className="fade-in" style={{ animationDelay: `${index * 100}ms` }}>
-                        <TeacherCard teacher={teacher} />
+                        <TeacherCard teacher={teacher} onClick={() => onSelectTeacher(teacher)} />
                     </div>
                 ))}
             </div>

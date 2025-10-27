@@ -2,7 +2,7 @@ import { createClient, Session, User as SupabaseUser } from '@supabase/supabase-
 import {
   User, Role, Subscription, Grade, Teacher, Lesson, Unit, SubscriptionRequest,
   // FIX: Import 'ActivityLog' to resolve 'Cannot find name 'ActivityLog'' error.
-  StudentQuestion, SubscriptionCode, Semester, QuizAttempt, ActivityLog, LessonType
+  StudentQuestion, SubscriptionCode, Semester, QuizAttempt, ActivityLog, LessonType, PlatformSettings, Course
 } from '../types';
 
 // =================================================================
@@ -129,6 +129,20 @@ export const getProfile = async (userId: string): Promise<User | null> => {
         role: profileData.role as Role, teacherId: profileData.teacher_id, stage: profileData.stage
     };
 };
+
+export const getUserByTeacherId = async (teacherId: string): Promise<User | null> => {
+    const { data: profileData, error } = await supabase.from('profiles').select('*').eq('teacher_id', teacherId).single();
+    if (error) {
+        if (error.code !== 'PGRST116') console.error("Error fetching profile by teacherId:", error.message);
+        return null;
+    }
+    return {
+        id: profileData.id, email: '', name: profileData.name, phone: profileData.phone,
+        guardianPhone: profileData.guardian_phone, grade: profileData.grade_id, track: profileData.track,
+        role: profileData.role as Role, teacherId: profileData.teacher_id, stage: profileData.stage
+    };
+};
+
 
 // =================================================================
 // PASSWORD RECOVERY
@@ -591,9 +605,137 @@ export const getTeacherById = async (id: string): Promise<Teacher | null> => { c
 export const addActivityLog = (action: string, details: string) => console.log(`Activity: ${action} - ${details}`);
 export const getChatUsage = (userId: string) => ({ remaining: 50 });
 export const incrementChatUsage = (userId: string) => {};
-export const getPlatformSettings = () => ({ platformName: 'Gstudent', heroTitle: 'بوابتك للتفوق الدراسي', heroSubtitle: 'شرح مبسط وتمارين مكثفة لجميع المواد، لمساعدتك على تحقيق أعلى الدرجات مع نخبة من أفضل المدرسين.', heroButtonText: 'ابدأ رحلتك الآن', featuresTitle: 'لماذا تختار منصة Gstudent؟', featuresSubtitle: 'نوفر لك كل ما تحتاجه لتحقيق أعلى الدرجات بأبسط الطرق.', features: [], footerDescription: '', contactPhone: '', contactFacebookUrl: '', contactYoutubeUrl: '' });
-export const updatePlatformSettings = (settings: any) => {};
-export const getFeaturedCourses = () => [];
+// Platform Settings
+const defaultSettings: PlatformSettings = {
+    platformName: 'Gstudent',
+    heroTitle: 'بوابتك للتفوق الدراسي',
+    heroSubtitle: 'شرح مبسط وتمارين مكثفة لجميع المواد، لمساعدتك على تحقيق أعلى الدرجات مع نخبة من أفضل المدرسين.',
+    heroButtonText: 'ابدأ رحلتك الآن',
+    featuresTitle: 'لماذا تختار منصة Gstudent؟',
+    featuresSubtitle: 'نوفر لك كل ما تحتاجه لتحقيق أعلى الدرجات بأبسط الطرق.',
+    features: [],
+    footerDescription: '',
+    contactPhone: '',
+    contactFacebookUrl: '',
+    contactYoutubeUrl: '',
+    subscriptionPrices: {
+        comprehensive: { monthly: 100, quarterly: 249, annual: 799 },
+        singleSubject: { monthly: 75, semiAnnually: 400, annually: 700 },
+    },
+    paymentNumbers: {
+        vodafoneCash: '01012345678',
+    },
+};
+
+let settingsCache: PlatformSettings | null = null;
+
+export const getPlatformSettings = async (): Promise<PlatformSettings> => {
+    if (settingsCache) return settingsCache;
+
+    const { data, error } = await supabase.from('platform_settings').select('settings').eq('id', 1).single();
+    
+    if (error || !data) {
+        console.warn('Could not fetch platform settings, using default values. Error:', error?.message);
+        return defaultSettings;
+    }
+
+    const fetchedSettings = data.settings as Partial<PlatformSettings>;
+    // Deep merge to ensure all keys exist, even if not in DB
+    const mergedSettings: PlatformSettings = {
+        ...defaultSettings,
+        ...fetchedSettings,
+        subscriptionPrices: {
+            ...defaultSettings.subscriptionPrices,
+            ...(fetchedSettings.subscriptionPrices || {}),
+            comprehensive: { ...defaultSettings.subscriptionPrices.comprehensive, ...(fetchedSettings.subscriptionPrices?.comprehensive || {}) },
+            singleSubject: { ...defaultSettings.subscriptionPrices.singleSubject, ...(fetchedSettings.subscriptionPrices?.singleSubject || {}) },
+        },
+        paymentNumbers: {
+            ...defaultSettings.paymentNumbers,
+            ...(fetchedSettings.paymentNumbers || {}),
+        },
+    };
+
+    settingsCache = mergedSettings;
+    return mergedSettings;
+};
+
+export const updatePlatformSettings = async (newSettings: PlatformSettings): Promise<{ error: any }> => {
+    const { error } = await supabase.from('platform_settings').upsert({ id: 1, settings: newSettings });
+    if (!error) {
+        settingsCache = newSettings; // Invalidate cache on successful update
+    }
+    return { error };
+};
+
+// =================================================================
+// COURSE MANAGEMENT (NEW)
+// =================================================================
+const mapCourseFromDb = (dbCourse: any): Course => ({
+    id: dbCourse.id,
+    title: dbCourse.title,
+    description: dbCourse.description,
+    teacherId: dbCourse.teacher_id,
+    coverImage: dbCourse.cover_image_url,
+    price: dbCourse.price,
+    isFree: dbCourse.is_free,
+    pdfUrl: dbCourse.pdf_url,
+    videos: dbCourse.videos || [],
+});
+const mapCourseToDb = (course: Partial<Course>): any => ({
+    title: course.title,
+    description: course.description,
+    teacher_id: course.teacherId,
+    cover_image_url: course.coverImage,
+    price: course.price,
+    is_free: course.isFree,
+    pdf_url: course.pdfUrl,
+    videos: course.videos,
+});
+
+export const getAllCourses = async (): Promise<Course[]> => {
+    const { data, error } = await supabase.from('courses').select('*').order('created_at', { ascending: false });
+    if (error) {
+        console.error("Error fetching courses:", error);
+        return [];
+    }
+    return data.map(mapCourseFromDb);
+};
+
+export const createCourse = async (courseData: Omit<Course, 'id'>) => {
+    const dbPayload = mapCourseToDb(courseData);
+    const { data, error } = await supabase.from('courses').insert(dbPayload).select().single();
+    return { data: data ? mapCourseFromDb(data) : null, error };
+};
+
+export const updateCourse = async (courseId: string, updates: Partial<Course>) => {
+    const dbPayload = mapCourseToDb(updates);
+    const { data, error } = await supabase.from('courses').update(dbPayload).eq('id', courseId).select().single();
+    return { data: data ? mapCourseFromDb(data) : null, error };
+};
+
+export const deleteCourse = async (courseId: string) => {
+    const { error } = await supabase.from('courses').delete().eq('id', courseId);
+    return { error };
+};
+
+// --- Mocked Course Purchase ---
+export const checkCoursePurchase = async (userId: string, courseId: string): Promise<boolean> => {
+    const { data, error } = await supabase.from('user_courses').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('course_id', courseId);
+    if(error) {
+        console.error("Error checking course purchase:", error);
+        return false;
+    }
+    return (data?.count || 0) > 0;
+};
+
+export const purchaseCourse = async (userId: string, courseId: string) => {
+    const { error } = await supabase.from('user_courses').insert({ user_id: userId, course_id: courseId });
+    if(error) console.error("Error purchasing course:", error);
+    return { error };
+};
+
+
 export const getFeaturedBooks = () => [];
 // FIX: Implemented placeholder function.
 export async function generateSubscriptionCode(codeData: any): Promise<SubscriptionCode | null> {
@@ -753,14 +895,14 @@ export const checkDbConnection = async () => supabase.from('teachers').select('i
 // FIX: Implemented placeholder function.
 export const getActivityLogs = (): ActivityLog[] => [];
 // FIX: Implemented placeholder function.
-export const addFeaturedCourse = (course: any) => { console.log('Adding featured course', course); };
-// FIX: Implemented placeholder function.
-export const updateFeaturedCourse = (course: any) => { console.log('Updating featured course', course); };
-// FIX: Implemented placeholder function.
-export const deleteFeaturedCourse = (id: string) => { console.log('Deleting featured course', id); };
-// FIX: Implemented placeholder function.
 export const addFeaturedBook = (book: any) => { console.log('Adding featured book', book); };
 // FIX: Implemented placeholder function.
 export const updateFeaturedBook = (book: any) => { console.log('Updating featured book', book); };
 // FIX: Implemented placeholder function.
 export const deleteFeaturedBook = (id: string) => { console.log('Deleting featured book', id); };
+
+// FIX: Added missing placeholder functions for featured courses to resolve import errors.
+export const getFeaturedCourses = (): Course[] => [];
+export const addFeaturedCourse = (course: any) => { console.log('Adding featured course', course); };
+export const updateFeaturedCourse = (course: any) => { console.log('Updating featured course', course); };
+export const deleteFeaturedCourse = (id: string) => { console.log('Deleting featured course', id); };
