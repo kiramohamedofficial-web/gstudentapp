@@ -460,7 +460,7 @@
   }
 
   /* =================================================================
-     Custom YouTube Player
+     PROFESSIONAL YOUTUBE PLAYER V2.0
      ================================================================= */
   .yt-player-container {
     position: relative;
@@ -470,6 +470,7 @@
     border-radius: 1rem; /* 16px */
     overflow: hidden;
     -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent; /* Hide tap highlight on mobile */
   }
   .yt-player-container iframe {
     position: absolute;
@@ -479,10 +480,8 @@
     height: 100%;
     border: 0;
   }
-  .yt-click-shield {
-    position: absolute;
-    inset: 0;
-    z-index: 5;
+  .yt-player-overlay {
+    position: absolute; inset: 0; z-index: 5;
   }
   .yt-center-play-button {
     position: absolute;
@@ -492,14 +491,16 @@
     z-index: 10;
     width: 80px;
     height: 80px;
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: rgba(20, 20, 20, 0.6);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 2px solid white;
-    transition: all 0.2s ease;
-    pointer-events: auto; /* Ensure this button is always clickable */
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    pointer-events: auto;
   }
   .yt-center-play-button:hover {
     background-color: rgba(var(--accent-primary-rgb), 0.8);
@@ -512,8 +513,8 @@
     left: 0;
     right: 0;
     z-index: 20;
-    padding: 0.75rem 1rem;
-    background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.4) 60%, transparent 100%);
+    padding: 0.5rem 1.25rem;
+    background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.4) 60%, transparent 100%);
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.3s ease, visibility 0.3s ease;
@@ -522,32 +523,59 @@
     opacity: 1;
     visibility: visible;
   }
-  .yt-progress-bar {
-    -webkit-appearance: none;
-    appearance: none;
+  .yt-progress-bar-container {
+    position: relative;
+    width: 100%;
+    padding: 8px 0;
+    cursor: pointer;
+    margin-bottom: 0.25rem;
+  }
+  .yt-progress-bar-bg {
     width: 100%;
     height: 5px;
     background: rgba(255, 255, 255, 0.2);
     border-radius: 5px;
-    outline: none;
-    cursor: pointer;
-    margin-bottom: 0.5rem;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
   }
-  .yt-progress-bar::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
+  .yt-progress-bar-loaded {
+     background: rgba(255, 255, 255, 0.4);
+  }
+  .yt-progress-bar-played {
+    background: var(--accent-primary);
+  }
+  .yt-progress-thumb {
     width: 14px;
     height: 14px;
-    background: var(--accent-primary);
+    background: white;
     border-radius: 50%;
-    cursor: pointer;
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    transition: transform 0.1s ease;
   }
-  .yt-progress-bar::-moz-range-thumb {
-    width: 14px;
-    height: 14px;
-    background: var(--accent-primary);
-    border-radius: 50%;
-    cursor: pointer;
+  .yt-progress-bar-container:hover .yt-progress-thumb {
+    transform: translate(-50%, -50%) scale(1.2);
+  }
+  .yt-seek-tooltip {
+    position: absolute;
+    bottom: 100%;
+    transform: translateX(-50%);
+    background: rgba(20,20,20,0.8);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: monospace;
+    margin-bottom: 10px;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.1s;
+  }
+  .yt-progress-bar-container:hover .yt-seek-tooltip {
+    visibility: visible;
+    opacity: 1;
   }
   .yt-bottom-controls {
     display: flex;
@@ -565,10 +593,11 @@
     align-items: center;
     gap: 0.5rem;
     opacity: 0.9;
-    transition: opacity 0.2s ease;
+    transition: opacity 0.2s, transform 0.2s;
   }
   .yt-control-button:hover {
     opacity: 1;
+    transform: scale(1.1);
   }
   .yt-volume-container {
     display: flex;
@@ -582,7 +611,7 @@
     background: rgba(255, 255, 255, 0.3);
     border-radius: 4px;
     outline: none;
-    transition: width 0.3s ease;
+    transition: width 0.3s ease, margin-right 0.3s ease;
     cursor: pointer;
   }
   .yt-volume-container:hover .yt-volume-slider {
@@ -592,12 +621,6 @@
   .yt-volume-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 12px;
-    height: 12px;
-    background: white;
-    border-radius: 50%;
-  }
-  .yt-volume-slider::-moz-range-thumb {
     width: 12px;
     height: 12px;
     background: white;
@@ -624,19 +647,10 @@
     max-height: 150px;
     overflow-y: auto;
   }
-  .yt-quality-menu::-webkit-scrollbar {
-      width: 4px;
-  }
-  .yt-quality-menu::-webkit-scrollbar-track {
-      background: transparent;
-  }
-  .yt-quality-menu::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.3);
-      border-radius: 4px;
-  }
-  .yt-quality-menu::-webkit-scrollbar-thumb:hover {
-      background: rgba(255, 255, 255, 0.5);
-  }
+  .yt-quality-menu::-webkit-scrollbar { width: 4px; }
+  .yt-quality-menu::-webkit-scrollbar-track { background: transparent; }
+  .yt-quality-menu::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.3); border-radius: 4px; }
+  .yt-quality-menu::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.5); }
   .yt-quality-item {
     width: 100%;
     padding: 0.5rem 0.75rem;
@@ -657,22 +671,53 @@
     color: var(--accent-primary);
     font-weight: bold;
   }
+  .yt-buffering-spinner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 40px;
+    height: 40px;
+    margin: -20px 0 0 -20px;
+    border: 3px solid rgba(255, 255, 255, 0.2);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    z-index: 15;
+  }
+  .yt-error-overlay, .yt-upnext-overlay {
+    position: absolute;
+    inset: 0;
+    background-color: rgba(0,0,0,0.85);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    z-index: 25;
+    text-align: center;
+    padding: 1rem;
+    animation: fade-in 0.3s;
+  }
+  .yt-upnext-countdown-circle {
+    width: 50px;
+    height: 50px;
+    transform: rotate(-90deg);
+  }
+  .yt-upnext-countdown-circle circle {
+    transition: stroke-dashoffset 1s linear;
+  }
+
   @media (max-width: 640px) {
-    .yt-controls-overlay {
-        padding: 0.5rem;
-    }
-    .yt-center-play-button {
-        width: 60px;
-        height: 60px;
-    }
+    .yt-controls-overlay { padding: 0.5rem; }
+    .yt-center-play-button { width: 60px; height: 60px; }
     .yt-control-button .w-6 { width: 1.25rem; height: 1.25rem; }
     .yt-control-button .w-5 { width: 1.125rem; height: 1.125rem; }
     .yt-time-display { font-size: 0.75rem; }
     .yt-bottom-controls .gap-4 { gap: 0.5rem; }
     .yt-bottom-controls .gap-2 { gap: 0.25rem; }
-    .yt-volume-container:hover .yt-volume-slider {
-        width: 60px;
-    }
+    .yt-volume-container:hover .yt-volume-slider { width: 60px; }
   }
 
   /* ===== MODERN HEADER ===== */
