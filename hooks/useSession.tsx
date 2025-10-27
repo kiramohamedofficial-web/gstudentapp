@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useEffect, useCallback, useContext } from 'react';
 import { User } from '../types';
 import { 
@@ -64,20 +63,6 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 }
 
                 if (profile) {
-                    // --- Device Validation Logic ---
-                    if (profile.role === 'student') {
-                        const deviceId = getOrCreateDeviceId();
-                        // Gracefully handle if device_ids is not present in schema
-                        if (profile.device_ids && Array.isArray(profile.device_ids)) {
-                            if (!profile.device_ids.includes(deviceId)) {
-                                addToast("الجهاز غير مسجل لهذه الجلسة. جاري فرض تسجيل الخروج.", 'error');
-                                await signOut();
-                                setCurrentUser(null);
-                                setIsLoading(false);
-                                return; // Stop further processing
-                            }
-                        }
-                    }
                     setCurrentUser(profile);
                 } else {
                     console.error("User is logged in but profile data is missing after multiple attempts.");
@@ -107,11 +92,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setAuthError('');
         const { error } = await signIn(identifier, password);
         if (error) {
-            if (error.message.includes('Invalid login credentials')) {
-                setAuthError('بيانات الدخول غير صحيحة. يرجى التحقق من البريد الإلكتروني/رقم الهاتف وكلمة المرور.');
-            } else {
-                setAuthError(error.message);
-            }
+            setAuthError(error.message);
         }
     }, []);
   

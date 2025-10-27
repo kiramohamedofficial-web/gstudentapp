@@ -1,4 +1,4 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import React, { ErrorInfo, ReactNode } from 'react';
 import { ShieldExclamationIcon } from './Icons';
 
 interface Props {
@@ -9,12 +9,14 @@ interface State {
   hasError: boolean;
 }
 
-class ErrorBoundary extends Component<Props, State> {
-  // FIX: The constructor-based state initialization was causing type errors.
-  // Switched to class property syntax, which is a standard and safe way to initialize state in React class components.
-  public state: State = {
-    hasError: false,
-  };
+class ErrorBoundary extends React.Component<Props, State> {
+  // FIX: Explicitly initialize state in the constructor for broader compatibility.
+  // Using a class field initializer might not be correctly handled by all build setups,
+  // which can lead to obscure type errors on instance properties like `props` and `state`.
+  constructor(props: Props) {
+    super(props);
+    this.state = { hasError: false };
+  }
 
   public static getDerivedStateFromError(_: Error): State {
     return { hasError: true };
@@ -45,7 +47,6 @@ class ErrorBoundary extends Component<Props, State> {
       );
     }
 
-    // FIX: Correctly access props via `this.props` in a class component.
     return this.props.children;
   }
 }

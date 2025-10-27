@@ -1,27 +1,61 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { User, ToastType } from '../../types';
-import { getAllUsers, clearUserDevices } from '../../services/storageService';
+import { getAllUsers, clearUserDevices, supabase } from '../../services/storageService';
 import { useToast } from '../../useToast';
 import { HardDriveIcon, TrashIcon, ShieldExclamationIcon } from '../common/Icons';
 import Loader from '../common/Loader';
 
+interface ViolatingUser extends User {
+    activeSessions: number;
+}
+
 const DeviceManagementView: React.FC = () => {
-    const [violatingUsers, setViolatingUsers] = useState<User[]>([]);
+    const [violatingUsers, setViolatingUsers] = useState<ViolatingUser[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const { addToast } = useToast();
 
     const fetchData = useCallback(async () => {
         setIsLoading(true);
-        const users = await getAllUsers();
-        const violators = users.filter(user => 
-            user.role === 'student' && 
-            user.device_ids && 
-            user.device_limit && 
-            user.device_ids.length > user.device_limit
-        );
-        setViolatingUsers(violators);
+        
+        // 1. Get all active sessions
+        const { data: activeSessions, error: sessionError } = await supabase
+            .from('user_sessions')
+            .select('user_id')
+            .eq('active', true);
+            
+        if (sessionError) {
+            addToast(`فشل جلب الجلسات: ${sessionError.message}`, ToastType.ERROR);
+            setIsLoading(false);
+            return;
+        }
+
+        // 2. Count active sessions per user
+        const sessionCounts = new Map<string, number>();
+        for (const session of activeSessions) {
+            sessionCounts.set(session.user_id, (sessionCounts.get(session.user_id) || 0) + 1);
+        }
+
+        // 3. Find users with more than one active session
+        const violatingUserIds = Array.from(sessionCounts.entries())
+            .filter(([_, count]) => count > 1)
+            .map(([userId, _]) => userId);
+
+        if (violatingUserIds.length > 0) {
+            // 4. Fetch profiles for violating users
+            const allUsers = await getAllUsers();
+            const violators = allUsers
+                .filter(user => violatingUserIds.includes(user.id))
+                .map(user => ({
+                    ...user,
+                    activeSessions: sessionCounts.get(user.id) || 0,
+                }));
+            setViolatingUsers(violators);
+        } else {
+            setViolatingUsers([]);
+        }
+
         setIsLoading(false);
-    }, []);
+    }, [addToast]);
 
     useEffect(() => {
         fetchData();
@@ -30,9 +64,9 @@ const DeviceManagementView: React.FC = () => {
     const handleClearDevices = async (userId: string, userName: string) => {
         const { error } = await clearUserDevices(userId);
         if (error) {
-            addToast(`فشل مسح أجهزة ${userName}: ${error.message}`, ToastType.ERROR);
+            addToast(`فشل مسح جلسات ${userName}: ${error.message}`, ToastType.ERROR);
         } else {
-            addToast(`تم مسح أجهزة ${userName} بنجاح.`, ToastType.SUCCESS);
+            addToast(`تم مسح جلسات ${userName} بنجاح.`, ToastType.SUCCESS);
             fetchData(); // Refresh the list
         }
     };
@@ -40,7 +74,7 @@ const DeviceManagementView: React.FC = () => {
     return (
         <div className="fade-in">
             <h1 className="text-3xl font-bold text-[var(--text-primary)]">إدارة الأجهزة</h1>
-            <p className="text-[var(--text-secondary)] mt-1 mb-8">فحص وعرض الحسابات التي تتجاوز الحد المسموح به للأجهزة.</p>
+            <p className="text-[var(--text-secondary)] mt-1 mb-8">فحص وعرض الحسابات التي لديها أكثر من جلسة نشطة في نفس الوقت (حالة استثنائية).</p>
 
             {isLoading ? (
                 <div className="flex justify-center items-center py-20"><Loader /></div>
@@ -58,12 +92,8 @@ const DeviceManagementView: React.FC = () => {
                             
                             <div className="text-sm space-y-2 mb-4">
                                 <p className="flex justify-between">
-                                    <span className="text-red-200">الأجهزة المسجلة:</span>
-                                    <span className="font-bold text-white">{user.device_ids?.length || 0}</span>
-                                </p>
-                                <p className="flex justify-between">
-                                    <span className="text-red-200">الحد المسموح:</span>
-                                    <span className="font-bold text-white">{user.device_limit || 1}</span>
+                                    <span className="text-red-200">الجلسات النشطة:</span>
+                                    <span className="font-bold text-white">{user.activeSessions}</span>
                                 </p>
                             </div>
                             
@@ -72,7 +102,7 @@ const DeviceManagementView: React.FC = () => {
                                 className="w-full mt-auto py-2.5 font-semibold bg-red-600/50 text-white hover:bg-red-600 rounded-lg transition-colors flex items-center justify-center gap-2"
                             >
                                 <TrashIcon className="w-5 h-5"/>
-                                مسح الأجهزة المسجلة
+                                مسح جميع الجلسات
                             </button>
                         </div>
                     ))}
@@ -81,7 +111,7 @@ const DeviceManagementView: React.FC = () => {
                  <div className="text-center py-20 bg-[var(--bg-secondary)] rounded-xl border-2 border-dashed border-[var(--border-primary)]">
                      <HardDriveIcon className="w-20 h-20 mx-auto text-[var(--text-secondary)] opacity-20 mb-4" />
                     <h3 className="font-bold text-lg text-[var(--text-primary)]">لا توجد مخالفات</h3>
-                    <p className="text-[var(--text-secondary)] mt-1">جميع حسابات الطلاب تلتزم بحد الأجهزة المسموح به.</p>
+                    <p className="text-[var(--text-secondary)] mt-1">لا يوجد أي مستخدم لديه أكثر من جلسة نشطة.</p>
                 </div>
             )}
         </div>

@@ -23,8 +23,6 @@ export interface User {
   role: Role;
   subscriptionId?: string;
   teacherId?: string; // Links user to a teacher profile
-  device_ids?: string[];
-  device_limit?: number;
 }
 
 export interface Subscription {

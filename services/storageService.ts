@@ -80,7 +80,6 @@ export async function signUp(userData: Omit<User, 'id' | 'role' | 'subscriptionI
     };
     
     const { track } = determineTrack(grade);
-    const deviceId = getOrCreateDeviceId();
 
     const userMetaData = {
         name: name,
@@ -89,8 +88,6 @@ export async function signUp(userData: Omit<User, 'id' | 'role' | 'subscriptionI
         grade_id: grade,
         role: 'student',
         track: track,
-        device_ids: [deviceId],
-        device_limit: 1,
     };
 
     const { data, error } = await supabase.auth.signUp({
@@ -110,90 +107,112 @@ export async function signUp(userData: Omit<User, 'id' | 'role' | 'subscriptionI
 
 export async function signIn(identifier: string, password: string) {
     const isEmail = identifier.includes('@');
-    let signInPromise;
+    let emailToSignIn = isEmail ? identifier : '';
 
-    if (isEmail) {
-        signInPromise = supabase.auth.signInWithPassword({ email: identifier, password });
-    } else {
-        const trimmed = identifier.trim().replace(/\s/g, '');
-        let formattedPhone = '';
-        if (trimmed.startsWith('0') && trimmed.length === 11) formattedPhone = `+2${trimmed}`;
-        else if (trimmed.startsWith('20') && trimmed.length === 12) formattedPhone = `+${trimmed}`;
-        else if (trimmed.startsWith('+20') && trimmed.length === 13) formattedPhone = trimmed;
-        else return { data: null, error: { message: 'رقم الهاتف المدخل غير صالح.' } };
-
-        const { data: email, error: rpcError } = await supabase.rpc('get_email_from_phone', {
-            phone_number: formattedPhone
-        });
-        
+    if (!isEmail) {
+        const { data: email, error: rpcError } = await supabase.rpc('get_email_from_phone', { phone_number: identifier });
         if (rpcError || !email) {
             console.error('RPC error or no email found for phone:', rpcError);
-            return { data: null, error: { message: 'Invalid login credentials' } };
+            return { data: null, error: { message: 'بيانات الدخول غير صحيحة.' } };
         }
-        
-        signInPromise = supabase.auth.signInWithPassword({ email, password });
+        emailToSignIn = email;
     }
 
-    const { data: signInData, error: signInError } = await signInPromise;
-    if (signInError) return { data: null, error: signInError };
-    if (!signInData.user) return { data: null, error: { message: 'User not found after sign in.' } };
-    
-    // --- Device Validation Logic ---
-    const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('device_ids, device_limit, role')
-        .eq('id', signInData.user.id)
-        .single();
-    
-    if (profileError) {
-        console.error("Could not fetch user profile for device validation:", profileError);
-        return { data: signInData, error: null }; // Fail open if profile can't be fetched
-    }
-    
-    // Bypass for admins and teachers
-    if (profile.role === 'admin' || profile.role === 'teacher') {
+    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email: emailToSignIn, password });
+    if (signInError) return { data: null, error: { message: 'بيانات الدخول غير صحيحة.' } };
+    if (!signInData.user) return { data: null, error: { message: 'لم يتم العثور على المستخدم بعد تسجيل الدخول.' } };
+
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', signInData.user.id).single();
+    if (profile?.role === 'admin' || profile?.role === 'teacher') {
         return { data: signInData, error: null };
     }
 
+    const userId = signInData.user.id;
     const deviceId = getOrCreateDeviceId();
-    const deviceIds = profile.device_ids || [];
-    const deviceLimit = profile.device_limit || 1;
+    const deviceInfo = { id: deviceId };
 
-    if (deviceIds.includes(deviceId)) {
-        // Device is already registered, proceed
+    const { data: activeSessions, error: sessionError } = await supabase
+        .from('user_sessions')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('active', true);
+    
+    if (sessionError) {
+        console.error("Error checking active sessions:", sessionError.message || sessionError);
+        return { data: signInData, error: null }; // Fail open if check fails
+    }
+
+    if (activeSessions && activeSessions.length > 0) {
+        const isSameDevice = activeSessions.some(session => session.device_info?.id === deviceId);
+        if (!isSameDevice) {
+            await supabase.auth.signOut();
+            return { data: null, error: { message: "تم تسجيل دخولك بالفعل من جهاز آخر. يرجى تسجيل الخروج أولاً." } };
+        }
+        // Same device, just let them in.
         return { data: signInData, error: null };
-    } else if (deviceIds.length >= deviceLimit) {
-        // Device limit reached
-        return { data: null, error: { message: `تم الوصول إلى الحد الأقصى للأجهزة (${deviceLimit}).` } };
+    }
+    
+    // No active session found, create/update one for this device.
+    // Manually perform an "upsert" since the DB schema lacks a UNIQUE constraint for ON CONFLICT.
+    
+    // 1. Check if a record for this device already exists (it might be inactive).
+    const { data: existingSession, error: selectError } = await supabase
+        .from('user_sessions')
+        .select('id')
+        .eq('user_id', userId)
+        .contains('device_info', deviceInfo)
+        .maybeSingle();
+
+    if (selectError) {
+        console.error("Failed to check for existing session record:", selectError.message || selectError);
+        // Fail open: let the user log in, but log the error for debugging.
     } else {
-        // Register new device
-        const newDeviceIds = [...deviceIds, deviceId];
-        const { error: updateError } = await supabase
-            .from('profiles')
-            .update({ device_ids: newDeviceIds })
-            .eq('id', signInData.user.id);
+        if (existingSession) {
+            // 2a. If it exists (e.g., from a previous login), update it to be active.
+            const { error: updateError } = await supabase
+                .from('user_sessions')
+                .update({ active: true })
+                .eq('id', existingSession.id);
+
+            if (updateError) {
+                console.error("Failed to reactivate session:", updateError.message || updateError);
+            }
+        } else {
+            // 2b. If it doesn't exist, insert a new active session record.
+            const { error: insertError } = await supabase
+                .from('user_sessions')
+                .insert({ user_id: userId, device_info: deviceInfo, active: true });
             
-        if (updateError) {
-            console.error("Failed to register new device:", updateError);
-            // Fail open, but log the error
-            return { data: signInData, error: null };
+            if (insertError) {
+                console.error("Failed to register new session:", insertError.message || insertError);
+            }
         }
     }
     
     return { data: signInData, error: null };
 };
 
-export const signOut = async () => supabase.auth.signOut();
+export const signOut = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+        const deviceId = getOrCreateDeviceId();
+        const deviceInfo = { id: deviceId };
+        await supabase
+            .from('user_sessions')
+            .update({ active: false })
+            .eq('user_id', session.user.id)
+            .contains('device_info', deviceInfo);
+    }
+    return supabase.auth.signOut();
+};
+
 export const getSession = async () => { const { data: { session } } = await supabase.auth.getSession(); return session; };
 export const onAuthStateChange = (callback: (event: string, session: Session | null) => void) => supabase.auth.onAuthStateChange((event, session) => callback(event, session));
 
 export const getProfile = async (userId: string): Promise<User | null> => {
-    let { data: profileData, error } = await supabase.from('profiles').select('id, name, phone, guardian_phone, grade_id, track, role, teacher_id, device_ids, device_limit').eq('id', userId).single();
+    let { data: profileData, error } = await supabase.from('profiles').select('id, name, phone, guardian_phone, grade_id, track, role, teacher_id').eq('id', userId).single();
 
     if (error) {
-        if (error.message.includes("schema cache")) {
-            console.error("DATABASE SETUP ERROR: The 'profiles' table was not found. Please ensure the table exists in the 'public' schema and that the 'anon' role has SELECT permissions on it.");
-        }
         if (error.code !== 'PGRST116') console.error("Error fetching profile:", error.message);
         return null;
     }
@@ -204,13 +223,12 @@ export const getProfile = async (userId: string): Promise<User | null> => {
     return {
         id: profileData.id, email: authUser?.email || '', name: profileData.name, phone: profileData.phone,
         guardianPhone: profileData.guardian_phone, grade: profileData.grade_id, track: profileData.track,
-        role: profileData.role as Role, teacherId: profileData.teacher_id,
-        device_ids: profileData.device_ids, device_limit: profileData.device_limit
+        role: profileData.role as Role, teacherId: profileData.teacher_id
     };
 };
 
 export const getUserByTeacherId = async (teacherId: string): Promise<User | null> => {
-    const { data: profileData, error } = await supabase.from('profiles').select('id, name, phone, guardian_phone, grade_id, track, role, teacher_id, device_ids, device_limit').eq('teacher_id', teacherId).single();
+    const { data: profileData, error } = await supabase.from('profiles').select('id, name, phone, guardian_phone, grade_id, track, role, teacher_id').eq('teacher_id', teacherId).single();
     if (error) {
         if (error.code !== 'PGRST116') console.error("Error fetching profile by teacherId:", error.message);
         return null;
@@ -218,8 +236,7 @@ export const getUserByTeacherId = async (teacherId: string): Promise<User | null
     return {
         id: profileData.id, email: '', name: profileData.name, phone: profileData.phone,
         guardianPhone: profileData.guardian_phone, grade: profileData.grade_id, track: profileData.track,
-        role: profileData.role as Role, teacherId: profileData.teacher_id,
-        device_ids: profileData.device_ids, device_limit: profileData.device_limit
+        role: profileData.role as Role, teacherId: profileData.teacher_id
     };
 };
 
@@ -650,12 +667,11 @@ export const updateSubscriptionRequest = async (updatedRequest: SubscriptionRequ
     await supabase.from('subscription_requests').update({ status: updates.status }).eq('id', id);
 };
 export const getAllUsers = async (): Promise<User[]> => { 
-    const { data, error } = await supabase.from('profiles').select('id, name, phone, guardian_phone, grade_id, track, role, teacher_id, device_ids, device_limit');
+    const { data, error } = await supabase.from('profiles').select('id, name, phone, guardian_phone, grade_id, track, role, teacher_id');
     if (error) { console.error("Error fetching all profiles:", error.message); return []; } 
     return (data || []).map((p: any) => ({ 
         id: p.id, name: p.name, email: '', phone: p.phone, guardianPhone: p.guardian_phone, 
         grade: p.grade_id, track: p.track, role: p.role as Role, teacherId: p.teacher_id,
-        device_ids: p.device_ids, device_limit: p.device_limit
     })); 
 };
 export const getTeacherById = async (id: string): Promise<Teacher | null> => { const teachers = await getAllTeachers(); return teachers.find(t => t.id === id) || null; };
@@ -944,13 +960,12 @@ export const updateUser = async (userId: string, updates: Partial<User>) => {
     if (updates.guardianPhone) payload.guardian_phone = updates.guardianPhone;
     if (updates.grade !== undefined) payload.grade_id = updates.grade;
     if (updates.track !== undefined) payload.track = updates.track;
-    if (updates.device_limit !== undefined) payload.device_limit = updates.device_limit;
     if (Object.keys(payload).length === 0) return { error: null };
     const { error } = await supabase.from('profiles').update(payload).eq('id', userId);
     return { error };
 };
 export const clearUserDevices = async (userId: string) => {
-    const { error } = await supabase.from('profiles').update({ device_ids: [] }).eq('id', userId);
+    const { error } = await supabase.from('user_sessions').delete().eq('user_id', userId);
     return { error };
 };
 export const deleteUser = async (id: string) => { const { error } = await supabase.auth.admin.deleteUser(id); return { error }; };

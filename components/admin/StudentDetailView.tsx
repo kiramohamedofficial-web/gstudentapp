@@ -73,31 +73,19 @@ const SubscriptionModal: React.FC<{
     );
 };
 
-const DeviceManagementCard: React.FC<{ user: User; onClear: () => void; }> = ({ user, onClear }) => {
+const SessionManagementCard: React.FC<{ onClear: () => void; }> = ({ onClear }) => {
     return (
         <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)]">
-            <h2 className="text-lg font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2"><HardDriveIcon className="w-5 h-5 text-purple-400"/> إدارة الأجهزة</h2>
-            <div className="space-y-3">
-                <p className="flex justify-between text-sm">
-                    <span className="font-semibold text-[var(--text-secondary)]">الحد الأقصى للأجهزة:</span>
-                    <span className="font-bold text-[var(--text-primary)]">{user.device_limit ?? 1}</span>
-                </p>
-                <p className="flex justify-between text-sm">
-                    <span className="font-semibold text-[var(--text-secondary)]">الأجهزة المسجلة:</span>
-                    <span className="font-bold text-[var(--text-primary)]">{user.device_ids?.length ?? 0}</span>
-                </p>
-                {(user.device_ids?.length || 0) > 0 && (
-                    <div className="pt-2">
-                        <p className="text-xs font-semibold text-[var(--text-secondary)] mb-1">معرفات الأجهزة:</p>
-                        <div className="max-h-24 overflow-y-auto bg-[var(--bg-tertiary)] p-2 rounded-md space-y-1">
-                            {user.device_ids?.map(id => <p key={id} className="text-xs font-mono text-gray-400 truncate">{id}</p>)}
-                        </div>
-                    </div>
-                )}
-                <button onClick={onClear} className="w-full mt-2 text-center text-sm p-2 rounded-md bg-red-600/20 text-red-300 hover:bg-red-600/40 transition-colors">
-                    مسح جميع الأجهزة
-                </button>
-            </div>
+            <h2 className="text-lg font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2"><HardDriveIcon className="w-5 h-5 text-purple-400"/> إدارة الجلسات</h2>
+             <p className="text-sm text-[var(--text-secondary)] mb-4">
+                إذا أبلغ الطالب عن عدم قدرته على تسجيل الدخول بسبب رسالة "تم تسجيل الدخول من جهاز آخر"، يمكنك استخدام هذا الزر لمسح جميع جلساته والسماح له بتسجيل الدخول من جديد.
+            </p>
+            <button 
+                onClick={onClear} 
+                className="w-full mt-2 text-center text-sm p-2 rounded-md bg-red-600/20 text-red-300 hover:bg-red-600/40 transition-colors"
+            >
+                مسح جميع الجلسات النشطة
+            </button>
         </div>
     );
 };
@@ -300,10 +288,9 @@ const handleUpdateUser = async () => {
     const handleClearDevices = async () => {
         const { error } = await clearUserDevices(localUser.id);
         if (error) {
-            addToast(`فشل مسح الأجهزة: ${error.message}`, ToastType.ERROR);
+            addToast(`فشل مسح الجلسات: ${error.message}`, ToastType.ERROR);
         } else {
-            addToast('تم مسح الأجهزة المسجلة للطالب بنجاح.', ToastType.SUCCESS);
-            setLocalUser(prev => ({...prev, device_ids: []}));
+            addToast('تم مسح جميع جلسات الطالب بنجاح.', ToastType.SUCCESS);
             refreshData();
         }
     };
@@ -346,7 +333,7 @@ const handleUpdateUser = async () => {
                     </button>
                 </div>
             </div>
-            <DeviceManagementCard user={localUser} onClear={handleClearDevices} />
+            <SessionManagementCard onClear={handleClearDevices} />
         </div>
 
         {/* Right Column - Data */}
@@ -411,10 +398,6 @@ const handleUpdateUser = async () => {
                         }
                     })}
                 </select>
-                <div>
-                     <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">الحد الأقصى للأجهزة</label>
-                     <input type="number" name="device_limit" value={editFormData.device_limit || 1} onChange={handleEditFormChange} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-primary)]" />
-                </div>
                 <div className="flex justify-end pt-4"><button onClick={handleUpdateUser} className="px-5 py-2 font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700">حفظ التغييرات</button></div>
             </div>
        </Modal>
