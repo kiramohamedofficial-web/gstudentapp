@@ -45,6 +45,7 @@ class ErrorBoundary extends Component<Props, State> {
       );
     }
 
+    // FIX: Correctly access props via `this.props` in a class component.
     return this.props.children;
   }
 }

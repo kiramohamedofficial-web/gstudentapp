@@ -27,6 +27,7 @@ import { useSession } from '../../hooks/useSession';
 const SubscriptionPriceControlView = lazy(() => import('./SubscriptionPriceControlView'));
 const CourseManagementView = lazy(() => import('./CourseManagementView'));
 const ContentManagementView = lazy(() => import('./ContentManagementView'));
+const DeviceManagementView = lazy(() => import('./DeviceManagementView'));
 
 
 interface AdminDashboardProps {
@@ -34,7 +35,7 @@ interface AdminDashboardProps {
   setTheme: (theme: Theme) => void;
 }
 
-type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'courseManagement' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers' | 'subscriptionPrices' | 'content';
+type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'courseManagement' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers' | 'subscriptionPrices' | 'deviceManagement' | 'content';
 
 const StatCard: React.FC<{ title: string; value: string; icon: React.FC<{ className?: string; }>; delay: number; onClick?: () => void; }> = React.memo(({ title, value, icon: Icon, delay, onClick }) => (
     <div 
@@ -337,6 +338,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
       case 'courseManagement': return <Suspense fallback={suspenseLoader}><CourseManagementView /></Suspense>;
       case 'content': return <Suspense fallback={suspenseLoader}><ContentManagementView /></Suspense>;
       case 'tools': return <QrCodeGeneratorView />;
+      case 'deviceManagement': return <Suspense fallback={suspenseLoader}><DeviceManagementView /></Suspense>;
       case 'questionBank': return <QuestionBankView />;
       case 'platformSettings': return <PlatformSettingsView user={user} />;
       case 'systemHealth': return <SystemHealthView />;

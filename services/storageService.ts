@@ -80,6 +80,7 @@ export async function signUp(userData: Omit<User, 'id' | 'role' | 'subscriptionI
     };
     
     const { track } = determineTrack(grade);
+    const deviceId = getOrCreateDeviceId();
 
     const userMetaData = {
         name: name,
@@ -88,6 +89,8 @@ export async function signUp(userData: Omit<User, 'id' | 'role' | 'subscriptionI
         grade_id: grade,
         role: 'student',
         track: track,
+        device_ids: [deviceId],
+        device_limit: 1,
     };
 
     const { data, error } = await supabase.auth.signUp({
@@ -119,7 +122,6 @@ export async function signIn(identifier: string, password: string) {
         else if (trimmed.startsWith('+20') && trimmed.length === 13) formattedPhone = trimmed;
         else return { data: null, error: { message: 'رقم الهاتف المدخل غير صالح.' } };
 
-        // Securely get the user's email via an RPC call, as phone is not a primary auth credential.
         const { data: email, error: rpcError } = await supabase.rpc('get_email_from_phone', {
             phone_number: formattedPhone
         });
@@ -136,7 +138,47 @@ export async function signIn(identifier: string, password: string) {
     if (signInError) return { data: null, error: signInError };
     if (!signInData.user) return { data: null, error: { message: 'User not found after sign in.' } };
     
-    // Device validation logic removed.
+    // --- Device Validation Logic ---
+    const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('device_ids, device_limit, role')
+        .eq('id', signInData.user.id)
+        .single();
+    
+    if (profileError) {
+        console.error("Could not fetch user profile for device validation:", profileError);
+        return { data: signInData, error: null }; // Fail open if profile can't be fetched
+    }
+    
+    // Bypass for admins and teachers
+    if (profile.role === 'admin' || profile.role === 'teacher') {
+        return { data: signInData, error: null };
+    }
+
+    const deviceId = getOrCreateDeviceId();
+    const deviceIds = profile.device_ids || [];
+    const deviceLimit = profile.device_limit || 1;
+
+    if (deviceIds.includes(deviceId)) {
+        // Device is already registered, proceed
+        return { data: signInData, error: null };
+    } else if (deviceIds.length >= deviceLimit) {
+        // Device limit reached
+        return { data: null, error: { message: `تم الوصول إلى الحد الأقصى للأجهزة (${deviceLimit}).` } };
+    } else {
+        // Register new device
+        const newDeviceIds = [...deviceIds, deviceId];
+        const { error: updateError } = await supabase
+            .from('profiles')
+            .update({ device_ids: newDeviceIds })
+            .eq('id', signInData.user.id);
+            
+        if (updateError) {
+            console.error("Failed to register new device:", updateError);
+            // Fail open, but log the error
+            return { data: signInData, error: null };
+        }
+    }
     
     return { data: signInData, error: null };
 };
@@ -146,7 +188,7 @@ export const getSession = async () => { const { data: { session } } = await supa
 export const onAuthStateChange = (callback: (event: string, session: Session | null) => void) => supabase.auth.onAuthStateChange((event, session) => callback(event, session));
 
 export const getProfile = async (userId: string): Promise<User | null> => {
-    let { data: profileData, error } = await supabase.from('profiles').select('id, name, phone, guardian_phone, grade_id, track, role, teacher_id').eq('id', userId).single();
+    let { data: profileData, error } = await supabase.from('profiles').select('id, name, phone, guardian_phone, grade_id, track, role, teacher_id, device_ids, device_limit').eq('id', userId).single();
 
     if (error) {
         if (error.message.includes("schema cache")) {
@@ -163,11 +205,12 @@ export const getProfile = async (userId: string): Promise<User | null> => {
         id: profileData.id, email: authUser?.email || '', name: profileData.name, phone: profileData.phone,
         guardianPhone: profileData.guardian_phone, grade: profileData.grade_id, track: profileData.track,
         role: profileData.role as Role, teacherId: profileData.teacher_id,
+        device_ids: profileData.device_ids, device_limit: profileData.device_limit
     };
 };
 
 export const getUserByTeacherId = async (teacherId: string): Promise<User | null> => {
-    const { data: profileData, error } = await supabase.from('profiles').select('id, name, phone, guardian_phone, grade_id, track, role, teacher_id').eq('teacher_id', teacherId).single();
+    const { data: profileData, error } = await supabase.from('profiles').select('id, name, phone, guardian_phone, grade_id, track, role, teacher_id, device_ids, device_limit').eq('teacher_id', teacherId).single();
     if (error) {
         if (error.code !== 'PGRST116') console.error("Error fetching profile by teacherId:", error.message);
         return null;
@@ -175,7 +218,8 @@ export const getUserByTeacherId = async (teacherId: string): Promise<User | null
     return {
         id: profileData.id, email: '', name: profileData.name, phone: profileData.phone,
         guardianPhone: profileData.guardian_phone, grade: profileData.grade_id, track: profileData.track,
-        role: profileData.role as Role, teacherId: profileData.teacher_id
+        role: profileData.role as Role, teacherId: profileData.teacher_id,
+        device_ids: profileData.device_ids, device_limit: profileData.device_limit
     };
 };
 
@@ -606,11 +650,12 @@ export const updateSubscriptionRequest = async (updatedRequest: SubscriptionRequ
     await supabase.from('subscription_requests').update({ status: updates.status }).eq('id', id);
 };
 export const getAllUsers = async (): Promise<User[]> => { 
-    const { data, error } = await supabase.from('profiles').select('*');
+    const { data, error } = await supabase.from('profiles').select('id, name, phone, guardian_phone, grade_id, track, role, teacher_id, device_ids, device_limit');
     if (error) { console.error("Error fetching all profiles:", error.message); return []; } 
     return (data || []).map((p: any) => ({ 
         id: p.id, name: p.name, email: '', phone: p.phone, guardianPhone: p.guardian_phone, 
         grade: p.grade_id, track: p.track, role: p.role as Role, teacherId: p.teacher_id,
+        device_ids: p.device_ids, device_limit: p.device_limit
     })); 
 };
 export const getTeacherById = async (id: string): Promise<Teacher | null> => { const teachers = await getAllTeachers(); return teachers.find(t => t.id === id) || null; };
@@ -899,8 +944,13 @@ export const updateUser = async (userId: string, updates: Partial<User>) => {
     if (updates.guardianPhone) payload.guardian_phone = updates.guardianPhone;
     if (updates.grade !== undefined) payload.grade_id = updates.grade;
     if (updates.track !== undefined) payload.track = updates.track;
+    if (updates.device_limit !== undefined) payload.device_limit = updates.device_limit;
     if (Object.keys(payload).length === 0) return { error: null };
     const { error } = await supabase.from('profiles').update(payload).eq('id', userId);
+    return { error };
+};
+export const clearUserDevices = async (userId: string) => {
+    const { error } = await supabase.from('profiles').update({ device_ids: [] }).eq('id', userId);
     return { error };
 };
 export const deleteUser = async (id: string) => { const { error } = await supabase.auth.admin.deleteUser(id); return { error }; };
