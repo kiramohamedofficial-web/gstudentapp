@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import { User, ToastType, Theme, Subscription } from '../../types';
 import { getGradeById, getStudentProgress, deleteSelf } from '../../services/storageService';
-import { CheckCircleIcon, ClockIcon, CreditCardIcon, KeyIcon, LogoutIcon, SparklesIcon, TemplateIcon, TrashIcon, ArrowsExpandIcon, ArrowsShrinkIcon } from '../common/Icons';
+import { CheckCircleIcon, ClockIcon, CreditCardIcon, KeyIcon, LogoutIcon, SparklesIcon, TemplateIcon, TrashIcon, ArrowsExpandIcon, ArrowsShrinkIcon, VideoCameraIcon } from '../common/Icons';
 import Modal from '../common/Modal';
 import { useToast } from '../../useToast';
 import ThemeSelectionModal from '../common/ThemeSelectionModal';
@@ -11,6 +11,8 @@ import { useSubscription } from '../../hooks/useSubscription';
 interface ProfileProps {
   theme: Theme;
   setTheme: (theme: Theme) => void;
+  isDataSaverEnabled: boolean;
+  onDataSaverToggle: (enabled: boolean) => void;
 }
 
 const StatCard: React.FC<{ icon: React.FC<{ className?: string; }>; title: string; value: string | React.ReactNode; delay: number }> = ({ icon: Icon, title, value, delay }) => (
@@ -78,8 +80,23 @@ const getEvaluation = (progress: number) => {
     return { level: 'يحتاج لمجهود', description: 'لا تقلق، كل رحلة تبدأ بخطوة. ابدأ الآن!', color: 'text-red-400', Icon: ClockIcon };
 };
 
+const ToggleSwitch: React.FC<{ enabled: boolean; onChange: (enabled: boolean) => void; }> = ({ enabled, onChange }) => (
+    <button
+        type="button"
+        onClick={() => onChange(!enabled)}
+        className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 ${enabled ? 'bg-purple-600' : 'bg-[var(--bg-tertiary)]'}`}
+        role="switch"
+        aria-checked={enabled}
+    >
+        <span
+            aria-hidden="true"
+            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${enabled ? 'translate-x-5' : 'translate-x-0'}`}
+        />
+    </button>
+);
 
-const Profile: React.FC<ProfileProps> = ({ theme, setTheme }) => {
+
+const Profile: React.FC<ProfileProps> = ({ theme, setTheme, isDataSaverEnabled, onDataSaverToggle }) => {
   const { currentUser: user, handleLogout: onLogout } = useSession();
   const { subscription } = useSubscription();
 
@@ -237,6 +254,17 @@ const Profile: React.FC<ProfileProps> = ({ theme, setTheme }) => {
         </div>
 
         <div className="lg:col-span-1 space-y-8">
+            <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-md border border-[var(--border-primary)]">
+                <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-4">إعدادات التشغيل</h2>
+                <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-tertiary)]">
+                    <div>
+                        <h3 className="font-semibold text-[var(--text-primary)] flex items-center gap-2"><VideoCameraIcon className="w-5 h-5 text-purple-400"/> توفير البيانات</h3>
+                        <p className="text-sm text-[var(--text-secondary)] mt-1">تشغيل الفيديوهات بجودة 360p دائمًا.</p>
+                    </div>
+                    <ToggleSwitch enabled={isDataSaverEnabled} onChange={onDataSaverToggle} />
+                </div>
+            </div>
+
             <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-md border border-[var(--border-primary)]">
                 <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-4">إعدادات المظهر</h2>
                 <button onClick={() => setIsThemeModalOpen(true)} className="w-full flex items-center justify-center p-3 rounded-lg text-[var(--text-primary)] bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] transition-colors duration-200 space-x-3 space-x-reverse">

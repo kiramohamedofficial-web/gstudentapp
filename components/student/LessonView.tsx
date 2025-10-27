@@ -15,9 +15,10 @@ interface LessonViewProps {
   grade: Grade;
   onLessonComplete: (lessonId: string) => Promise<void>;
   onNavigate: (view: StudentView) => void;
+  isDataSaverEnabled: boolean;
 }
 
-const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, grade, onLessonComplete, onNavigate }) => {
+const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, grade, onLessonComplete, onNavigate, isDataSaverEnabled }) => {
     const { currentUser: user } = useSession();
     const { subscriptions, isLoading: isSubLoading } = useSubscription();
 
@@ -163,6 +164,7 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, grade, onLesson
                             videoId={currentLesson.content}
                             onLessonComplete={() => onLessonComplete(currentLesson.id)}
                             onAutoPlayNext={playNext}
+                            isDataSaverEnabled={isDataSaverEnabled}
                         />
                          <div className="flex justify-between items-center mt-4 px-1 md:px-2">
                             <button onClick={playPrev} disabled={currentPlaylistIndex <= 0} className="flex items-center space-x-1 md:space-x-2 space-x-reverse px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm font-semibold rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors">

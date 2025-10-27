@@ -51,9 +51,10 @@ interface CustomYouTubePlayerProps {
     onLessonComplete: (videoId: string) => void;
     onAutoPlayNext?: () => void;
     nextVideoTitle?: string;
+    isDataSaverEnabled: boolean;
 }
 
-const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLessonComplete, onAutoPlayNext, nextVideoTitle }) => {
+const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLessonComplete, onAutoPlayNext, nextVideoTitle, isDataSaverEnabled }) => {
     const playerRef = useRef<any>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const playerContainerRef = useRef<HTMLDivElement>(null);
@@ -74,8 +75,9 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
     const [showControls, setShowControls] = useState(true);
     const [availableQualities, setAvailableQualities] = useState<string[]>([]);
     const [currentQuality, setCurrentQuality] = useState<string>('auto');
-    const [isQualityMenuOpen, setQualityMenuOpen] = useState(false);
     const [playerError, setPlayerError] = useState<string | null>(null);
+    // FIX: Add state for quality menu visibility
+    const [isQualityMenuOpen, setQualityMenuOpen] = useState(false);
     
     const [showUpNext, setShowUpNext] = useState(false);
     const [upNextCountdown, setUpNextCountdown] = useState(5);
@@ -141,7 +143,12 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
                     setIsPlayerReady(true);
                     setIsBuffering(false);
                     setDuration(e.target.getDuration());
-                    setCurrentQuality(e.target.getPlaybackQuality());
+                    if (isDataSaverEnabled) {
+                        e.target.setPlaybackQuality('small'); // 'small' is 360p
+                        setCurrentQuality('small');
+                    } else {
+                        setCurrentQuality(e.target.getPlaybackQuality());
+                    }
                     e.target.playVideo();
                 },
                 onStateChange: (e: any) => {
@@ -150,9 +157,13 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
                     setIsBuffering(state === window.YT.PlayerState.BUFFERING);
                     
                     if (state === window.YT.PlayerState.PLAYING) {
-                         const qualities = e.target.getAvailableQualityLevels();
-                         if (qualities && qualities.length > 0) {
-                            setAvailableQualities(['auto', ...qualities.filter(q => q !== 'auto')]);
+                         if (isDataSaverEnabled) {
+                            e.target.setPlaybackQuality('small');
+                         } else {
+                             const qualities = e.target.getAvailableQualityLevels();
+                             if (qualities && qualities.length > 0) {
+                                setAvailableQualities(['auto', ...qualities.filter(q => q !== 'auto')]);
+                             }
                          }
                     }
                     if (state === window.YT.PlayerState.ENDED) {
@@ -163,7 +174,15 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
                         }
                     }
                 },
-                onPlaybackQualityChange: (e: any) => setCurrentQuality(e.data),
+                onPlaybackQualityChange: (e: any) => {
+                    const newQuality = e.data;
+                    if (isDataSaverEnabled && newQuality !== 'small') {
+                        e.target.setPlaybackQuality('small');
+                        setCurrentQuality('small');
+                    } else {
+                        setCurrentQuality(newQuality);
+                    }
+                },
                 onError: (e: any) => {
                     console.error('YouTube Player Error:', e.data);
                     setPlayerError('هذا الفيديو غير متاح حاليًا أو حدث خطأ أثناء تحميله.');
@@ -184,7 +203,7 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
             clearInterval(progressInterval);
             playerRef.current?.destroy();
         };
-    }, [videoId, isApiReady]);
+    }, [videoId, isApiReady, isDataSaverEnabled]);
     
     useEffect(() => {
         if (isPlaying) hideControls();
@@ -303,23 +322,25 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
                     </div>
                     <span className="yt-time-display">{formatTime(currentTime)} / {formatTime(duration)}</span>
                     <div className="flex items-center gap-2">
-                         <div className="relative">
-                            {isQualityMenuOpen && availableQualities.length > 1 && (
-                                <div ref={qualityMenuRef} className="yt-quality-menu fade-in-up">
-                                    {availableQualities.map(q => (
-                                        <button key={q} className={`yt-quality-item ${currentQuality === q ? 'active' : ''}`} onClick={() => handleSetQuality(q)}>
-                                            {getQualityLabel(q)}
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                            {availableQualities.length > 1 && (
-                                <button ref={qualityButtonRef} onClick={() => setQualityMenuOpen(p => !p)} className="yt-control-button text-sm font-semibold" aria-label={`الجودة الحالية: ${getQualityLabel(currentQuality)}`}>
-                                    <span>{getQualityLabel(currentQuality)}</span>
-                                    <CogIcon className="w-5 h-5" />
-                                </button>
-                            )}
-                         </div>
+                         {!isDataSaverEnabled && (
+                             <div className="relative">
+                                {isQualityMenuOpen && availableQualities.length > 1 && (
+                                    <div ref={qualityMenuRef} className="yt-quality-menu fade-in-up">
+                                        {availableQualities.map(q => (
+                                            <button key={q} className={`yt-quality-item ${currentQuality === q ? 'active' : ''}`} onClick={() => handleSetQuality(q)}>
+                                                {getQualityLabel(q)}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                                {availableQualities.length > 1 && (
+                                    <button ref={qualityButtonRef} onClick={() => setQualityMenuOpen(p => !p)} className="yt-control-button text-sm font-semibold" aria-label={`الجودة الحالية: ${getQualityLabel(currentQuality)}`}>
+                                        <span>{getQualityLabel(currentQuality)}</span>
+                                        <CogIcon className="w-5 h-5" />
+                                    </button>
+                                )}
+                             </div>
+                         )}
                          <button onClick={handleFullscreen} className="yt-control-button" aria-label="ملء الشاشة">
                             <ArrowsExpandIcon className="w-5 h-5" />
                         </button>

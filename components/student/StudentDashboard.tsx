@@ -40,6 +40,17 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
   const { theme, setTheme } = props;
   const { currentUser: user } = useSession();
   const [activeView, setActiveView] = useState<StudentView>('home');
+  const [isDataSaverEnabled, setIsDataSaverEnabled] = useState(false);
+
+  useEffect(() => {
+    const savedDataSaver = localStorage.getItem('dataSaverEnabled');
+    setIsDataSaverEnabled(savedDataSaver === 'true');
+  }, []);
+
+  const handleDataSaverToggle = (enabled: boolean) => {
+    localStorage.setItem('dataSaverEnabled', String(enabled));
+    setIsDataSaverEnabled(enabled);
+  };
   
   const studentGrade = useMemo(() => user ? getGradeById(user.grade) : null, [user]);
   const [selectedUnit, setSelectedUnit] = useState<Unit | null>(null);
@@ -102,7 +113,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
         return <StudentHomeScreen user={user} onNavigate={handleHomeNavigation} />;
       case 'grades':
         if (selectedUnit) {
-            return <CourseView grade={studentGrade!} unit={selectedUnit} user={user} onBack={() => { setSelectedUnit(null); setInitialLesson(null); }} onNavigate={handleNavClick} initialLesson={initialLesson} />;
+            return <CourseView grade={studentGrade!} unit={selectedUnit} user={user} onBack={() => { setSelectedUnit(null); setInitialLesson(null); }} onNavigate={handleNavClick} initialLesson={initialLesson} isDataSaverEnabled={isDataSaverEnabled} />;
         }
         return <SubjectSelectionScreen 
             user={user}
@@ -165,7 +176,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
       case 'comprehensiveSubscription':
         return <ComprehensiveSubscription onBack={() => setActiveView('subscription')} />;
       case 'profile':
-        return <Profile theme={theme} setTheme={setTheme} />;
+        return <Profile theme={theme} setTheme={setTheme} isDataSaverEnabled={isDataSaverEnabled} onDataSaverToggle={handleDataSaverToggle} />;
       default:
         return <StudentHomeScreen user={user} onNavigate={handleHomeNavigation} />;
     }

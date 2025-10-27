@@ -24,6 +24,7 @@ interface CourseViewProps {
   onBack: () => void;
   onNavigate: (view: StudentView) => void;
   initialLesson?: Lesson | null;
+  isDataSaverEnabled: boolean;
 }
 
 const CircularProgress: React.FC<{ progress: number }> = ({ progress }) => {
@@ -150,7 +151,7 @@ const LessonAccordionItem: React.FC<{
 };
 
 
-const CourseView: React.FC<CourseViewProps> = ({ grade, unit, user, onBack, onNavigate, initialLesson }) => {
+const CourseView: React.FC<CourseViewProps> = ({ grade, unit, user, onBack, onNavigate, initialLesson, isDataSaverEnabled }) => {
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
   const [userProgress, setUserProgress] = useState<Record<string, boolean>>({});
   const [openAccordion, setOpenAccordion] = useState<string | null>(null);
@@ -238,6 +239,7 @@ const CourseView: React.FC<CourseViewProps> = ({ grade, unit, user, onBack, onNa
         grade={grade}
         onLessonComplete={handleLessonComplete}
         onNavigate={onNavigate}
+        isDataSaverEnabled={isDataSaverEnabled}
     />;
   }
   
