@@ -227,7 +227,8 @@ declare global {
     onYouTubeIframeAPIReady?: () => void;
     // YT is the global object for the YouTube IFrame API
     YT?: {
-      Player: new (elementId: string, options: any) => any;
+      // FIX: Allow YT.Player to accept an HTMLElement as its first argument, not just an ID string.
+      Player: new (element: string | HTMLElement, options: any) => any;
       PlayerState?: {
         ENDED: number;
         PLAYING: number;

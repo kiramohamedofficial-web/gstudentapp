@@ -77,12 +77,10 @@ interface CustomYouTubePlayerProps {
 const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLessonComplete, onAutoPlayNext }) => {
     const playerRef = useRef<any>(null);
     const containerRef = useRef<HTMLDivElement>(null);
-    const playerElRef = useRef<HTMLDivElement>(null);
+    const playerContainerRef = useRef<HTMLDivElement>(null); // Stable container for the YT player
     const qualityMenuRef = useRef<HTMLDivElement>(null);
     const qualityButtonRef = useRef<HTMLButtonElement>(null);
     const hideControlsTimeoutRef = useRef<number | null>(null);
-    const qualityLevelsLoaded = useRef(false);
-
 
     const [isReady, setIsReady] = useState(false);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -102,7 +100,6 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
     useEffect(() => { onAutoPlayNextRef.current = onAutoPlayNext; }, [onAutoPlayNext]);
 
     const hideControls = useCallback(() => {
-        // Don't hide controls if the menu is open or if the video is not playing
         if (isPlaying && !isQualityMenuOpen) {
             if (hideControlsTimeoutRef.current) clearTimeout(hideControlsTimeoutRef.current);
             hideControlsTimeoutRef.current = window.setTimeout(() => {
@@ -112,25 +109,25 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
     }, [isPlaying, isQualityMenuOpen]);
 
     useEffect(() => {
-        let playerInstance: any;
-        let progressInterval: number;
+        if (!playerContainerRef.current) return;
 
-        if (!playerElRef.current) return;
+        // Manually create the div that the YouTube API will replace.
+        // This isolates it from React's VDOM and prevents issues on re-render.
+        const playerDiv = document.createElement('div');
+        playerContainerRef.current.innerHTML = ''; // Clean up previous player
+        playerContainerRef.current.appendChild(playerDiv);
+
+        let progressInterval: number;
+        let qualityLevelsLoaded = false;
 
         loadYouTubeApi().then(() => {
-            if (!playerElRef.current) return; // Re-check after promise resolves
+            // Ensure the container and div still exist (e.g., component hasn't unmounted)
+            if (!playerContainerRef.current?.contains(playerDiv)) return;
             
-            qualityLevelsLoaded.current = false; // Reset for new video
-            
-            playerInstance = new window.YT.Player(playerElRef.current, {
+            const playerInstance = new window.YT.Player(playerDiv, {
                 videoId,
                 playerVars: {
-                    playsinline: 1,
-                    controls: 0,
-                    rel: 0,
-                    iv_load_policy: 3,
-                    modestbranding: 1,
-                    autoplay: 1
+                    playsinline: 1, controls: 0, rel: 0, iv_load_policy: 3, modestbranding: 1, autoplay: 1
                 },
                 events: {
                     onReady: (event: any) => {
@@ -144,11 +141,11 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
                         const isPlayingNow = playerState === window.YT.PlayerState.PLAYING;
                         setIsPlaying(isPlayingNow);
 
-                        if (isPlayingNow && !qualityLevelsLoaded.current) {
+                        if (isPlayingNow && !qualityLevelsLoaded) {
                             const qualities = event.target.getAvailableQualityLevels();
                             if (qualities && qualities.length > 0) {
                                 setAvailableQualities(['auto', ...qualities]);
-                                qualityLevelsLoaded.current = true;
+                                qualityLevelsLoaded = true;
                             }
                         }
                         
@@ -173,6 +170,9 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
         return () => {
             clearInterval(progressInterval);
             playerRef.current?.destroy();
+            if (playerContainerRef.current) {
+                playerContainerRef.current.innerHTML = '';
+            }
         };
     }, [videoId]);
 
@@ -180,10 +180,8 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (
-                qualityMenuRef.current && 
-                !qualityMenuRef.current.contains(event.target as Node) &&
-                qualityButtonRef.current &&
-                !qualityButtonRef.current.contains(event.target as Node)
+                qualityMenuRef.current && !qualityMenuRef.current.contains(event.target as Node) &&
+                qualityButtonRef.current && !qualityButtonRef.current.contains(event.target as Node)
             ) {
                 setQualityMenuOpen(false);
             }
@@ -196,16 +194,11 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
 
     useEffect(() => {
         if (isQualityMenuOpen) {
-            // If the menu is open, cancel any pending timer to hide controls.
-            if (hideControlsTimeoutRef.current) {
-                clearTimeout(hideControlsTimeoutRef.current);
-            }
+            if (hideControlsTimeoutRef.current) clearTimeout(hideControlsTimeoutRef.current);
         } else {
-            // If the menu is closed, restart the hide timer.
             hideControls();
         }
     }, [isQualityMenuOpen, hideControls]);
-
 
     const handleMouseMove = () => {
         setShowControls(true);
@@ -244,7 +237,6 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
         if (player && typeof player.getCurrentTime === 'function' && typeof player.seekTo === 'function') {
             const currentTime = player.getCurrentTime();
             player.setPlaybackQuality(quality);
-            // Seeking to the same time can help force the quality change more reliably
             player.seekTo(currentTime, true);
         }
         setQualityMenuOpen(false);
@@ -259,8 +251,8 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
     
     return (
         <div ref={containerRef} className="yt-player-container" onMouseMove={handleMouseMove} onMouseLeave={hideControls}>
-            {/* This div is the mount point for the YouTube IFrame Player */}
-            <div ref={playerElRef} />
+            {/* This div is the stable mount point for the YouTube player */}
+            <div ref={playerContainerRef} className="absolute inset-0 w-full h-full" />
 
             {!isReady && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-20">
