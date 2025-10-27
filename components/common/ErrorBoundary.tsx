@@ -10,7 +10,14 @@ interface State {
 }
 
 class ErrorBoundary extends Component<Props, State> {
-  state: State = { hasError: false };
+  // FIX: Replaced class property state initialization with a constructor.
+  // While class properties are a modern approach, explicitly defining the constructor and
+  // calling super(props) provides a more robust way to ensure `this.props` is correctly
+  // typed and initialized, resolving the compile-time error.
+  constructor(props: Props) {
+    super(props);
+    this.state = { hasError: false };
+  }
 
   static getDerivedStateFromError(_: Error): State {
     // Update state so the next render will show the fallback UI.
@@ -22,7 +29,6 @@ class ErrorBoundary extends Component<Props, State> {
     console.error("Uncaught error:", error, errorInfo);
   }
 
-  // FIX: Converted 'render' from an arrow function property to a standard class method to ensure 'this.props' is correctly resolved.
   render(): ReactNode {
     if (this.state.hasError) {
       // You can render any custom fallback UI

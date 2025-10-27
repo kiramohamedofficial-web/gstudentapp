@@ -133,32 +133,74 @@ export const updateUserPassword = async (password: string) => {
 // =================================================================
 interface CreateTeacherParams { id?: string, email: string; password?: string; name: string; subject: string; phone: string; teaching_grades: number[]; teaching_levels: string[]; image_url?: string; }
 export async function createTeacher(params: CreateTeacherParams) {
+  let authUserId: string | null = null;
   try {
     if (!params.password) throw new Error('Password is required for new teacher.');
+    // Step 1: Create the authentication user.
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: params.email,
       password: params.password,
       options: { data: { name: params.name, role: 'teacher' } }
     });
-    if (authError || !authData.user) throw authError || new Error('فشل إنشاء حساب المصادقة.');
 
-    // The DB trigger on auth.users should create the row in 'profiles'
-    // Now we create the teacher-specific data in the 'teachers' table
+    if (authError) {
+      if (authError.message.includes('User already registered')) {
+        throw new Error('هذا البريد الإلكتروني مسجل بالفعل. لا يمكن إنشاء حساب مدرس جديد بنفس البريد.');
+      }
+      throw authError;
+    }
+    if (!authData.user) throw new Error('فشل إنشاء حساب المصادقة، لم يتم إرجاع بيانات المستخدم.');
+    
+    authUserId = authData.user.id;
+
+    // Step 2: Create the teacher-specific profile in the 'teachers' table.
     const { data: teacher, error: teacherError } = await supabase.from('teachers').insert({
         name: params.name, subject: params.subject, teaching_grades: params.teaching_grades,
         teaching_levels: params.teaching_levels, image_url: params.image_url
     }).select().single();
-    if (teacherError || !teacher) throw teacherError || new Error('فشل إنشاء ملف المدرس.');
+    if (teacherError || !teacher) throw teacherError || new Error('فشل إنشاء ملف المدرس في جدول المدرسين.');
 
-    // Finally, link the profile to the teacher entry
-    const { error: profileUpdateError } = await supabase.from('profiles').update({
-        teacher_id: teacher.id, phone: `+2${params.phone}`
-    }).eq('id', authData.user.id);
-    if (profileUpdateError) throw profileUpdateError;
+    // Step 3: Link the generic profile to the new teacher entry.
+    // This step is critical and can fail due to trigger latency.
+    let profileUpdated = false;
+    for (let i = 0; i < 5; i++) { // Retry up to 5 times (approx 5 seconds)
+        await new Promise(res => setTimeout(res, 1000)); // Wait for trigger to fire
+        const { error: profileUpdateError, count } = await supabase.from('profiles').update({
+            teacher_id: teacher.id, phone: `+2${params.phone}`
+        }).eq('id', authData.user.id);
+        
+        if (profileUpdateError) {
+            // If we get a real error, throw it immediately to trigger cleanup.
+            throw profileUpdateError;
+        }
+
+        if (count && count > 0) {
+            profileUpdated = true;
+            break; // Success, exit loop
+        }
+    }
+
+    if (!profileUpdated) {
+        throw new Error('فشل تحديث ملف المستخدم. لم يتم العثور على الملف الشخصي بعد إنشاء الحساب. قد تكون هناك مشكلة في الربط (DB Trigger).');
+    }
 
     return { success: true, teacher };
   } catch (error: any) {
     console.error('Error creating teacher account:', error.message);
+
+    // If any step after auth user creation fails, attempt to clean up by deleting the auth user.
+    if (authUserId) {
+      console.log(`Attempting to clean up failed teacher creation for user ID: ${authUserId}`);
+      // Admin API to delete the auth user, which should cascade.
+      const { error: adminError } = await supabase.auth.admin.deleteUser(authUserId);
+      if (adminError) {
+          console.error(`Cleanup failed for user ID ${authUserId}: ${adminError.message}`);
+      } else {
+          console.log(`Cleanup successful for user ID: ${authUserId}`);
+      }
+    }
+    
+    // Return a user-friendly error message.
     return { success: false, error: { message: error.message } };
   }
 }
@@ -223,58 +265,62 @@ let isCurriculumDataLoaded = false;
 export const initData = async (): Promise<void> => {
     if (isCurriculumDataLoaded) return;
     try {
-        // Fetch all data from tables separately to avoid relationship issues
-        const { data: gradesData, error: gradesError } = await supabase.from('grades').select('*').order('id');
-        if (gradesError) throw gradesError;
+        const { data: dbData, error } = await supabase
+            .from('grades')
+            .select(`
+                *,
+                semesters (
+                    *,
+                    units (
+                        *,
+                        lessons (*)
+                    )
+                )
+            `)
+            .order('id', { ascending: true })
+            .order('id', { foreignTable: 'semesters', ascending: true })
+            .order('id', { foreignTable: 'semesters.units', ascending: true })
+            .order('id', { foreignTable: 'semesters.units.lessons', ascending: true });
 
-        const { data: semestersData, error: semestersError } = await supabase.from('semesters').select('*').order('id');
-        if (semestersError) throw semestersError;
+        if (error) throw error;
 
-        const { data: unitsData, error: unitsError } = await supabase.from('units').select('*').order('id');
-        if (unitsError) throw unitsError;
-
-        const { data: lessonsData, error: lessonsError } = await supabase.from('lessons').select('*').order('id');
-        if (lessonsError) throw lessonsError;
-
-        if (gradesData && semestersData && unitsData && lessonsData) {
-            // Manually construct the nested structure in memory
-            const lessonsByUnit = new Map<string, Lesson[]>();
-            for (const lesson of lessonsData) {
-                if (!lessonsByUnit.has(lesson.unit_id)) {
-                    lessonsByUnit.set(lesson.unit_id, []);
-                }
-                lessonsByUnit.get(lesson.unit_id)!.push(lesson);
-            }
-
-            const unitsBySemester = new Map<string, Unit[]>();
-            for (const unit of unitsData) {
-                if (!unitsBySemester.has(unit.semester_id)) {
-                    unitsBySemester.set(unit.semester_id, []);
-                }
-                const unitWithLessons: Unit = { ...unit, lessons: lessonsByUnit.get(unit.id) || [] };
-                unitsBySemester.get(unit.semester_id)!.push(unitWithLessons);
-            }
-
-            const semestersByGrade = new Map<number, Semester[]>();
-            for (const semester of semestersData) {
-                 if (!semestersByGrade.has(semester.grade_id)) {
-                    semestersByGrade.set(semester.grade_id, []);
-                }
-                const semesterWithUnits: Semester = { ...semester, units: unitsBySemester.get(semester.id) || [] };
-                semestersByGrade.get(semester.grade_id)!.push(semesterWithUnits);
-            }
-            
-            const finalGrades: Grade[] = gradesData.map(grade => ({
-                ...grade,
-                semesters: semestersByGrade.get(grade.id) || []
+        if (dbData && dbData.length > 0) {
+            const grades: Grade[] = dbData.map((grade: any) => ({
+                id: grade.id,
+                name: grade.name,
+                ordinal: grade.ordinal,
+                level: grade.level,
+                levelAr: grade.levelAr,
+                semesters: (grade.semesters || []).map((semester: any) => ({
+                    id: semester.id,
+                    title: semester.title,
+                    grade_id: semester.grade_id,
+                    units: (semester.units || []).map((unit: any) => ({
+                        id: unit.id,
+                        title: unit.title,
+                        teacherId: unit.teacher_id,
+                        track: unit.track,
+                        semester_id: unit.semester_id,
+                        lessons: (unit.lessons || []).map((lesson: any) => ({
+                            id: lesson.id,
+                            title: lesson.title,
+                            type: lesson.type,
+                            content: lesson.content,
+                            imageUrl: lesson.image_url,
+                            correctAnswers: lesson.correct_answers,
+                            timeLimit: lesson.time_limit,
+                            passingScore: lesson.passing_score,
+                            dueDate: lesson.due_date
+                        }))
+                    }))
+                }))
             }));
-
-            curriculumCache = { grades: finalGrades };
-
+            curriculumCache = { grades };
         } else {
             console.log("No curriculum data found in DB, using local fallback.");
             curriculumCache = defaultCurriculumData;
         }
+
     } catch (error: any) {
         console.error("Failed to initialize curriculum data from relational tables:", error.message);
         curriculumCache = defaultCurriculumData;
