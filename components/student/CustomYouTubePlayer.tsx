@@ -72,6 +72,7 @@ interface CustomYouTubePlayerProps {
 const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLessonComplete, onAutoPlayNext }) => {
     const playerRef = useRef<any>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+    const playerElRef = useRef<HTMLDivElement>(null);
     const qualityMenuRef = useRef<HTMLDivElement>(null);
     const qualityButtonRef = useRef<HTMLButtonElement>(null);
     const hideControlsTimeoutRef = useRef<number | null>(null);
@@ -109,15 +110,14 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
         let playerInstance: any;
         let progressInterval: number;
 
+        if (!playerElRef.current) return;
+
         loadYouTubeApi().then(() => {
-            if (!containerRef.current) return;
-            qualityLevelsLoaded.current = false; // Reset for new video
-            const playerContainerId = `yt-player-${videoId}-${Math.random()}`;
-            const playerDiv = document.createElement('div');
-            playerDiv.id = playerContainerId;
-            containerRef.current?.insertBefore(playerDiv, containerRef.current.firstChild);
+            if (!playerElRef.current) return; // Re-check after promise resolves
             
-            playerInstance = new window.YT.Player(playerContainerId, {
+            qualityLevelsLoaded.current = false; // Reset for new video
+            
+            playerInstance = new window.YT.Player(playerElRef.current, {
                 videoId,
                 playerVars: {
                     playsinline: 1,
@@ -253,6 +253,9 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
     
     return (
         <div ref={containerRef} className="yt-player-container">
+            {/* This div is the mount point for the YouTube IFrame Player */}
+            <div ref={playerElRef} />
+
             {!isReady && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-20">
                     <Loader />
