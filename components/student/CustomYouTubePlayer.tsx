@@ -185,7 +185,25 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
                 },
                 onError: (e: any) => {
                     console.error('YouTube Player Error:', e.data);
-                    setPlayerError('هذا الفيديو غير متاح حاليًا أو حدث خطأ أثناء تحميله.');
+                    let errorMessage = 'هذا الفيديو غير متاح حاليًا أو حدث خطأ أثناء تحميله.';
+                    // Based on https://developers.google.com/youtube/iframe_api_reference#onError
+                    switch(e.data) {
+                        case 2:
+                            errorMessage = 'رابط الفيديو غير صالح أو يحتوي على خطأ. يرجى إبلاغ الدعم الفني.';
+                            break;
+                        case 5:
+                             errorMessage = 'حدث خطأ في مشغل الفيديو. يرجى تحديث الصفحة والمحاولة مرة أخرى.';
+                            break;
+                        case 100:
+                            errorMessage = 'الفيديو المطلوب غير موجود. قد يكون تم حذفه أو تم تعيينه كخاص.';
+                            break;
+                        case 101:
+                        case 150:
+                        case 153: // Added based on user reports
+                             errorMessage = 'صاحب الفيديو لا يسمح بتشغيله على مواقع خارجية. يرجى إبلاغ الدعم الفني لاستبدال الفيديو.';
+                            break;
+                    }
+                    setPlayerError(errorMessage);
                     setIsBuffering(false);
                 }
             },

@@ -247,9 +247,13 @@ const TeacherManagementView: React.FC = () => {
         try {
             if (data.id) { // Editing
                 const { id, ...updates } = data;
-                if (!updates.password?.trim()) delete updates.password;
+                if (!updates.password?.trim()) {
+                    delete updates.password;
+                }
                 const result = await updateTeacher(id, updates);
-                if (!result.success) throw new Error(result.error.message || 'فشل تحديث المدرس.');
+                if (!result.success) {
+                    throw new Error(result.error.message || 'فشل تحديث المدرس.');
+                }
                 addToast('تم تحديث بيانات المدرس بنجاح.', ToastType.SUCCESS);
 
             } else { // Adding
@@ -264,7 +268,9 @@ const TeacherManagementView: React.FC = () => {
                     image_url: data.imageUrl,
                 });
                 
-                if (result.error) throw new Error(result.error.message);
+                if (result.error) {
+                    throw new Error(result.error.message);
+                }
 
                 if (result.data?.success) {
                     addToast('تمت إضافة المدرس بنجاح.', ToastType.SUCCESS);

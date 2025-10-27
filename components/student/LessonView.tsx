@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Lesson, LessonType, Grade, User, StudentView, Subscription } from '../../types';
 import { getAIExplanation } from '../../services/geminiService';
 import Modal from '../common/Modal';
-import { SparklesIcon, ChevronLeftIcon, ChevronRightIcon, DocumentTextIcon, ArrowLeftIcon, LockClosedIcon } from '../common/Icons';
+import { SparklesIcon, ChevronLeftIcon, ChevronRightIcon, DocumentTextIcon, ArrowLeftIcon, LockClosedIcon, ShieldExclamationIcon } from '../common/Icons';
 import { useToast } from '../../useToast';
 import QuizTaker from './QuizTaker';
 import CustomYouTubePlayer from './CustomYouTubePlayer';
@@ -17,6 +17,25 @@ interface LessonViewProps {
   onNavigate: (view: StudentView) => void;
   isDataSaverEnabled: boolean;
 }
+
+const parseYouTubeVideoId = (url: any): string | null => {
+    if (typeof url !== 'string' || !url) return null;
+    // This regex should handle standard, short, and embed URLs
+    const regex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?|shorts)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+    const match = url.match(regex);
+    
+    if (match) {
+        return match[1];
+    }
+
+    // Check if the input is already a valid 11-character ID
+    if (url.length === 11 && /^[a-zA-Z0-9_-]+$/.test(url)) {
+        return url;
+    }
+
+    return null;
+};
+
 
 const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, grade, onLessonComplete, onNavigate, isDataSaverEnabled }) => {
     const { currentUser: user } = useSession();
@@ -152,16 +171,28 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, grade, onLesson
         }
 
         switch (currentLesson.type) {
-            case LessonType.EXPLANATION:
+            case LessonType.EXPLANATION: {
                 if(!currentLesson.content) {
                     return <div className="text-center p-8 bg-[var(--bg-secondary)] rounded-lg">المحتوى غير متوفر لهذا الدرس بعد.</div>
+                }
+
+                const videoId = parseYouTubeVideoId(currentLesson.content);
+
+                if (!videoId) {
+                    return (
+                        <div className="relative w-full max-w-4xl mx-auto aspect-video bg-black rounded-2xl flex flex-col items-center justify-center text-center p-4">
+                            <ShieldExclamationIcon className="w-12 h-12 text-red-500 mb-4"/>
+                            <h3 className="text-xl font-bold">معرف فيديو غير صالح</h3>
+                            <p className="text-gray-300 mt-2">لا يمكن تشغيل هذا الفيديو. يرجى التواصل مع الدعم الفني.</p>
+                        </div>
+                    );
                 }
 
                 return (
                    <div className="max-w-4xl mx-auto">
                         <CustomYouTubePlayer
                             key={currentLesson.id}
-                            videoId={currentLesson.content}
+                            videoId={videoId}
                             onLessonComplete={() => onLessonComplete(currentLesson.id)}
                             onAutoPlayNext={playNext}
                             isDataSaverEnabled={isDataSaverEnabled}
@@ -184,6 +215,7 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, grade, onLesson
                         </div>
                    </div>
                 );
+            }
             case LessonType.HOMEWORK:
             case LessonType.EXAM:
                 return <QuizTaker lesson={currentLesson} onComplete={onLessonComplete} />;

@@ -143,6 +143,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
                     setSelectedCourse(null);
                     setActiveView('courses');
                 }}
+                isDataSaverEnabled={isDataSaverEnabled}
             />
         ) : (
             <div className="text-center p-8">لم يتم اختيار كورس. الرجاء العودة واختيار كورس.</div>

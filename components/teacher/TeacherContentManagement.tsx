@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { Grade, Semester, Unit, Lesson, LessonType, ToastType, Teacher } from '../../types';
+import { Grade, Semester, Unit, Lesson, LessonType, ToastType, Teacher, QuizType } from '../../types';
 import {
     getAllGrades, addLessonToUnit, updateLesson, deleteLesson,
     addUnitToSemester, updateUnit, deleteUnit, addActivityLog
@@ -68,11 +68,21 @@ const LessonModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (dat
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        const dataToSave = {
+        let dataToSave: Partial<Lesson> = {
             ...formData,
-            // @ts-ignore
             correctAnswers: typeof formData.correctAnswers === 'string' ? formData.correctAnswers.split('\n').filter(Boolean) : (formData.correctAnswers || []),
         };
+        
+        if (dataToSave.type === LessonType.HOMEWORK || dataToSave.type === LessonType.EXAM) {
+            dataToSave.quizType = QuizType.IMAGE;
+        } else {
+            dataToSave.quizType = undefined;
+            dataToSave.imageUrl = undefined;
+            dataToSave.correctAnswers = undefined;
+            dataToSave.timeLimit = undefined;
+            dataToSave.passingScore = undefined;
+        }
+
         onSave(dataToSave as Lesson);
     };
     
@@ -131,56 +141,72 @@ const TeacherContentManagement: React.FC<TeacherContentManagementProps> = ({ tea
     const handleSaveUnit = async (title: string) => {
         const { grade, semester, unit } = modalState.data;
         if (grade && semester) {
-            const newOrUpdatedUnit = {
-                ...unit,
-                title,
-                teacherId: teacher.id
-            };
-            if (unit) {
-                await updateUnit(grade.id, semester.id, newOrUpdatedUnit);
-                addToast('تم تعديل الوحدة!', ToastType.SUCCESS);
-            } else {
-                await addUnitToSemester(grade.id, semester.id, { title, teacherId: teacher.id });
-                addToast('تمت إضافة الوحدة!', ToastType.SUCCESS);
+            try {
+                const newOrUpdatedUnit = {
+                    ...unit,
+                    title,
+                    teacherId: teacher.id
+                };
+                if (unit) {
+                    await updateUnit(grade.id, semester.id, newOrUpdatedUnit);
+                    addToast('تم تعديل الوحدة!', ToastType.SUCCESS);
+                } else {
+                    await addUnitToSemester(grade.id, semester.id, { title, teacherId: teacher.id });
+                    addToast('تمت إضافة الوحدة!', ToastType.SUCCESS);
+                }
+                refreshData();
+                closeModal();
+            } catch (error: any) {
+                addToast(`فشل حفظ الوحدة: ${error.message}`, ToastType.ERROR);
             }
         }
-        refreshData();
-        closeModal();
     };
     
     const handleDeleteUnit = async () => {
         const { grade, semester, unit } = modalState.data;
         if (grade && semester && unit) {
-            await deleteUnit(grade.id, semester.id, unit.id);
-            addToast('تم حذف الوحدة.', ToastType.SUCCESS);
+            try {
+                await deleteUnit(grade.id, semester.id, unit.id);
+                addToast('تم حذف الوحدة.', ToastType.SUCCESS);
+                refreshData();
+                closeModal();
+            } catch (error: any) {
+                addToast(`فشل حذف الوحدة: ${error.message}`, ToastType.ERROR);
+            }
         }
-        refreshData();
-        closeModal();
     };
 
     const handleSaveLesson = async (lessonData: Lesson | Omit<Lesson, 'id'>) => {
         const { unit } = modalState.data;
         if (selectedGrade && selectedSemester && unit) {
-            if ('id' in lessonData) {
-                await updateLesson(selectedGrade.id, selectedSemester.id, unit.id, lessonData);
-                addToast('تم تحديث الدرس', ToastType.SUCCESS);
-            } else {
-                await addLessonToUnit(selectedGrade.id, selectedSemester.id, unit.id, lessonData);
-                addToast('تمت إضافة الدرس', ToastType.SUCCESS);
+            try {
+                if ('id' in lessonData) {
+                    await updateLesson(selectedGrade.id, selectedSemester.id, unit.id, lessonData);
+                    addToast('تم تحديث الدرس', ToastType.SUCCESS);
+                } else {
+                    await addLessonToUnit(selectedGrade.id, selectedSemester.id, unit.id, lessonData);
+                    addToast('تمت إضافة الدرس', ToastType.SUCCESS);
+                }
+                refreshData();
+                closeModal();
+            } catch (error: any) {
+                addToast(`فشل حفظ الدرس: ${error.message}`, ToastType.ERROR);
             }
         }
-        refreshData();
-        closeModal();
     };
 
     const handleDeleteLesson = async () => {
         const { unit, lesson } = modalState.data;
         if (selectedGrade && selectedSemester && unit && lesson) {
-            await deleteLesson(selectedGrade.id, selectedSemester.id, unit.id, lesson.id);
-            addToast('تم حذف الدرس.', ToastType.SUCCESS);
+            try {
+                await deleteLesson(selectedGrade.id, selectedSemester.id, unit.id, lesson.id);
+                addToast('تم حذف الدرس.', ToastType.SUCCESS);
+                refreshData();
+                closeModal();
+            } catch (error: any) {
+                addToast(`فشل حذف الدرس: ${error.message}`, ToastType.ERROR);
+            }
         }
-        refreshData();
-        closeModal();
     };
 
     const getLessonIcon = (type: LessonType) => {

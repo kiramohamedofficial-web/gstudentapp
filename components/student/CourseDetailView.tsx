@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Course, CourseVideo, Teacher, ToastType } from '../../types';
 import { getAllTeachers, checkCoursePurchase, purchaseCourse } from '../../services/storageService';
-import { ArrowRightIcon, BookOpenIcon, LockClosedIcon, PlayIcon, UserCircleIcon, VideoCameraIcon } from '../common/Icons';
+import { ArrowRightIcon, BookOpenIcon, LockClosedIcon, PlayIcon, ShieldExclamationIcon, UserCircleIcon, VideoCameraIcon } from '../common/Icons';
 import Loader from '../common/Loader';
 import CustomYouTubePlayer from './CustomYouTubePlayer';
 import { useSession } from '../../hooks/useSession';
@@ -10,9 +10,24 @@ import { useToast } from '../../useToast';
 interface CourseDetailViewProps {
     course: Course;
     onBack: () => void;
+    isDataSaverEnabled: boolean;
 }
 
-const CourseDetailView: React.FC<CourseDetailViewProps> = ({ course, onBack }) => {
+const parseYouTubeVideoId = (url: any): string | null => {
+    if (typeof url !== 'string' || !url) return null;
+    const regex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?|shorts)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+    const match = url.match(regex);
+    if (match) {
+        return match[1];
+    }
+    if (url.length === 11 && /^[a-zA-Z0-9_-]+$/.test(url)) {
+        return url;
+    }
+    return null;
+};
+
+
+const CourseDetailView: React.FC<CourseDetailViewProps> = ({ course, onBack, isDataSaverEnabled }) => {
     const { currentUser } = useSession();
     const { addToast } = useToast();
     const [teacher, setTeacher] = useState<Teacher | null>(null);
@@ -54,7 +69,7 @@ const CourseDetailView: React.FC<CourseDetailViewProps> = ({ course, onBack }) =
         return <div className="flex justify-center items-center h-64"><Loader /></div>;
     }
     
-    const videoId = playingVideo?.videoUrl ? new URLSearchParams(new URL(playingVideo.videoUrl).search).get('v') : null;
+    const videoId = playingVideo?.videoUrl ? parseYouTubeVideoId(playingVideo.videoUrl) : null;
 
     if (playingVideo && videoId) {
         return (
@@ -64,7 +79,26 @@ const CourseDetailView: React.FC<CourseDetailViewProps> = ({ course, onBack }) =
                     <span>العودة لتفاصيل الكورس</span>
                 </button>
                 <h2 className="text-2xl font-bold mb-4">{playingVideo.title}</h2>
-                <CustomYouTubePlayer videoId={videoId} onLessonComplete={() => {}} />
+                <CustomYouTubePlayer videoId={videoId} onLessonComplete={() => {}} isDataSaverEnabled={isDataSaverEnabled} />
+            </div>
+        )
+    }
+    
+    if (playingVideo && !videoId) {
+        return (
+             <div>
+                <button onClick={() => setPlayingVideo(null)} className="flex items-center space-x-2 space-x-reverse mb-4 text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                    <ArrowRightIcon className="w-4 h-4" />
+                    <span>العودة لتفاصيل الكورس</span>
+                </button>
+                <h2 className="text-2xl font-bold mb-4">{playingVideo.title}</h2>
+                <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-black border border-[var(--border-primary)] flex items-center justify-center text-center p-4">
+                    <div>
+                        <ShieldExclamationIcon className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                        <h3 className="text-lg font-bold">رابط الفيديو غير صالح</h3>
+                        <p className="text-sm text-gray-400 mt-1">لا يمكن تشغيل هذا الفيديو. يرجى إبلاغ الدعم الفني.</p>
+                    </div>
+                </div>
             </div>
         )
     }
