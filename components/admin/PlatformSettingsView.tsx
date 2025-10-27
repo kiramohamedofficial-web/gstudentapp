@@ -3,6 +3,7 @@ import { User, PlatformSettings, ToastType } from '../../types';
 import { getPlatformSettings, updatePlatformSettings } from '../../services/storageService';
 import { useToast } from '../../useToast';
 import { TemplateIcon, SparklesIcon, CogIcon, PhotoIcon } from '../common/Icons';
+import ImageUpload from '../common/ImageUpload';
 
 const FormSection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
     <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)]">
@@ -69,23 +70,6 @@ const PlatformSettingsView: React.FC<PlatformSettingsViewProps> = ({ user }) => 
         setIsDirty(true);
     }, []);
 
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'heroImageUrl' | 'teacherImageUrl') => {
-        const file = e.target.files?.[0];
-        if (file) {
-             if (file.size > 2 * 1024 * 1024) { // 2MB Limit
-                addToast('حجم الصورة يجب ألا يتجاوز 2 ميجابايت.', ToastType.ERROR);
-                e.target.value = '';
-                return;
-            }
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setSettings(prev => prev ? { ...prev, [field]: reader.result as string } : null);
-                setIsDirty(true);
-            };
-            reader.readAsDataURL(file);
-        }
-    }
-
     const handleSave = () => {
         if (settings) {
             updatePlatformSettings(settings);
@@ -113,16 +97,22 @@ const PlatformSettingsView: React.FC<PlatformSettingsViewProps> = ({ user }) => 
                 return (
                     <FormSection title="إدارة الصور والعلامة التجارية">
                         <div className="space-y-6">
-                            <div>
-                                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">صورة الواجهة الرئيسية</label>
-                                {settings.heroImageUrl && <img src={settings.heroImageUrl} alt="معاينة الواجهة" className="w-auto h-40 object-cover rounded-lg border border-[var(--border-primary)] mb-2" />}
-                                <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'heroImageUrl')} className="w-full text-sm text-[var(--text-secondary)] file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"/>
-                            </div>
-                             <div>
-                                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">الصورة الافتراضية للمدرس</label>
-                                {settings.teacherImageUrl && <img src={settings.teacherImageUrl} alt="معاينة المدرس" className="w-24 h-24 object-cover rounded-full border border-[var(--border-primary)] mb-2" />}
-                                <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'teacherImageUrl')} className="w-full text-sm text-[var(--text-secondary)] file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"/>
-                            </div>
+                            <ImageUpload
+                                label="صورة الواجهة الرئيسية"
+                                value={settings.heroImageUrl || ''}
+                                onChange={(value) => {
+                                    setSettings(prev => prev ? { ...prev, heroImageUrl: value } : null);
+                                    setIsDirty(true);
+                                }}
+                            />
+                            <ImageUpload
+                                label="الصورة الافتراضية للمدرس"
+                                value={settings.teacherImageUrl || ''}
+                                onChange={(value) => {
+                                    setSettings(prev => prev ? { ...prev, teacherImageUrl: value } : null);
+                                    setIsDirty(true);
+                                }}
+                            />
                         </div>
                     </FormSection>
                 );

@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect, useCallback, useContext, useMemo } from 'react';
 import { getSubscriptionsByUserId } from '../services/storageService';
-import { Subscription } from '../types';
+import { Subscription, AppNotification } from '../types';
 import { useSession } from './useSession';
 
 interface SubscriptionContextType {
@@ -9,6 +9,7 @@ interface SubscriptionContextType {
     subscription: Subscription | null;
     isLoading: boolean;
     refetchSubscription: () => void;
+    notifications: AppNotification[];
 }
 
 const SubscriptionContext = createContext<SubscriptionContextType | undefined>(undefined);
@@ -17,6 +18,7 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const { currentUser } = useSession();
     const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [notifications, setNotifications] = useState<AppNotification[]>([]);
 
     const fetchSubscription = useCallback(async () => {
         if (currentUser) {
@@ -33,6 +35,42 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
     useEffect(() => {
         fetchSubscription();
     }, [fetchSubscription]);
+
+    useEffect(() => {
+        if (subscriptions.length > 0) {
+            const newNotifications: AppNotification[] = [];
+            const now = new Date();
+
+            subscriptions.forEach(sub => {
+                if (sub.status === 'Active') {
+                    const endDate = new Date(sub.endDate);
+                    const diffTime = endDate.getTime() - now.getTime();
+                    const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                    if (daysRemaining <= 7 && daysRemaining >= 0) {
+                        let remainingText: string;
+                        if (daysRemaining === 0) {
+                            remainingText = 'اشتراكك ينتهي اليوم! جدده الآن للاستمرار في الوصول للمحتوى.';
+                        } else {
+                            const dayWord = daysRemaining === 1 ? 'يوم واحد' : daysRemaining === 2 ? 'يومان' : `${daysRemaining} أيام`;
+                            remainingText = `اشتراكك على وشك الانتهاء! متبقي ${dayWord}. جدد الآن لتجنب انقطاع الخدمة.`;
+                        }
+                        
+                        newNotifications.push({
+                            id: `sub-expire-${sub.id}`,
+                            text: remainingText,
+                            type: 'warning',
+                            createdAt: new Date().toISOString(),
+                            link: 'subscription'
+                        });
+                    }
+                }
+            });
+            setNotifications(newNotifications);
+        } else {
+            setNotifications([]);
+        }
+    }, [subscriptions]);
     
     // Determine the primary subscription for display purposes
     const primarySubscription = useMemo(() => {
@@ -49,6 +87,7 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
         subscription: primarySubscription,
         isLoading,
         refetchSubscription: fetchSubscription,
+        notifications,
     };
 
     return <SubscriptionContext.Provider value={value}>{children}</SubscriptionContext.Provider>;

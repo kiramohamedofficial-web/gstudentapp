@@ -5,6 +5,7 @@ import Modal from '../common/Modal';
 import { PlusIcon, PencilIcon, TrashIcon, UserCircleIcon } from '../common/Icons';
 import { useToast } from '../../useToast';
 import Loader from '../common/Loader';
+import ImageUpload from '../common/ImageUpload';
 
 const Checkbox: React.FC<{ label: string; checked: boolean; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; name: string; }> = ({ label, checked, onChange, name }) => (
     <label className="flex items-center space-x-2 space-x-reverse cursor-pointer p-2 rounded-md hover:bg-white/5 transition-colors">
@@ -88,23 +89,12 @@ const TeacherModal: React.FC<{
         }
     };
 
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setFormData(prev => ({ ...prev, imageUrl: reader.result as string }));
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
 
         const phoneRegex = /^01[0125]\d{8}$/;
-        if (!phoneRegex.test(formData.phone)) {
+        if (!formData.phone.match(phoneRegex)) {
             setError('الرجاء إدخال رقم هاتف مصري صحيح (11 رقم).');
             return;
         }
@@ -149,11 +139,11 @@ const TeacherModal: React.FC<{
                         <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">المادة الأساسية</label>
                         <input name="subject" value={formData.subject} onChange={handleChange} required className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)]" />
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">صورة المدرس</label>
-                        {formData.imageUrl && <img src={formData.imageUrl} alt="Preview" className="w-24 h-24 rounded-full object-cover mb-2" />}
-                        <input type="file" accept="image/*" onChange={handleImageUpload} className="w-full text-sm text-[var(--text-secondary)] file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"/>
-                    </div>
+                    <ImageUpload
+                        label="صورة المدرس"
+                        value={formData.imageUrl}
+                        onChange={(value) => setFormData(prev => ({ ...prev, imageUrl: value }))}
+                    />
                      <div className="pt-4 border-t border-[var(--border-primary)]">
                         <h3 className="text-md font-semibold text-[var(--text-primary)] mb-3">التخصص الدراسي</h3>
                         <div className="space-y-4">

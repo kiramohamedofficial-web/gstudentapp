@@ -213,6 +213,14 @@ export interface ChatMessage {
   content: string;
 }
 
+export interface AppNotification {
+  id: string;
+  text: string;
+  type: 'info' | 'warning' | 'error';
+  createdAt: string;
+  link?: StudentView;
+}
+
 
 declare global {
   interface Window {

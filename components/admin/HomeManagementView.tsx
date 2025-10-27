@@ -7,6 +7,7 @@ import {
 import Modal from '../common/Modal';
 import { PlusIcon, PencilIcon, TrashIcon, BookBookmarkIcon, TemplateIcon } from '../common/Icons';
 import { useToast } from '../../useToast';
+import ImageUpload from '../common/ImageUpload';
 
 const ConfirmationModal: React.FC<{ isOpen: boolean; onClose: () => void; onConfirm: () => void; title: string; message: string; }> = ({ isOpen, onClose, onConfirm, title, message }) => (
     <Modal isOpen={isOpen} onClose={onClose} title={title}>
@@ -24,33 +25,6 @@ const FormInput: React.FC<{label: string, name: string, type?: string, value: st
         <input name={name} id={name} type={type} value={value} onChange={onChange} required className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)] focus:ring-purple-500 focus:border-purple-500" />
     </div>
 );
-
-const ImageUploadInput: React.FC<{label: string, name: string, value: string, onChange: (name: string, value: string) => void}> = ({label, name, value, onChange}) => {
-    const { addToast } = useToast();
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            if (file.size > 2 * 1024 * 1024) { // 2MB Limit
-                addToast('حجم الصورة يجب ألا يتجاوز 2 ميجابايت.', ToastType.ERROR);
-                e.target.value = '';
-                return;
-            }
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                onChange(name, reader.result as string);
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-    return (
-        <div>
-            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">{label}</label>
-            {value && <img src={value} alt="معاينة" className="w-auto h-24 object-cover rounded-md border border-[var(--border-primary)] mb-2" />}
-            <input type="file" accept="image/*" onChange={handleFileChange} className="w-full text-sm text-[var(--text-secondary)] file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"/>
-        </div>
-    );
-};
-
 
 const HomeManagementView: React.FC = () => {
     const [dataVersion, setDataVersion] = useState(0);
@@ -196,7 +170,7 @@ const HomeManagementView: React.FC = () => {
                             {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                         </select>
                     </div>
-                    <ImageUploadInput label="صورة الغلاف" name="coverImage" value={formData.coverImage || ''} onChange={handleImageChange} />
+                    <ImageUpload label="صورة الغلاف" value={formData.coverImage || ''} onChange={(value) => handleImageChange('coverImage', value)} />
                     <FormInput label="السعر" name="price" type="number" value={formData.price ?? 0} onChange={handleFormChange} />
                     <div className="grid grid-cols-3 gap-4">
                         <FormInput label="ملفات" name="fileCount" type="number" value={formData.fileCount ?? 0} onChange={handleFormChange} />
@@ -211,8 +185,8 @@ const HomeManagementView: React.FC = () => {
                 <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="space-y-4">
                     <FormInput label="العنوان" name="title" value={formData.title || ''} onChange={handleFormChange} />
                     <FormInput label="اسم المدرس" name="teacherName" value={formData.teacherName || ''} onChange={handleFormChange} />
-                    <ImageUploadInput label="صورة المدرس" name="teacherImage" value={formData.teacherImage || ''} onChange={handleImageChange} />
-                    <ImageUploadInput label="صورة الغلاف" name="coverImage" value={formData.coverImage || ''} onChange={handleImageChange} />
+                    <ImageUpload label="صورة المدرس" value={formData.teacherImage || ''} onChange={(value) => handleImageChange('teacherImage', value)} />
+                    <ImageUpload label="صورة الغلاف" value={formData.coverImage || ''} onChange={(value) => handleImageChange('coverImage', value)} />
                     <FormInput label="السعر" name="price" type="number" value={formData.price ?? 0} onChange={handleFormChange} />
                     <div className="flex justify-end pt-4"><button type="submit" className="px-5 py-2 font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700">حفظ</button></div>
                 </form>

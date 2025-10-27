@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { StudentView, Subscription, Theme } from '../../types';
+import { StudentView, Subscription, Theme, AppNotification } from '../../types';
 import { HomeIcon, UserCircleIcon, CreditCardIcon, UsersIcon, LogoutIcon, TemplateIcon, XIcon, SparklesIcon, ChartBarIcon, BrainIcon, BellIcon, CogIcon, QuestionMarkCircleIcon, MoonIcon, ShieldCheckIcon, ShieldExclamationIcon } from '../common/Icons';
 import { useSession } from '../../hooks/useSession';
 import { useSubscription } from '../../hooks/useSubscription';
@@ -88,11 +88,12 @@ const BottomNavItem: React.FC<{ onClick: () => void; label: string; icon: React.
 
 const StudentLayout: React.FC<StudentLayoutProps> = ({ children, onNavClick, activeView, theme, setTheme, gradeName }) => {
     const { currentUser: user, handleLogout: onLogout } = useSession();
-    const { subscription, isLoading: isSubLoading } = useSubscription();
+    const { subscription, isLoading: isSubLoading, notifications } = useSubscription();
 
     const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+    const [isBannerVisible, setIsBannerVisible] = useState(true);
     const profileMenuRef = useRef<HTMLDivElement>(null);
     const notificationsRef = useRef<HTMLDivElement>(null);
 
@@ -115,7 +116,9 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ children, onNavClick, act
         { id: 'subscription', label: 'الاشتراك', icon: CreditCardIcon },
     ], []);
 
-    const mockNotifications: { id: number; text: string; time: string; }[] = [];
+    const expiringNotification = useMemo(() => {
+        return notifications.find(n => n.id.startsWith('sub-expire-'));
+    }, [notifications]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -161,15 +164,28 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ children, onNavClick, act
                     <div className="relative">
                         <button onClick={() => { setIsNotificationsOpen(p => !p); setIsProfileMenuOpen(false); }} className="notification-btn">
                             <i className="fas fa-bell"></i>
-                            {mockNotifications.length > 0 && <span className="badge">{mockNotifications.length}</span>}
+                            {notifications.length > 0 && <span className="badge">{notifications.length}</span>}
                         </button>
                          {isNotificationsOpen && (
                            <div ref={notificationsRef} className="absolute top-full mt-3 left-0 w-80 bg-[var(--bg-primary)] border border-[var(--border-secondary)] rounded-2xl shadow-lg z-50 fade-in-up">
                               <div className="p-4 border-b border-[var(--border-primary)]"><h3 className="font-bold text-lg text-[var(--text-primary)]">الإشعارات</h3></div>
-                              {mockNotifications.length > 0 ? (
+                              {notifications.length > 0 ? (
                                 <>
-                                  <div className="p-2 max-h-80 overflow-y-auto">{mockNotifications.map(n => <div key={n.id} className="p-3 rounded-lg hover:bg-[var(--bg-tertiary)] text-right"><p className="text-sm text-[var(--text-primary)]">{n.text}</p><p className="text-xs text-[var(--text-secondary)] mt-1">{n.time}</p></div>)}</div>
-                                  <div className="p-2 border-t border-[var(--border-primary)] text-center"><button className="text-sm font-semibold text-[var(--accent-primary)] hover:underline">عرض الكل</button></div>
+                                  <div className="p-2 max-h-80 overflow-y-auto">{notifications.map(n => 
+                                      <button 
+                                          key={n.id} 
+                                          onClick={() => {
+                                              if (n.link) onNavClick(n.link);
+                                              setIsNotificationsOpen(false);
+                                          }}
+                                          className="w-full p-3 rounded-lg hover:bg-[var(--bg-tertiary)] text-right"
+                                      >
+                                          <p className="text-sm text-[var(--text-primary)]">{n.text}</p>
+                                          <p className="text-xs text-[var(--text-secondary)] mt-1">
+                                              {new Date(n.createdAt).toLocaleTimeString('ar-EG', { hour: 'numeric', minute: '2-digit' })}
+                                          </p>
+                                      </button>
+                                  )}</div>
                                 </>
                               ) : (
                                 <div className="p-8 text-center text-sm text-[var(--text-secondary)]">
@@ -206,7 +222,24 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ children, onNavClick, act
                     </div>
                 </div>
             </header>
-          <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-24 md:pb-6 bg-[var(--bg-secondary)] md:rounded-b-2xl"><div key={activeView} className="fade-in">{children}</div></main>
+          <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-24 md:pb-6 bg-[var(--bg-secondary)] md:rounded-b-2xl">
+              {isBannerVisible && expiringNotification && (
+                  <div className="bg-amber-500/10 border border-amber-500/30 text-amber-300 text-sm rounded-lg p-4 mb-6 flex items-start gap-3 fade-in" role="alert">
+                      <ShieldExclamationIcon className="w-5 h-5 flex-shrink-0 mt-0.5 text-amber-400" />
+                      <div className="flex-grow">
+                          <h4 className="font-bold">تنبيه هام</h4>
+                          <p>
+                              {expiringNotification.text} 
+                              <button onClick={() => expiringNotification.link && onNavClick(expiringNotification.link)} className="font-bold underline hover:text-amber-200 mx-2">جدد الآن</button>
+                          </p>
+                      </div>
+                      <button onClick={() => setIsBannerVisible(false)} className="p-1 rounded-full text-amber-300/70 hover:bg-amber-500/20">
+                          <XIcon className="w-4 h-4" />
+                      </button>
+                  </div>
+              )}
+              <div key={activeView} className="fade-in">{children}</div>
+          </main>
         </div>
       </div>
       <div className="md:hidden fixed bottom-2 left-2 right-2 h-16 bg-[var(--glass-bg)] backdrop-blur-[var(--glass-blur)] border border-[var(--glass-border)] flex justify-around items-center shadow-lg rounded-2xl">

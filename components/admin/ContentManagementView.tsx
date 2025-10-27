@@ -7,6 +7,7 @@ import {
 import Modal from '../common/Modal';
 import { PlusIcon, PencilIcon, TrashIcon, CheckCircleIcon, VideoCameraIcon, DocumentTextIcon, BookOpenIcon, DotsVerticalIcon, CollectionIcon, ChevronDownIcon, UserCircleIcon, ShieldExclamationIcon } from '../common/Icons';
 import { useToast } from '../../useToast';
+import ImageUpload from '../common/ImageUpload';
 
 // Helper to parse YouTube video ID from various URL formats
 const parseYouTubeVideoId = (url: string): string | null => {
@@ -106,23 +107,6 @@ const LessonEditModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: 
         setData(prev => ({ ...prev, [field]: value }));
     };
 
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            if (file.size > 1 * 1024 * 1024) { // 1MB Limit
-                setError('حجم الصورة يجب ألا يتجاوز 1 ميجابايت.');
-                e.target.value = ''; // Reset file input
-                return;
-            }
-            setError('');
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                handleChange('imageUrl', reader.result as string);
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-
     const handleCorrectAnswersChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const answers = e.target.value.split(',').map(a => a.trim());
         handleChange('correctAnswers', answers);
@@ -188,11 +172,11 @@ const LessonEditModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: 
                 
                 {(data.type === LessonType.HOMEWORK || data.type === LessonType.EXAM) && (
                     <div className="space-y-4 pt-4 border-t border-[var(--border-primary)]">
-                        <div>
-                            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">صورة الامتحان (1 ميجا بحد أقصى)</label>
-                            <input type="file" onChange={handleImageUpload} accept="image/*" className="w-full text-sm text-[var(--text-secondary)] file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"/>
-                            {data.imageUrl && <img src={data.imageUrl} alt="Preview" className="mt-4 rounded-lg border border-[var(--border-primary)] max-h-60 w-auto" />}
-                        </div>
+                        <ImageUpload
+                            label="صورة الامتحان"
+                            value={data.imageUrl || ''}
+                            onChange={(value) => handleChange('imageUrl', value)}
+                        />
                          <div>
                             <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">الإجابات الصحيحة (افصل بينها بفاصلة ,)</label>
                             <input type="text" value={(data.correctAnswers || []).join(',')} onChange={handleCorrectAnswersChange} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)]" placeholder="الإجابة 1, الإجابة 2" />
