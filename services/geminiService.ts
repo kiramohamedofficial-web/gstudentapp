@@ -1,5 +1,5 @@
-import { GoogleGenAI } from "@google/genai";
-import { Grade } from '../types';
+import { GoogleGenAI, Type } from "@google/genai";
+import { Grade, QuizQuestion } from '../types';
 
 // Per coding guidelines, the API key is sourced directly from process.env.API_KEY
 // and is assumed to be pre-configured and valid.
@@ -53,6 +53,79 @@ export const getAIExplanation = async (
     return userMessage;
   }
 };
+
+export const generateQuiz = async (
+  topic: string,
+  grade: string,
+  difficulty: 'سهل' | 'متوسط' | 'صعب',
+  numQuestions: number
+): Promise<QuizQuestion[]> => {
+  if (!process.env.API_KEY) {
+    throw new Error("مفتاح API غير متوفر.");
+  }
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+  const prompt = `
+    أنت مدرس خبير في المناهج المصرية.
+    مهمتك هي إنشاء اختبار قصير (كويز) بنظام الاختيار من متعدد.
+    الموضوع: "${topic}"
+    الصف الدراسي: ${grade}
+    مستوى الصعوبة: ${difficulty}
+    عدد الأسئلة: ${numQuestions}
+
+    أنشئ ${numQuestions} سؤالاً بصيغة الاختيار من متعدد حول الموضوع المحدد وبالمستوى المطلوب.
+    يجب أن يكون لكل سؤال 4 اختيارات.
+    يجب أن تكون الإجابات بصيغة JSON المطلوبة تمامًا.
+  `;
+
+  const responseSchema = {
+    type: Type.OBJECT,
+    properties: {
+        questions: {
+            type: Type.ARRAY,
+            description: 'Array of quiz questions',
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    questionText: { 
+                        type: Type.STRING,
+                        description: 'The text of the question.'
+                    },
+                    options: {
+                        type: Type.ARRAY,
+                        description: 'An array of 4 possible answers.',
+                        items: { type: Type.STRING }
+                    },
+                    correctAnswerIndex: { 
+                        type: Type.INTEGER,
+                        description: 'The 0-based index of the correct answer in the options array.'
+                    }
+                },
+                required: ['questionText', 'options', 'correctAnswerIndex']
+            }
+        }
+    },
+    required: ['questions']
+  };
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: responseSchema,
+      },
+    });
+
+    const jsonResponse = JSON.parse(response.text);
+    return jsonResponse.questions || [];
+  } catch (error) {
+    console.error("Gemini Quiz Generation Error:", error);
+    throw new Error("فشل توليد الأسئلة. يرجى المحاولة مرة أخرى.");
+  }
+};
+
 
 const CHAT_SYSTEM_INSTRUCTION = `أنت "مساعد Gstudent الذكي"، مساعد ذكاء اصطناعي ودود ومفيد للطلاب في المرحلتين الإعدادية والثانوية في مصر. مهمتك هي مساعدة الطلاب على فهم موادهم الدراسية. حافظ على إجاباتك موجزة ومفيدة وباللغة العربية الفصحى المبسطة. تجنب الردود الطويلة جداً ما لم يطلب منك ذلك.`;
 

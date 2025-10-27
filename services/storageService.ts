@@ -307,7 +307,9 @@ export const initData = async (): Promise<void> => {
                             correctAnswers: lesson.correct_answers,
                             timeLimit: lesson.time_limit,
                             passingScore: lesson.passing_score,
-                            dueDate: lesson.due_date
+                            dueDate: lesson.due_date,
+                            quizType: lesson.quiz_type,
+                            questions: lesson.questions,
                         }))
                     }))
                 }))
@@ -445,7 +447,7 @@ export async function getAllStudentProgress(): Promise<{ user_id: string, lesson
     }
     return (data || []).map(p => ({ user_id: p.student_id, lesson_id: p.lesson_id }));
 }
-export async function saveQuizAttempt(userId: string, lessonId: string, score: number, totalQuestions: number, submittedAnswers: any[], timeTaken: number) {
+export async function saveQuizAttempt(userId: string, lessonId: string, score: number, submittedAnswers: QuizAttempt['submittedAnswers'], timeTaken: number) {
     const findLesson = (id: string): Lesson | undefined => {
         for (const grade of getAllGrades()) {
             for (const semester of grade.semesters) {
@@ -491,7 +493,7 @@ export async function getStudentQuizAttempts(userId: string): Promise<QuizAttemp
         isPass: a.is_pass,
     }));
 }
-export const addQuizAttempt = async (attemptData: Omit<QuizAttempt, 'id'>): Promise<void> => { const { userId, lessonId, score, submittedAnswers, timeTaken } = attemptData; await saveQuizAttempt(userId, lessonId, score, 10, submittedAnswers || [], timeTaken); };
+export const addQuizAttempt = async (attemptData: Omit<QuizAttempt, 'id'>): Promise<void> => { const { userId, lessonId, score, submittedAnswers, timeTaken } = attemptData; await saveQuizAttempt(userId, lessonId, score, submittedAnswers, timeTaken); };
 export const getQuizAttemptsByUserId = async (userId: string): Promise<QuizAttempt[]> => {
     return getStudentQuizAttempts(userId);
 }

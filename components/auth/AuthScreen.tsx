@@ -160,6 +160,9 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onBack }) => {
         if (formData.password !== formData.confirmPassword) return setFormError('كلمتا المرور غير متطابقتين.');
         if (normalizePhoneNumber(formData.phone).length !== 10) return setFormError('الرجاء إدخال رقم هاتف مصري صحيح (11 رقم يبدأ بـ 0).');
         if (normalizePhoneNumber(formData.guardianPhone).length !== 10) return setFormError('الرجاء إدخال رقم هاتف ولي أمر مصري صحيح (11 رقم يبدأ بـ 0).');
+        if (normalizePhoneNumber(formData.phone) === normalizePhoneNumber(formData.guardianPhone)) {
+            return setFormError('رقم هاتف الطالب يجب أن يكون مختلفًا عن رقم هاتف ولي الأمر.');
+        }
         changeView('register-step-2');
     };
 
@@ -268,7 +271,10 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onBack }) => {
                             <input name="name" type="text" placeholder="الاسم الثلاثي" value={formData.name} onChange={handleChange} required className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg" />
                             <input name="email" type="email" placeholder="البريد الإلكتروني" value={formData.email} onChange={handleChange} required className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg" />
                             <PhoneInput name="phone" placeholder="رقم الطالب" value={formData.phone} onChange={handleChange} required />
-                            <PhoneInput name="guardianPhone" placeholder="رقم ولي الامر" value={formData.guardianPhone} onChange={handleChange} required />
+                            <div>
+                                <PhoneInput name="guardianPhone" placeholder="رقم ولي الامر" value={formData.guardianPhone} onChange={handleChange} required />
+                                <p className="text-xs text-right text-[var(--text-secondary)] mt-1.5 pr-2">سيتم التواصل مع ولي الأمر لتأكيد البيانات.</p>
+                            </div>
                             <input name="password" type="password" placeholder="كلمة المرور" value={formData.password} onChange={handleChange} required className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg" />
                             <input name="confirmPassword" type="password" placeholder="تأكيد كلمة المرور" value={formData.confirmPassword} onChange={handleChange} required className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg" />
                             <button type="button" onClick={handleNext} className="w-full py-3.5 font-bold text-white bg-[var(--accent-primary)] rounded-lg">التالي</button>

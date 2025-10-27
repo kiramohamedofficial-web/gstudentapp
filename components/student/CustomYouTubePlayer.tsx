@@ -300,8 +300,8 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
             <div className={`yt-controls-overlay ${showControls || !isPlaying || isQualityMenuOpen ? 'visible' : ''}`}>
                 <div className="yt-progress-bar-container" ref={progressRef} onClick={handleSeek}>
                     <div className="yt-progress-bar-bg"></div>
-                    <div className="yt-progress-bar-bg yt-progress-bar-loaded" style={{ width: `${loadedFraction * 100}%` }}></div>
-                    <div className="yt-progress-bar-bg yt-progress-bar-played" style={{ width: `${progressPercent}%` }}></div>
+                    <div className="yt-progress-bar-bg yt-progress-bar-loaded" style={{ width: `${loadedFraction * 100}%`, left: 0 }}></div>
+                    <div className="yt-progress-bar-bg yt-progress-bar-played" style={{ width: `${progressPercent}%`, left: 0 }}></div>
                     <div className="yt-progress-thumb" style={{ left: `${progressPercent}%` }}></div>
                 </div>
                 <div className="yt-bottom-controls">

@@ -128,19 +128,19 @@ const TeacherContentManagement: React.FC<TeacherContentManagementProps> = ({ tea
     const openModal = (type: string, data = {}) => setModalState({ type, data });
     const closeModal = () => setModalState({ type: null, data: {} });
 
-    const handleSaveUnit = (title: string) => {
+    const handleSaveUnit = async (title: string) => {
         const { grade, semester, unit } = modalState.data;
         if (grade && semester) {
-            const newOrUpdatedUnit = { 
+            const newOrUpdatedUnit = {
                 ...unit,
-                title, 
+                title,
                 teacherId: teacher.id
             };
             if (unit) {
-                updateUnit(grade.id, semester.id, newOrUpdatedUnit);
+                await updateUnit(grade.id, semester.id, newOrUpdatedUnit);
                 addToast('تم تعديل الوحدة!', ToastType.SUCCESS);
             } else {
-                addUnitToSemester(grade.id, semester.id, { title, teacherId: teacher.id });
+                await addUnitToSemester(grade.id, semester.id, { title, teacherId: teacher.id });
                 addToast('تمت إضافة الوحدة!', ToastType.SUCCESS);
             }
         }
@@ -148,10 +148,10 @@ const TeacherContentManagement: React.FC<TeacherContentManagementProps> = ({ tea
         closeModal();
     };
     
-    const handleDeleteUnit = () => {
+    const handleDeleteUnit = async () => {
         const { grade, semester, unit } = modalState.data;
         if (grade && semester && unit) {
-            deleteUnit(grade.id, semester.id, unit.id);
+            await deleteUnit(grade.id, semester.id, unit.id);
             addToast('تم حذف الوحدة.', ToastType.SUCCESS);
         }
         refreshData();

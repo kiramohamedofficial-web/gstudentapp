@@ -43,13 +43,28 @@ export enum LessonType {
   SUMMARY = 'Summary',
 }
 
+export enum QuizType {
+  IMAGE = 'image',
+  MCQ = 'mcq',
+}
+
+export interface QuizQuestion {
+  questionText: string;
+  options: string[];
+  correctAnswerIndex: number;
+}
+
 export interface Lesson {
   id:string;
   title: string;
   type: LessonType;
   content: string; // YouTube video ID, summary text, etc.
   
-  // Fields for image-based quizzes (Homework/Exam)
+  // Quiz fields
+  quizType?: QuizType;
+  // For MCQ
+  questions?: QuizQuestion[];
+  // For Image-based
   imageUrl?: string; 
   correctAnswers?: string[];
 
@@ -178,7 +193,7 @@ export interface QuizAttempt {
   lessonId: string;
   submittedAt: string;
   score: number; // Percentage score
-  submittedAnswers?: string[]; // For image-based quizzes
+  submittedAnswers?: string[] | { [key: number]: number }; // For image-based quizzes or MCQ answers
   timeTaken: number; // in seconds
   isPass: boolean;
 }

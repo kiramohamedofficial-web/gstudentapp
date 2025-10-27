@@ -1,15 +1,14 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { Grade, Semester, Unit, Lesson, LessonType, ToastType, Teacher } from '../../types';
+import { Grade, Semester, Unit, Lesson, LessonType, ToastType, Teacher, QuizType, QuizQuestion } from '../../types';
 import {
     getAllGrades, addLessonToUnit, updateLesson, deleteLesson,
     addUnitToSemester, updateUnit, deleteUnit, getAllTeachers
 } from '../../services/storageService';
 import Modal from '../common/Modal';
-// FIX: Added imports for icons needed for lesson type display.
-import { PlusIcon, PencilIcon, TrashIcon, ChevronUpIcon, DotsVerticalIcon, BookOpenIcon, VideoCameraIcon, DocumentTextIcon } from '../common/Icons';
+import { PlusIcon, PencilIcon, TrashIcon, DotsVerticalIcon, BookOpenIcon, VideoCameraIcon, DocumentTextIcon, ChevronDownIcon, SparklesIcon, XIcon } from '../common/Icons';
 import { useToast } from '../../useToast';
-// FIX: Imported the missing ImageUpload component.
 import ImageUpload from '../common/ImageUpload';
+import { generateQuiz } from '../../services/geminiService';
 
 // Reusable Confirmation Modal
 const ConfirmationModal: React.FC<{ isOpen: boolean; onClose: () => void; onConfirm: () => void; title: string; message: string; }> = ({ isOpen, onClose, onConfirm, title, message }) => (
@@ -65,33 +64,80 @@ const UnitModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (data:
 };
 
 // Lesson Add/Edit Modal
-const LessonModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (data: Lesson | Omit<Lesson, 'id'>) => void; lesson: Partial<Lesson> | null; }> = ({ isOpen, onClose, onSave, lesson }) => {
+const LessonModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (data: Lesson | Omit<Lesson, 'id'>) => void; lesson: Partial<Lesson> | null; gradeName: string }> = ({ isOpen, onClose, onSave, lesson, gradeName }) => {
+    const { addToast } = useToast();
     const [formData, setFormData] = useState<Partial<Lesson>>({});
+    const [creationMode, setCreationMode] = useState<'manual' | 'ai'>('manual');
+    const [aiSettings, setAiSettings] = useState({ topic: '', difficulty: 'متوسط' as 'سهل' | 'متوسط' | 'صعب', numQuestions: 5 });
+    const [isGenerating, setIsGenerating] = useState(false);
     
     useEffect(() => {
         if (isOpen) {
             const initialData = lesson ? { ...lesson } : { type: LessonType.EXPLANATION, correctAnswers: [] };
-            if (!initialData.type) {
-                initialData.type = LessonType.EXPLANATION;
-            }
+            if (!initialData.type) initialData.type = LessonType.EXPLANATION;
             setFormData(initialData);
+            setCreationMode(initialData.quizType === 'mcq' ? 'ai' : 'manual');
         }
     }, [lesson, isOpen]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value, type } = e.target;
-        // @ts-ignore
         const isNumber = e.target.type === 'number';
         setFormData(prev => ({ ...prev, [name]: isNumber ? Number(value) : value }));
     };
 
+    const handleGenerateQuestions = async () => {
+        if (!aiSettings.topic.trim()) {
+            addToast('الرجاء إدخال موضوع للأسئلة.', ToastType.ERROR);
+            return;
+        }
+        setIsGenerating(true);
+        try {
+            const questions = await generateQuiz(aiSettings.topic, gradeName, aiSettings.difficulty, aiSettings.numQuestions);
+            setFormData(prev => ({ ...prev, questions, quizType: 'mcq' }));
+            addToast(`تم توليد ${questions.length} أسئلة بنجاح.`, ToastType.SUCCESS);
+        } catch (error: any) {
+            addToast(error.message, ToastType.ERROR);
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+    
+    const handleQuestionChange = (qIndex: number, field: keyof QuizQuestion, value: any, optIndex?: number) => {
+        setFormData(prev => {
+            const newQuestions = [...(prev.questions || [])];
+            const question = { ...newQuestions[qIndex] };
+            if (field === 'options' && typeof optIndex === 'number') {
+                const newOptions = [...question.options];
+                newOptions[optIndex] = value;
+                question.options = newOptions;
+            } else {
+                // @ts-ignore
+                question[field] = value;
+            }
+            newQuestions[qIndex] = question;
+            return { ...prev, questions: newQuestions };
+        });
+    };
+    
+    const removeQuestion = (qIndex: number) => {
+        setFormData(prev => ({ ...prev, questions: (prev.questions || []).filter((_, i) => i !== qIndex) }));
+    };
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        const dataToSave = {
-            ...formData,
-            // @ts-ignore
-            correctAnswers: typeof formData.correctAnswers === 'string' ? formData.correctAnswers.split('\n').filter(Boolean) : (formData.correctAnswers || []),
-        };
+        let dataToSave = { ...formData };
+
+        if (dataToSave.type === LessonType.HOMEWORK || dataToSave.type === LessonType.EXAM) {
+            dataToSave.quizType = creationMode;
+            if (creationMode === 'manual') {
+                dataToSave.questions = [];
+            } else {
+                dataToSave.imageUrl = '';
+                dataToSave.correctAnswers = [];
+            }
+        }
+        
         onSave(dataToSave as Lesson);
     };
     
@@ -99,17 +145,65 @@ const LessonModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (dat
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={formData.id ? 'تعديل الدرس' : 'إضافة درس جديد'}>
-            <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto p-1">
+            <form onSubmit={handleSubmit} className="space-y-4 max-h-[75vh] overflow-y-auto p-1">
                 <input type="text" placeholder="عنوان الدرس" name="title" value={formData.title || ''} onChange={handleChange} className="w-full p-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md" required/>
                 <select name="type" value={formData.type} onChange={handleChange} className="w-full p-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md">
                     {Object.values(LessonType).map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
+                
                 {type === LessonType.EXPLANATION && <input type="text" placeholder="معرف فيديو يوتيوب" name="content" value={formData.content || ''} onChange={handleChange} className="w-full p-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md"/>}
                 {type === LessonType.SUMMARY && <textarea placeholder="محتوى الملخص" name="content" value={formData.content || ''} onChange={handleChange} className="w-full p-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md" rows={5}></textarea>}
+                
                 {(type === LessonType.HOMEWORK || type === LessonType.EXAM) && (
                     <div className="space-y-4 p-3 border border-dashed border-[var(--border-primary)] rounded-lg">
-                        <ImageUpload label="صورة الواجب/الامتحان" value={formData.imageUrl || ''} onChange={url => setFormData(p => ({...p, imageUrl: url}))} />
-                        <textarea placeholder="الإجابات الصحيحة (كل إجابة في سطر)" name="correctAnswers" value={Array.isArray(formData.correctAnswers) ? formData.correctAnswers.join('\n') : formData.correctAnswers || ''} onChange={handleChange} rows={4} className="w-full p-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md"/>
+                        <div className="flex items-center p-1 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-primary)]">
+                            <button type="button" onClick={() => setCreationMode('manual')} className={`flex-1 py-2 text-sm font-semibold rounded-md transition-colors ${creationMode === 'manual' ? 'bg-purple-600 text-white' : 'bg-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}>إنشاء يدوي (صورة)</button>
+                            <button type="button" onClick={() => setCreationMode('ai')} className={`flex-1 py-2 text-sm font-semibold rounded-md transition-colors ${creationMode === 'ai' ? 'bg-purple-600 text-white' : 'bg-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}>إنشاء بالذكاء الاصطناعي</button>
+                        </div>
+                        
+                        {creationMode === 'manual' ? (
+                            <div className="space-y-4">
+                                <ImageUpload label="صورة الواجب/الامتحان" value={formData.imageUrl || ''} onChange={url => setFormData(p => ({...p, imageUrl: url}))} />
+                                <textarea placeholder="الإجابات الصحيحة (كل إجابة في سطر)" name="correctAnswers" value={Array.isArray(formData.correctAnswers) ? formData.correctAnswers.join('\n') : formData.correctAnswers || ''} onChange={handleChange} rows={4} className="w-full p-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md"/>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                <div className="p-4 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-primary)] space-y-3">
+                                    <textarea placeholder="اكتب موضوع الأسئلة هنا (مثال: الدرس الأول في الجبر عن حل المعادلات)" value={aiSettings.topic} onChange={e => setAiSettings(p => ({...p, topic: e.target.value}))} rows={3} className="w-full p-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md" />
+                                    <div className="grid grid-cols-3 gap-3">
+                                        <select value={aiSettings.difficulty} onChange={e => setAiSettings(p => ({...p, difficulty: e.target.value as any}))} className="w-full p-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md text-sm">
+                                            <option value="سهل">سهل</option>
+                                            <option value="متوسط">متوسط</option>
+                                            <option value="صعب">صعب</option>
+                                        </select>
+                                        <input type="number" value={aiSettings.numQuestions} onChange={e => setAiSettings(p => ({...p, numQuestions: parseInt(e.target.value) || 1}))} className="w-full p-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md text-sm" placeholder="العدد"/>
+                                        <button type="button" onClick={handleGenerateQuestions} disabled={isGenerating} className="px-3 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-60 flex items-center justify-center gap-2">
+                                            <SparklesIcon className="w-4 h-4"/> {isGenerating ? 'جاري...' : 'توليد'}
+                                        </button>
+                                    </div>
+                                </div>
+                                {(formData.questions || []).length > 0 && (
+                                    <div className="space-y-3">
+                                        <h4 className="text-sm font-semibold">الأسئلة التي تم توليدها:</h4>
+                                        {(formData.questions || []).map((q, qIndex) => (
+                                            <div key={qIndex} className="p-3 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-primary)]">
+                                                <div className="flex justify-between items-center mb-2">
+                                                    <input value={q.questionText} onChange={e => handleQuestionChange(qIndex, 'questionText', e.target.value)} className="w-full p-1 bg-transparent border-b border-dashed border-[var(--border-primary)] focus:border-solid focus:outline-none" />
+                                                    <button type="button" onClick={() => removeQuestion(qIndex)} className="p-1 text-red-500 hover:bg-red-500/10 rounded-full"><XIcon className="w-4 h-4"/></button>
+                                                </div>
+                                                {q.options.map((opt, optIndex) => (
+                                                    <div key={optIndex} className="flex items-center gap-2 mb-1">
+                                                        <input type="radio" name={`correct_${qIndex}`} checked={q.correctAnswerIndex === optIndex} onChange={() => handleQuestionChange(qIndex, 'correctAnswerIndex', optIndex)} />
+                                                        <input value={opt} onChange={e => handleQuestionChange(qIndex, 'options', e.target.value, optIndex)} className="w-full p-1 text-sm bg-transparent border-b border-dashed border-[var(--border-primary)]/50 focus:border-solid focus:outline-none" />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                        
                         <div className="grid grid-cols-2 gap-4">
                             <input type="number" placeholder="درجة النجاح (%)" name="passingScore" value={formData.passingScore || ''} onChange={handleChange} className="w-full p-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md"/>
                             {type === LessonType.EXAM && <input type="number" placeholder="الوقت بالدقائق" name="timeLimit" value={formData.timeLimit || ''} onChange={handleChange} className="w-full p-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md"/>}
@@ -222,7 +316,6 @@ const ContentManagementView: React.FC = () => {
 
     const unitsToDisplay = selectedSemester?.units || [];
     
-    // FIX: Added helper function to get lesson icon component based on type.
     const getLessonIcon = (type: LessonType) => {
         switch(type) {
             case LessonType.EXPLANATION: return VideoCameraIcon;
@@ -262,7 +355,7 @@ const ContentManagementView: React.FC = () => {
                     <div key={unit.id} className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-primary)]">
                         <header onClick={() => setExpandedUnitId(p => p === unit.id ? null : unit.id)} className="p-4 flex justify-between items-center cursor-pointer">
                             <div className="flex items-center gap-3">
-                                <ChevronUpIcon className={`w-6 h-6 text-[var(--text-secondary)] transition-transform ${expandedUnitId === unit.id ? 'rotate-0' : 'rotate-180'}`} />
+                                <ChevronDownIcon className={`w-6 h-6 text-[var(--text-secondary)] transition-transform ${expandedUnitId === unit.id ? 'rotate-180' : ''}`} />
                                 <div>
                                     <h3 className="font-bold text-lg text-[var(--text-primary)]">{unit.title}</h3>
                                     <p className="text-xs text-[var(--text-secondary)]">أ. {teacherMap.get(unit.teacherId) || 'غير محدد'}</p>
@@ -289,7 +382,6 @@ const ContentManagementView: React.FC = () => {
                                     <div className="space-y-2">
                                     {unit.lessons.map(lesson => (
                                         <div key={lesson.id} className="p-2 bg-[var(--bg-tertiary)] rounded-md flex justify-between items-center">
-                                            {/* FIX: Added icon display for lesson type, resolving potential runtime error from incorrect function call. */}
                                             <div className="flex items-center gap-2">
                                                 {React.createElement(getLessonIcon(lesson.type), { className: "w-4 h-4 text-[var(--text-secondary)]" })}
                                                 <span className="text-sm">{lesson.title}</span>
@@ -332,7 +424,7 @@ const ContentManagementView: React.FC = () => {
             )}
             
             <UnitModal isOpen={['add-unit', 'edit-unit'].includes(modalState.type || '')} onClose={closeModal} onSave={handleSaveUnit} unit={modalState.data.unit} teachers={teachers} selectedGrade={selectedGrade}/>
-            <LessonModal isOpen={['add-lesson', 'edit-lesson'].includes(modalState.type || '')} onClose={closeModal} onSave={handleSaveLesson} lesson={modalState.data.lesson} />
+            <LessonModal isOpen={['add-lesson', 'edit-lesson'].includes(modalState.type || '')} onClose={closeModal} onSave={handleSaveLesson} lesson={modalState.data.lesson} gradeName={selectedGrade?.name || ''} />
             <ConfirmationModal isOpen={modalState.type === 'delete-unit'} onClose={closeModal} onConfirm={handleDeleteUnit} title="تأكيد حذف الوحدة" message={`هل أنت متأكد من حذف وحدة "${modalState.data.unit?.title}" وكل دروسها؟`} />
             <ConfirmationModal isOpen={modalState.type === 'delete-lesson'} onClose={closeModal} onConfirm={handleDeleteLesson} title="تأكيد حذف الدرس" message={`هل أنت متأكد من حذف درس "${modalState.data.lesson?.title}"؟`} />
         </div>
