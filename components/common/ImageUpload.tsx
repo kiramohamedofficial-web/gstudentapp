@@ -111,5 +111,4 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ label, value, onChange }) => 
         </div>
     );
 };
-// FIX: Added default export to fix module resolution errors.
 export default ImageUpload;

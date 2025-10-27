@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Teacher, ToastType, Grade, User } from '../../types';
-import { getAllTeachers, createTeacher, updateTeacher, deleteTeacher, getAllGrades, getAllUsers } from '../../services/storageService';
+import { getAllTeachers, createTeacher, updateTeacher, deleteTeacher, getAllGrades, getAllUsers, uploadImage } from '../../services/storageService';
 import Modal from '../common/Modal';
 import { PlusIcon, PencilIcon, TrashIcon, UserCircleIcon } from '../common/Icons';
 import { useToast } from '../../useToast';
@@ -107,7 +107,7 @@ const TeacherModal: React.FC<{
         const saveData: TeacherModalSaveData = { 
             id: teacher?.id,
             name: formData.name,
-            email: `${formData.phone}@gstudent.com`, // Create an email from phone
+            email: `${formData.phone}@gstudent.com`,
             subject: formData.subject,
             imageUrl: formData.imageUrl,
             phone: formData.phone,
@@ -233,7 +233,6 @@ const TeacherManagementView: React.FC = () => {
     useEffect(() => {
         const fetchAndSetTeachers = async () => {
             setIsLoading(true);
-            // FIX: Corrected function name from getTeachers to getAllTeachers
             const data = await getAllTeachers();
             setTeachers(data as Teacher[]);
             setIsLoading(false);
@@ -243,22 +242,17 @@ const TeacherManagementView: React.FC = () => {
     
     const refreshData = useCallback(() => setDataVersion(v => v + 1), []);
 
-    // FIX: This function now correctly handles create/update logic and error checking.
     const handleSave = async (data: TeacherModalSaveData) => {
         setIsLoading(true);
         try {
             if (data.id) { // Editing
                 const { id, ...updates } = data;
                 if (!updates.password?.trim()) delete updates.password;
-
-                // FIX: Call updateTeacher with two arguments (id, updates).
                 const result = await updateTeacher(id, updates);
                 if (!result.success) throw new Error(result.error.message || 'فشل تحديث المدرس.');
                 addToast('تم تحديث بيانات المدرس بنجاح.', ToastType.SUCCESS);
 
             } else { // Adding
-                // FIX: Use createTeacher instead of the stub function addTeacher.
-                // FIX: Map TeacherModalSaveData to the shape expected by createTeacher.
                 const result = await createTeacher({
                     email: data.email,
                     password: data.password,
@@ -270,7 +264,6 @@ const TeacherManagementView: React.FC = () => {
                     image_url: data.imageUrl,
                 });
                 
-                // FIX: Check for the `success` flag from the RPC response for better reliability.
                 if (result.error) throw new Error(result.error.message);
 
                 if (result.data?.success) {
@@ -290,10 +283,11 @@ const TeacherManagementView: React.FC = () => {
     
     const handleDelete = async () => {
         if (modalState.teacher) {
+            setIsLoading(true);
             try {
                 const { success, error } = await deleteTeacher(modalState.teacher.id);
                 if (!success) {
-                     throw new Error(error.message || 'حدث خطأ غير متوقع.');
+                     throw new Error(error?.message || 'حدث خطأ غير متوقع.');
                 } else {
                     addToast('تم حذف المدرس بنجاح.', ToastType.SUCCESS);
                     refreshData();
@@ -305,6 +299,8 @@ const TeacherManagementView: React.FC = () => {
                 } else {
                     addToast('حدث خطأ غير معروف أثناء الحذف.', ToastType.ERROR);
                 }
+            } finally {
+                setIsLoading(false);
             }
         }
     };

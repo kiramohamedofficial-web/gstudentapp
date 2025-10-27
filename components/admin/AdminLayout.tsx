@@ -3,7 +3,7 @@ import { User } from '../../types';
 import { CollectionIcon, QrcodeIcon, CreditCardIcon, HomeIcon, XIcon, TemplateIcon, CogIcon, LogoutIcon, UsersIcon, UserCircleIcon, BellIcon, QuestionMarkCircleIcon, UserCheckIcon, CurrencyDollarIcon, BookOpenIcon } from '../common/Icons';
 import { getPendingSubscriptionRequestCount } from '../../services/storageService';
 
-type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'courseManagement' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers' | 'subscriptionPrices';
+type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'courseManagement' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers' | 'subscriptionPrices' | 'content';
 
 const SystemHealthIcon: React.FC<{ className?: string }> = ({ className }) => (
     <img src="https://g.top4top.io/p_3584g68tl0.png" alt="System Health" className={className} />
@@ -21,6 +21,7 @@ const mainNavItems = [
     { id: 'dashboard', label: 'الرئيسية', icon: HomeIcon },
     { id: 'students', label: 'إدارة الطلاب', icon: UsersIcon },
     { id: 'teachers', label: 'إدارة المدرسين', icon: UserCircleIcon },
+    { id: 'content', label: 'إدارة المنهج الدراسي', icon: CollectionIcon },
     { id: 'courseManagement', label: 'إدارة الكورسات', icon: BookOpenIcon },
     { id: 'homeManagement', label: 'إدارة الرئيسية', icon: TemplateIcon },
     { id: 'subscriptions', label: 'الاشتراكات', icon: CreditCardIcon },

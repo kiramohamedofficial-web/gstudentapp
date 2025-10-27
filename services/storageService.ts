@@ -1,7 +1,6 @@
 import { createClient, Session, User as SupabaseUser } from '@supabase/supabase-js';
 import {
   User, Role, Subscription, Grade, Teacher, Lesson, Unit, SubscriptionRequest,
-  // FIX: Import 'ActivityLog' to resolve 'Cannot find name 'ActivityLog'' error.
   StudentQuestion, SubscriptionCode, Semester, QuizAttempt, ActivityLog, LessonType, PlatformSettings, Course
 } from '../types';
 
@@ -164,8 +163,6 @@ export const updateUserPassword = async (password: string) => {
 interface CreateTeacherParams { id?: string, email: string; password?: string; name: string; subject: string; phone: string; teaching_grades: number[]; teaching_levels: string[]; image_url?: string; }
 
 export async function createTeacher(params: CreateTeacherParams) {
-  // Use the recommended RPC function as per the user's documentation
-  // This is more robust and avoids client-side race conditions.
   const { data, error } = await supabase.rpc('create_teacher_account', {
     teacher_name: params.name,
     teacher_email: params.email,
@@ -178,12 +175,9 @@ export async function createTeacher(params: CreateTeacherParams) {
 
   if (error) {
     console.error('Error calling create_teacher_account RPC:', error);
-    // Return a consistent error structure
     return { success: false, error };
   }
   
-  // The RPC function should return a JSON object, which is in the `data` property.
-  // We assume the RPC returns an object like { success: boolean, ... }
   return { success: data.success, data, error: data.success ? null : { message: data.error } };
 }
 
@@ -203,20 +197,17 @@ export async function deleteTeacher(teacherId: string) {
         return { success: false, error: profileError };
     }
     if (profileData) {
-        // Admin API to delete user. This will cascade and delete from profiles table, and then teachers table.
         const { error: adminDeleteError } = await supabase.auth.admin.deleteUser(profileData.id);
         if (adminDeleteError) {
              console.error('Error deleting auth user for teacher:', adminDeleteError.message);
-             // Fallback to deleting just the teacher profile if auth deletion fails (e.g., permissions)
              const { error: teacherError } = await supabase.from('teachers').delete().eq('id', teacherId);
              if (teacherError) return { success: false, error: teacherError };
         }
     } else {
-        // If no user is associated, just delete the teacher profile.
         const { error: teacherError } = await supabase.from('teachers').delete().eq('id', teacherId);
         if (teacherError) return { success: false, error: teacherError };
     }
-    return { success: true };
+    return { success: true, error: null };
 }
 
 export async function updateTeacher(teacherId: string, updates: any) {
@@ -244,7 +235,6 @@ export async function updateTeacher(teacherId: string, updates: any) {
 let curriculumCache: { grades: Grade[] } | null = null;
 let isCurriculumDataLoaded = false;
 
-// Helper function to convert app-side camelCase keys to database-side snake_case keys.
 const mapToDbPayload = (obj: Record<string, any>): Record<string, any> => {
   const newObj: Record<string, any> = {};
   if (!obj) return newObj;
@@ -257,17 +247,16 @@ const mapToDbPayload = (obj: Record<string, any>): Record<string, any> => {
   return newObj;
 };
 
-// Helper to convert DB lesson type string to application's LessonType enum
 const toLessonType = (dbType: string): LessonType => {
     if (!dbType) {
-        return LessonType.EXPLANATION; // Default fallback
+        return LessonType.EXPLANATION; 
     }
     const capitalized = dbType.charAt(0).toUpperCase() + dbType.slice(1);
     if (Object.values(LessonType).includes(capitalized as LessonType)) {
         return capitalized as LessonType;
     }
     console.warn(`Unknown lesson type "${dbType}" from database.`);
-    return LessonType.EXPLANATION; // Fallback for unknown types
+    return LessonType.EXPLANATION;
 };
 
 export const initData = async (): Promise<void> => {
@@ -395,16 +384,14 @@ export const deleteUnit = async (gradeId: number, semesterId: string, unitId: st
 // =================================================================
 // SUBSCRIPTIONS & PROGRESS
 // =================================================================
-// FIX: Implemented placeholder function.
 export async function checkUserSubscription(userId: string): Promise<Subscription | null> {
     const { data, error } = await supabase.from('subscriptions').select('*').eq('user_id', userId).eq('status', 'Active').order('end_date', { ascending: false }).limit(1).single();
-    if (error && error.code !== 'PGRST116') { // PGRST116: no rows found is not an error here
+    if (error && error.code !== 'PGRST116') { 
         console.error('Error checking user subscription:', error.message);
         return null;
     }
     return data ? { id: data.id, userId: data.user_id, plan: data.plan, startDate: data.start_date, endDate: data.end_date, status: data.status, teacherId: data.teacher_id } : null;
 }
-// FIX: Implemented placeholder function.
 export async function activateStudentSubscription(params: { userId: string, plan: Subscription['plan'], endDate?: string, teacherId?: string }) {
     const { userId, plan, endDate, teacherId } = params;
     await createOrUpdateSubscription(userId, plan, 'Active', endDate, teacherId);
@@ -436,15 +423,12 @@ export async function getSubscriptionsByUserId(userId: string): Promise<Subscrip
     if (error) { console.error('Error fetching user subscriptions:', error.message); return []; }
     return (data || []).map(s => ({ id: s.id, userId: s.user_id, plan: s.plan, startDate: s.start_date, endDate: s.end_date, status: s.status, teacherId: s.teacher_id }));
 }
-// FIX: Implemented placeholder function.
 export async function markLessonComplete(userId: string, lessonId: string) {
     const { error } = await supabase.from('progress').insert({ student_id: userId, lesson_id: lessonId });
-    // Ignore unique constraint violation error (23505), as it means the lesson is already marked complete.
     if (error && error.code !== '23505') {
         console.error('Error marking lesson complete:', error.message);
     }
 }
-// FIX: Implemented placeholder function.
 export async function getStudentProgress(userId: string): Promise<{ lesson_id: string }[]> {
     const { data, error } = await supabase.from('progress').select('lesson_id').eq('student_id', userId);
     if (error) {
@@ -453,17 +437,14 @@ export async function getStudentProgress(userId: string): Promise<{ lesson_id: s
     }
     return data || [];
 }
-// FIX: Implemented placeholder function.
 export async function getAllStudentProgress(): Promise<{ user_id: string, lesson_id: string }[]> {
     const { data, error } = await supabase.from('progress').select('student_id, lesson_id');
     if (error) {
         console.error('Error fetching all student progress:', error.message);
         return [];
     }
-    // Rename student_id to user_id for consistency with other parts of the app
     return (data || []).map(p => ({ user_id: p.student_id, lesson_id: p.lesson_id }));
 }
-// FIX: Implemented placeholder function.
 export async function saveQuizAttempt(userId: string, lessonId: string, score: number, totalQuestions: number, submittedAnswers: any[], timeTaken: number) {
     const findLesson = (id: string): Lesson | undefined => {
         for (const grade of getAllGrades()) {
@@ -493,7 +474,6 @@ export async function saveQuizAttempt(userId: string, lessonId: string, score: n
         console.error("Error saving quiz attempt:", error.message);
     }
 }
-// FIX: Implemented placeholder function.
 export async function getStudentQuizAttempts(userId: string): Promise<QuizAttempt[]> {
     const { data, error } = await supabase.from('quiz_attempts').select('*').eq('user_id', userId).order('submitted_at', { ascending: false });
     if (error) {
@@ -512,9 +492,9 @@ export async function getStudentQuizAttempts(userId: string): Promise<QuizAttemp
     }));
 }
 export const addQuizAttempt = async (attemptData: Omit<QuizAttempt, 'id'>): Promise<void> => { const { userId, lessonId, score, submittedAnswers, timeTaken } = attemptData; await saveQuizAttempt(userId, lessonId, score, 10, submittedAnswers || [], timeTaken); };
-// FIX: Fixed function to correctly call and return from getStudentQuizAttempts.
-export const getQuizAttemptsByUserId = async (userId: string): Promise<QuizAttempt[]> => getStudentQuizAttempts(userId);
-// FIX: Fixed function to correctly call and return from getStudentQuizAttempts.
+export const getQuizAttemptsByUserId = async (userId: string): Promise<QuizAttempt[]> => {
+    return getStudentQuizAttempts(userId);
+}
 export const getLatestQuizAttemptForLesson = async (userId: string, lessonId: string): Promise<QuizAttempt | undefined> => {
     const { data, error } = await supabase
         .from('quiz_attempts')
@@ -547,13 +527,10 @@ export const getLatestQuizAttemptForLesson = async (userId: string, lessonId: st
 // =================================================================
 // OTHER FUNCTIONS
 // =================================================================
-// FIX: Implemented placeholder function.
 export async function markAttendance(userId: string, lessonId: string, durationMinutes: number) {
-    // Assuming an 'attendance' table exists. This is a fire-and-forget operation.
     console.log(`Marking attendance for ${userId} on lesson ${lessonId} for ${durationMinutes} minutes.`);
     await supabase.from('attendance').insert({ user_id: userId, lesson_id: lessonId, duration_minutes: durationMinutes });
 }
-// FIX: Implemented placeholder function.
 export const getSubscriptionsByTeacherId = async (teacherId: string): Promise<Subscription[]> => {
     const { data, error } = await supabase.from('subscriptions').select('*').eq('teacher_id', teacherId);
     if (error) {
@@ -562,9 +539,8 @@ export const getSubscriptionsByTeacherId = async (teacherId: string): Promise<Su
     }
     return (data || []).map(s => ({ id: s.id, userId: s.user_id, plan: s.plan, startDate: s.start_date, endDate: s.end_date, status: s.status, teacherId: s.teacher_id }));
 };
-// FIX: Implemented placeholder function.
 export const getSubscriptionRequests = async (): Promise<SubscriptionRequest[]> => {
-    const { data, error } = await supabase.from('subscription_request').select('*').order('created_at', { ascending: false });
+    const { data, error } = await supabase.from('subscription_requests').select('*').order('created_at', { ascending: false });
     if (error) {
         console.error('Error fetching subscription requests:', error.message);
         return [];
@@ -575,23 +551,20 @@ export const getSubscriptionRequests = async (): Promise<SubscriptionRequest[]> 
         subjectName: r.subject_name, unitId: r.unit_id
     }));
 };
-// FIX: Implemented placeholder function.
 export const getPendingSubscriptionRequestCount = async (): Promise<number> => {
-    const { count, error } = await supabase.from('subscription_request').select('*', { count: 'exact', head: true }).eq('status', 'Pending');
+    const { count, error } = await supabase.from('subscription_requests').select('*', { count: 'exact', head: true }).eq('status', 'Pending');
     if (error) {
         console.error('Error fetching pending subscription request count:', error.message);
         return 0;
     }
     return count || 0;
 };
-// FIX: Implemented placeholder function.
 export const addSubscriptionRequest = async (userId: string, userName: string, plan: SubscriptionRequest['plan'], paymentFromNumber: string, subjectName?: string, unitId?: string): Promise<void> => {
-    await supabase.from('subscription_request').insert({ user_id: userId, user_name: userName, plan, payment_from_number: paymentFromNumber, status: 'Pending', subject_name: subjectName, unit_id: unitId });
+    await supabase.from('subscription_requests').insert({ user_id: userId, user_name: userName, plan, payment_from_number: paymentFromNumber, status: 'Pending', subject_name: subjectName, unit_id: unitId });
 };
-// FIX: Implemented placeholder function.
 export const updateSubscriptionRequest = async (updatedRequest: SubscriptionRequest): Promise<void> => {
     const { id, ...updates } = updatedRequest;
-    await supabase.from('subscription_request').update({ status: updates.status }).eq('id', id);
+    await supabase.from('subscription_requests').update({ status: updates.status }).eq('id', id);
 };
 export const getAllUsers = async (): Promise<User[]> => { 
     const { data, error } = await supabase.from('profiles').select('*');
@@ -632,15 +605,31 @@ let settingsCache: PlatformSettings | null = null;
 export const getPlatformSettings = async (): Promise<PlatformSettings> => {
     if (settingsCache) return settingsCache;
 
-    const { data, error } = await supabase.from('platform_settings').select('settings').eq('id', 1).single();
+    const { data, error } = await supabase.from('platform_settings').select('*').limit(1).single();
     
     if (error || !data) {
         console.warn('Could not fetch platform settings, using default values. Error:', error?.message);
         return defaultSettings;
     }
 
-    const fetchedSettings = data.settings as Partial<PlatformSettings>;
-    // Deep merge to ensure all keys exist, even if not in DB
+    const fetchedSettings: Partial<PlatformSettings> = {
+        platformName: data.platform_name,
+        heroTitle: data.hero_title,
+        heroSubtitle: data.hero_subtitle,
+        heroButtonText: data.hero_button_text,
+        heroImageUrl: data.hero_image_url,
+        teacherImageUrl: data.teacher_image_url,
+        featuresTitle: data.features_title,
+        featuresSubtitle: data.features_subtitle,
+        features: data.features,
+        footerDescription: data.footer_description,
+        contactPhone: data.contact_phone,
+        contactFacebookUrl: data.contact_facebook_url,
+        contactYoutubeUrl: data.contact_youtube_url,
+        subscriptionPrices: data.subscription_prices,
+        paymentNumbers: data.payment_numbers,
+    };
+
     const mergedSettings: PlatformSettings = {
         ...defaultSettings,
         ...fetchedSettings,
@@ -661,12 +650,42 @@ export const getPlatformSettings = async (): Promise<PlatformSettings> => {
 };
 
 export const updatePlatformSettings = async (newSettings: PlatformSettings): Promise<{ error: any }> => {
-    const { error } = await supabase.from('platform_settings').upsert({ id: 1, settings: newSettings });
+    const dbPayload = {
+        platform_name: newSettings.platformName,
+        hero_title: newSettings.heroTitle,
+        hero_subtitle: newSettings.heroSubtitle,
+        hero_button_text: newSettings.heroButtonText,
+        hero_image_url: newSettings.heroImageUrl,
+        teacher_image_url: newSettings.teacherImageUrl,
+        features_title: newSettings.featuresTitle,
+        features_subtitle: newSettings.featuresSubtitle,
+        features: newSettings.features,
+        footer_description: newSettings.footerDescription,
+        contact_phone: newSettings.contactPhone,
+        contact_facebook_url: newSettings.contactFacebookUrl,
+        contact_youtube_url: newSettings.contactYoutubeUrl,
+        subscription_prices: newSettings.subscriptionPrices,
+        payment_numbers: newSettings.paymentNumbers,
+    };
+    
+    const { data, error: fetchError } = await supabase.from('platform_settings').select('id').limit(1).single();
+
+    let error;
+
+    if (data) {
+        const { error: updateError } = await supabase.from('platform_settings').update(dbPayload).eq('id', data.id);
+        error = updateError;
+    } else {
+        const { error: insertError } = await supabase.from('platform_settings').insert(dbPayload);
+        error = insertError;
+    }
+    
     if (!error) {
-        settingsCache = newSettings; // Invalidate cache on successful update
+        settingsCache = newSettings; 
     }
     return { error };
 };
+
 
 // =================================================================
 // COURSE MANAGEMENT (NEW)
@@ -719,7 +738,6 @@ export const deleteCourse = async (courseId: string) => {
     return { error };
 };
 
-// --- Mocked Course Purchase ---
 export const checkCoursePurchase = async (userId: string, courseId: string): Promise<boolean> => {
     const { data, error } = await supabase.from('user_courses').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('course_id', courseId);
     if(error) {
@@ -737,7 +755,6 @@ export const purchaseCourse = async (userId: string, courseId: string) => {
 
 
 export const getFeaturedBooks = () => [];
-// FIX: Implemented placeholder function.
 export async function generateSubscriptionCode(codeData: any): Promise<SubscriptionCode | null> {
     const { data, error } = await supabase.from('subscription_codes').insert(codeData).select().single();
     if (error) {
@@ -745,7 +762,6 @@ export async function generateSubscriptionCode(codeData: any): Promise<Subscript
         return null;
     }
     if (!data) return null;
-    // Map snake_case to camelCase
     return {
         code: data.code,
         teacherId: data.teacher_id,
@@ -756,14 +772,12 @@ export async function generateSubscriptionCode(codeData: any): Promise<Subscript
         createdAt: data.created_at,
     };
 }
-// FIX: Implemented placeholder function.
 export async function getAllCodes(): Promise<SubscriptionCode[]> {
     const { data, error } = await supabase.from('subscription_codes').select('*').order('created_at', { ascending: false });
     if (error) {
         console.error('Error fetching all codes:', error.message);
         return [];
     }
-    // Map snake_case to camelCase
     return (data || []).map((c: any) => ({
         code: c.code,
         teacherId: c.teacher_id,
@@ -774,7 +788,6 @@ export async function getAllCodes(): Promise<SubscriptionCode[]> {
         createdAt: c.created_at,
     }));
 }
-// FIX: Implemented placeholder function to return a value.
 export async function redeemCode(code: string, userGradeId: number, userTrack: string): Promise<{ success: boolean; error?: string }> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -789,7 +802,6 @@ export async function redeemCode(code: string, userGradeId: number, userTrack: s
     const endDate = new Date();
     endDate.setDate(startDate.getDate() + codeData.duration_days);
 
-    // FIX: Change plan from 'Code' to 'Monthly' to match the database enum. The custom end date is preserved.
     const subResult = await createOrUpdateSubscription(user.id, 'Monthly', 'Active', endDate.toISOString(), codeData.teacher_id);
     if (subResult.error) {
         return { success: false, error: `Failed to activate subscription: ${subResult.error.message}` };
@@ -807,14 +819,12 @@ export async function registerAndRedeemCode(userData: any, code: string): Promis
     if (authError || !authData.user) {
         return { data: null, error: authError?.message || 'فشل إنشاء الحساب.' };
     }
-    // FIX: Await the result of redeemCode and check its properties.
     const redeemResult = await redeemCode(code, userData.grade, userData.track);
     if (!redeemResult.success) {
         return { data: { userId: authData.user.id }, error: `تم إنشاء حسابك ولكن فشل تفعيل الكود: ${redeemResult.error}. يرجى التواصل مع الدعم.` };
     }
     return { data: { userId: authData.user.id }, error: null };
 };
-// FIX: Implemented placeholder function.
 export async function validateSubscriptionCode(code: string): Promise<{ valid: boolean; error?: string }> {
     const { data, error } = await supabase.from('subscription_codes').select('times_used, max_uses').eq('code', code).single();
     if (error || !data) {
@@ -825,7 +835,6 @@ export async function validateSubscriptionCode(code: string): Promise<{ valid: b
     }
     return { valid: true };
 };
-// FIX: Implemented placeholder function.
 export const generateSubscriptionCodes = async (options: { teacherId?: string, durationDays: number, count: number, maxUses: number }): Promise<SubscriptionCode[]> => {
     const generatedCodes: SubscriptionCode[] = [];
     for (let i = 0; i < options.count; i++) {
@@ -857,31 +866,25 @@ export const updateUser = async (userId: string, updates: Partial<User>) => {
 };
 export const deleteUser = async (id: string) => { const { error } = await supabase.auth.admin.deleteUser(id); return { error }; };
 export const getGradesForSelection = (): {id: number, name: string, level: 'Middle' | 'Secondary'}[] => {
-    // Always use the complete defaultGrades list for registration to ensure all options are available.
     return defaultGrades.map(g => ({ id: g.id, name: g.name, level: g.level }));
 };
 export const deleteSelf = async () => { const { data: { user } } = await supabase.auth.getUser(); if (!user) return { error: { message: 'User not authenticated.' } }; const { error } = await supabase.auth.admin.deleteUser(user.id); if (!error) await signOut(); return { error }; };
-// FIX: Implemented placeholder function.
 export const addStudentQuestion = async (userId: string, userName: string, questionText: string): Promise<void> => {
     await supabase.from('student_questions').insert({ user_id: userId, user_name: userName, question_text: questionText, status: 'Pending' });
 };
-// FIX: Implemented placeholder function.
 export const getStudentQuestionsByUserId = async (userId: string): Promise<StudentQuestion[]> => {
     const { data, error } = await supabase.from('student_questions').select('*').eq('user_id', userId).order('created_at', { ascending: false });
     if (error) { console.error('Error fetching questions:', error.message); return []; }
     return (data || []) as StudentQuestion[];
 };
-// FIX: Implemented placeholder function.
 export const getAllStudentQuestions = async (): Promise<StudentQuestion[]> => {
     const { data, error } = await supabase.from('student_questions').select('*').order('created_at', { ascending: false });
     if (error) { console.error('Error fetching all questions:', error.message); return []; }
     return (data || []) as StudentQuestion[];
 };
-// FIX: Implemented placeholder function.
 export const answerStudentQuestion = async (questionId: string, answerText: string): Promise<void> => {
     await supabase.from('student_questions').update({ answer_text: answerText, status: 'Answered' }).eq('id', questionId);
 };
-// FIX: Implemented placeholder function.
 export const getAllSubscriptions = async (): Promise<Subscription[]> => {
     const { data, error } = await supabase.from('subscriptions').select('*');
     if (error) {
@@ -892,16 +895,11 @@ export const getAllSubscriptions = async (): Promise<Subscription[]> => {
 };
 export const getSubscriptionByUserId = async (userId: string): Promise<Subscription | null> => { const subs = await getSubscriptionsByUserId(userId); return subs?.[0] || null; }
 export const checkDbConnection = async () => supabase.from('teachers').select('id', { count: 'exact', head: true });
-// FIX: Implemented placeholder function.
 export const getActivityLogs = (): ActivityLog[] => [];
-// FIX: Implemented placeholder function.
 export const addFeaturedBook = (book: any) => { console.log('Adding featured book', book); };
-// FIX: Implemented placeholder function.
 export const updateFeaturedBook = (book: any) => { console.log('Updating featured book', book); };
-// FIX: Implemented placeholder function.
 export const deleteFeaturedBook = (id: string) => { console.log('Deleting featured book', id); };
 
-// FIX: Added missing placeholder functions for featured courses to resolve import errors.
 export const getFeaturedCourses = (): Course[] => [];
 export const addFeaturedCourse = (course: any) => { console.log('Adding featured course', course); };
 export const updateFeaturedCourse = (course: any) => { console.log('Updating featured course', course); };

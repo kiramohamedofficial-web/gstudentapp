@@ -49,10 +49,12 @@ const CourseModal: React.FC<CourseModalProps> = ({ isOpen, onClose, onSave, cour
         setIsSaving(true);
         try {
             if (course) { // Editing
-                await updateCourse(course.id, formData);
+                const { error } = await updateCourse(course.id, formData);
+                if (error) throw error;
                 addToast('تم تحديث الكورس بنجاح!', ToastType.SUCCESS);
             } else { // Creating
-                await createCourse(formData as Omit<Course, 'id'>);
+                const { error } = await createCourse(formData as Omit<Course, 'id'>);
+                 if (error) throw error;
                 addToast('تم إنشاء الكورس بنجاح!', ToastType.SUCCESS);
             }
             onSave();
@@ -118,7 +120,7 @@ const CourseModal: React.FC<CourseModalProps> = ({ isOpen, onClose, onSave, cour
                         </div>
                         <div className="space-y-2">
                             {(formData.videos || []).map((video, index) => (
-                                <div key={video.id} className="flex items-center justify-between p-2 bg-[var(--bg-tertiary)] rounded-md">
+                                <div key={video.id || index} className="flex items-center justify-between p-2 bg-[var(--bg-tertiary)] rounded-md">
                                     <div className="flex items-center gap-2">
                                         <VideoCameraIcon className="w-5 h-5 text-[var(--text-secondary)]"/>
                                         <span className="text-sm">{video.title}</span>
@@ -130,6 +132,9 @@ const CourseModal: React.FC<CourseModalProps> = ({ isOpen, onClose, onSave, cour
                                     </div>
                                 </div>
                             ))}
+                             {(formData.videos || []).length === 0 && (
+                                <p className="text-center text-sm text-[var(--text-secondary)] py-4">لم يتم إضافة فيديوهات بعد.</p>
+                            )}
                         </div>
                     </div>
                 </div>

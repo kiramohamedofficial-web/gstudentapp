@@ -42,14 +42,14 @@ const VideoModal: React.FC<VideoModalProps> = ({ isOpen, onClose, onSave, video 
 
         const videoId = parseYouTubeVideoId(videoUrl);
         if (!videoId) {
-            setError('رابط يوتيوب غير صالح.');
+            setError('رابط يوتيوب غير صالح. الرجاء استخدام رابط الفيديو الكامل.');
             return;
         }
 
         onSave({
             id: video?.id || `v-${Date.now()}`,
             title,
-            videoUrl,
+            videoUrl, // Save the full URL
             isFree,
         });
     };

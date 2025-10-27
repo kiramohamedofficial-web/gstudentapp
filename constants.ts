@@ -1,4 +1,3 @@
-// FIX: Import React to resolve "Cannot find namespace 'React'" error.
 import React from 'react';
 import { CrownIcon, MoonIcon, SunIcon, CocktailIcon, SakuraIcon, ScrollIcon, SunsetIcon, TreeIcon, WaveIcon, SynthwaveIcon, MatrixIcon } from './components/common/Icons';
 

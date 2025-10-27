@@ -26,6 +26,7 @@ import { useSession } from '../../hooks/useSession';
 
 const SubscriptionPriceControlView = lazy(() => import('./SubscriptionPriceControlView'));
 const CourseManagementView = lazy(() => import('./CourseManagementView'));
+const ContentManagementView = lazy(() => import('./ContentManagementView'));
 
 
 interface AdminDashboardProps {
@@ -33,7 +34,7 @@ interface AdminDashboardProps {
   setTheme: (theme: Theme) => void;
 }
 
-type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'courseManagement' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers' | 'subscriptionPrices';
+type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'courseManagement' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers' | 'subscriptionPrices' | 'content';
 
 const StatCard: React.FC<{ title: string; value: string; icon: React.FC<{ className?: string; }>; delay: number; onClick?: () => void; }> = React.memo(({ title, value, icon: Icon, delay, onClick }) => (
     <div 
@@ -65,7 +66,7 @@ const StudentManagementView: React.FC<{ onViewDetails: (user: User) => void }> =
     useEffect(() => {
         const handler = setTimeout(() => {
             setDebouncedSearchQuery(searchQuery);
-        }, 300); // 300ms delay
+        }, 300); 
 
         return () => {
             clearTimeout(handler);
@@ -316,7 +317,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
     setActiveView(view);
   };
 
-  if (!user) return null; // Should be handled by App router
+  if (!user) return null;
 
   const renderContent = () => {
     if (selectedStudent) {
@@ -332,6 +333,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
       case 'teachers': return <TeacherManagementView />;
       case 'homeManagement': return <HomeManagementView />;
       case 'courseManagement': return <Suspense fallback={suspenseLoader}><CourseManagementView /></Suspense>;
+      case 'content': return <Suspense fallback={suspenseLoader}><ContentManagementView /></Suspense>;
       case 'tools': return <QrCodeGeneratorView />;
       case 'questionBank': return <QuestionBankView />;
       case 'platformSettings': return <PlatformSettingsView user={user} />;

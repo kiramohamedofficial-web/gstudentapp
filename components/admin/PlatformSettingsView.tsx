@@ -49,8 +49,10 @@ const PlatformSettingsView: React.FC<PlatformSettingsViewProps> = ({ user }) => 
     ];
 
     useEffect(() => {
-        setSettings(getPlatformSettings());
-        setIsLoading(false);
+        getPlatformSettings().then(fetchedSettings => {
+            setSettings(fetchedSettings);
+            setIsLoading(false);
+        });
     }, []);
 
     const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {

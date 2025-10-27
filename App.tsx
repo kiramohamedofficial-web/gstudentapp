@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Role, Theme } from './types';
 import { useSession } from './hooks/useSession';
@@ -66,7 +65,6 @@ const App: React.FC = () => {
   return (
     <>
       <div className={`transition-all duration-300`}>
-        {/* FIX: Moved renderContent inside ErrorBoundary to pass it as children prop. */}
         <ErrorBoundary>
           {renderContent()}
         </ErrorBoundary>
