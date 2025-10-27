@@ -302,6 +302,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
   const { currentUser: user, handleLogout: onLogout } = useSession();
   const [activeView, setActiveView] = useState<AdminView>('dashboard');
   const [selectedStudent, setSelectedStudent] = useState<User | null>(null);
+  const [studentDataVersion, setStudentDataVersion] = useState(0);
 
   const handleViewStudentDetails = (student: User) => {
     setSelectedStudent(student);
@@ -310,6 +311,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
 
   const handleBackToStudents = () => {
     setSelectedStudent(null);
+    setStudentDataVersion(v => v + 1); // Force refresh of student list
   };
 
   const handleNavClick = (view: AdminView) => {
@@ -329,7 +331,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
     switch (activeView) {
       case 'subscriptions': return <SubscriptionManagementView />;
       case 'subscriptionPrices': return <Suspense fallback={suspenseLoader}><SubscriptionPriceControlView /></Suspense>;
-      case 'students': return <StudentManagementView onViewDetails={handleViewStudentDetails} />;
+      case 'students': return <StudentManagementView key={studentDataVersion} onViewDetails={handleViewStudentDetails} />;
       case 'teachers': return <TeacherManagementView />;
       case 'homeManagement': return <HomeManagementView />;
       case 'courseManagement': return <Suspense fallback={suspenseLoader}><CourseManagementView /></Suspense>;

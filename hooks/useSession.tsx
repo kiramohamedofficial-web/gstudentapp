@@ -12,7 +12,8 @@ import {
     updateUser,
     deleteUser,
     sendPasswordResetEmail,
-    updateUserPassword
+    updateUserPassword,
+    getOrCreateDeviceId
 } from '../services/storageService';
 import { useToast } from '../useToast';
 
@@ -62,6 +63,18 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 }
 
                 if (profile) {
+                     // === NEW DEVICE VALIDATION LOGIC ===
+                    const deviceId = getOrCreateDeviceId();
+                    const deviceIds = profile.device_ids || [];
+                    if (!deviceIds.includes(deviceId)) {
+                        console.warn("Device not registered for this session. Forcing logout.");
+                        addToast('تم تسجيل الخروج لأن هذا الجهاز غير مسجل لهذا الحساب.', 'error');
+                        await signOut();
+                        setCurrentUser(null);
+                        setIsLoading(false);
+                        return; // Stop further processing
+                    }
+                    // === END NEW LOGIC ===
                     setCurrentUser(profile);
                 } else {
                     console.error("User is logged in but profile data is missing after multiple attempts.");

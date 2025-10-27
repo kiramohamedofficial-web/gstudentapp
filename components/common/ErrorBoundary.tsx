@@ -10,9 +10,9 @@ interface State {
 }
 
 class ErrorBoundary extends Component<Props, State> {
-  // FIX: The error "Property 'props' does not exist on type 'ErrorBoundary'" suggests a TypeScript
-  // inference issue. Using a standard constructor to initialize both state and props
-  // explicitly resolves this in environments where class field inference might be problematic.
+  // FIX: Replaced the state class property with a constructor. While class
+  // properties are modern syntax, using a constructor is more compatible with
+  // some toolchains and resolves the type error where `this.props` was not found.
   constructor(props: Props) {
     super(props);
     this.state = { hasError: false };

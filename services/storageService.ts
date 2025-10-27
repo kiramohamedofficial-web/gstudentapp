@@ -12,6 +12,20 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 const supabase = createClient(supabaseUrl, supabaseKey);
 export { supabase };
 
+
+// =================================================================
+// DEVICE MANAGEMENT & SECURITY
+// =================================================================
+export function getOrCreateDeviceId(): string {
+    let deviceId = localStorage.getItem('appDeviceId');
+    if (!deviceId) {
+        deviceId = crypto.randomUUID();
+        localStorage.setItem('appDeviceId', deviceId);
+    }
+    return deviceId;
+}
+
+
 // =================================================================
 // FILE STORAGE
 // =================================================================
@@ -75,7 +89,8 @@ export async function signUp(userData: Omit<User, 'id' | 'role' | 'subscriptionI
         grade_id: grade,
         role: 'student',
         stage: stage,
-        track: track
+        track: track,
+        device_limit: 1, // Default to 1 device on signup
     };
 
     const { data, error } = await supabase.auth.signUp({
@@ -95,8 +110,9 @@ export async function signUp(userData: Omit<User, 'id' | 'role' | 'subscriptionI
 
 export async function signIn(identifier: string, password: string) {
     const isEmail = identifier.includes('@');
+    let signInPromise;
     if (isEmail) {
-        return supabase.auth.signInWithPassword({ email: identifier, password });
+        signInPromise = supabase.auth.signInWithPassword({ email: identifier, password });
     } else {
         const trimmed = identifier.trim().replace(/\s/g, '');
         let formattedPhone = '';
@@ -104,8 +120,57 @@ export async function signIn(identifier: string, password: string) {
         else if (trimmed.startsWith('20') && trimmed.length === 12) formattedPhone = `+${trimmed}`;
         else if (trimmed.startsWith('+20') && trimmed.length === 13) formattedPhone = trimmed;
         else return { data: null, error: { message: 'رقم الهاتف المدخل غير صالح.' } };
-        return supabase.auth.signInWithPassword({ phone: formattedPhone, password });
+        signInPromise = supabase.auth.signInWithPassword({ phone: formattedPhone, password });
     }
+
+    const { data: signInData, error: signInError } = await signInPromise;
+    if (signInError) return { data: null, error: signInError };
+    if (!signInData.user) return { data: null, error: { message: 'User not found after sign in.' } };
+    
+    // === NEW DEVICE VALIDATION LOGIC ===
+    const deviceId = getOrCreateDeviceId();
+    const userId = signInData.user.id;
+
+    // Get current device IDs and limit for the user
+    const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('device_ids, device_limit')
+        .eq('id', userId)
+        .single();
+    
+    if (profileError) {
+        await signOut(); // Log out user if profile can't be fetched
+        return { data: null, error: { message: `Could not fetch user profile: ${profileError.message}` } };
+    }
+
+    const deviceIds: string[] = profileData.device_ids || [];
+    const deviceLimit = profileData.device_limit ?? 1; // Use user's specific limit, default to 1
+
+    if (deviceIds.includes(deviceId)) {
+        // Device is already registered, proceed with login
+        return { data: signInData, error: null };
+    }
+
+    if (deviceIds.length >= deviceLimit) {
+        // Device limit reached
+        await signOut(); // Log out user
+        return { data: null, error: { message: `تم الوصول للحد الأقصى لعدد الأجهزة (${deviceLimit}). لا يمكن تسجيل الدخول من هذا الجهاز.` } };
+    }
+
+    // New device, under the limit. Register it.
+    const newDeviceIds = [...deviceIds, deviceId];
+    const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ device_ids: newDeviceIds })
+        .eq('id', userId);
+    
+    if (updateError) {
+        await signOut(); // Log out user if device registration fails
+        return { data: null, error: { message: `فشل تسجيل الجهاز الجديد: ${updateError.message}` } };
+    }
+    
+    // Device registered successfully, proceed with login
+    return { data: signInData, error: null };
 };
 
 export const signOut = async () => supabase.auth.signOut();
@@ -125,7 +190,9 @@ export const getProfile = async (userId: string): Promise<User | null> => {
     return {
         id: profileData.id, email: authUser?.email || '', name: profileData.name, phone: profileData.phone,
         guardianPhone: profileData.guardian_phone, grade: profileData.grade_id, track: profileData.track,
-        role: profileData.role as Role, teacherId: profileData.teacher_id, stage: profileData.stage
+        role: profileData.role as Role, teacherId: profileData.teacher_id, stage: profileData.stage,
+        device_ids: profileData.device_ids || [],
+        device_limit: profileData.device_limit ?? 1,
     };
 };
 
@@ -573,7 +640,9 @@ export const getAllUsers = async (): Promise<User[]> => {
     if (error) { console.error("Error fetching all profiles:", error.message); return []; } 
     return (data || []).map((p: any) => ({ 
         id: p.id, name: p.name, email: '', phone: p.phone, guardianPhone: p.guardian_phone, 
-        grade: p.grade_id, track: p.track, role: p.role as Role, teacherId: p.teacher_id 
+        grade: p.grade_id, track: p.track, role: p.role as Role, teacherId: p.teacher_id,
+        device_ids: p.device_ids || [],
+        device_limit: p.device_limit ?? 1,
     })); 
 };
 export const getTeacherById = async (id: string): Promise<Teacher | null> => { const teachers = await getAllTeachers(); return teachers.find(t => t.id === id) || null; };
@@ -862,6 +931,8 @@ export const updateUser = async (userId: string, updates: Partial<User>) => {
     if (updates.guardianPhone) payload.guardian_phone = updates.guardianPhone;
     if (updates.grade !== undefined) payload.grade_id = updates.grade;
     if (updates.track !== undefined) payload.track = updates.track;
+    if (updates.device_limit !== undefined) payload.device_limit = updates.device_limit;
+    if (updates.device_ids !== undefined) payload.device_ids = updates.device_ids;
     if (Object.keys(payload).length === 0) return { error: null };
     const { error } = await supabase.from('profiles').update(payload).eq('id', userId);
     return { error };
