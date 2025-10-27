@@ -44,7 +44,12 @@ const formatTime = (seconds: number): string => {
     const date = new Date(0);
     date.setSeconds(seconds || 0);
     const timeString = date.toISOString().substring(14, 19);
-    return timeString.startsWith('0') ? timeString.substring(1) : timeString;
+    // For videos less than 10 minutes, show m:ss, for more, show mm:ss
+    const durationInMinutes = (seconds || 0) / 60;
+    if (durationInMinutes < 10 && timeString.startsWith('0')) {
+        return timeString.substring(1);
+    }
+    return timeString;
 };
 
 const qualityLabels: Record<string, string> = {
@@ -239,6 +244,7 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
         if (player && typeof player.getCurrentTime === 'function' && typeof player.seekTo === 'function') {
             const currentTime = player.getCurrentTime();
             player.setPlaybackQuality(quality);
+            // Seeking to the same time can help force the quality change more reliably
             player.seekTo(currentTime, true);
         }
         setQualityMenuOpen(false);
@@ -252,7 +258,7 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
     const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
     
     return (
-        <div ref={containerRef} className="yt-player-container">
+        <div ref={containerRef} className="yt-player-container" onMouseMove={handleMouseMove} onMouseLeave={hideControls}>
             {/* This div is the mount point for the YouTube IFrame Player */}
             <div ref={playerElRef} />
 
@@ -262,11 +268,11 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
                 </div>
             )}
             
-            <div className="yt-click-shield" onClick={handlePlayPause} onMouseMove={handleMouseMove} onMouseLeave={hideControls}></div>
+            <div className="yt-click-shield" onDoubleClick={handleFullscreen} onClick={handlePlayPause}></div>
 
             {!isPlaying && isReady && (
                 <button className="yt-center-play-button" onClick={handlePlayPause}>
-                    <PlayIcon className="w-10 h-10 text-white pl-2" />
+                    <PlayIcon className="w-10 h-10 text-white pl-1" />
                 </button>
             )}
 
@@ -318,8 +324,8 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
                                     </div>
                                 )}
                                 {availableQualities.length > 1 && (
-                                    <button ref={qualityButtonRef} onClick={() => setQualityMenuOpen(p => !p)} className="yt-control-button text-sm">
-                                        <span className="font-semibold text-amber-300">{getQualityLabel(currentQuality)}</span>
+                                    <button ref={qualityButtonRef} onClick={() => setQualityMenuOpen(p => !p)} className="yt-control-button text-sm font-semibold">
+                                        <span>{getQualityLabel(currentQuality)}</span>
                                         <CogIcon className="w-5 h-5" />
                                     </button>
                                 )}
