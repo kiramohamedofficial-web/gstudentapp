@@ -8,7 +8,7 @@ interface AuthScreenProps {
     onBack: () => void;
 }
 
-type AuthView = 'login' | 'register-step-1' | 'register-step-2' | 'code-login' | 'reset-password' | 'update-password';
+type AuthView = 'login' | 'register-step-1' | 'register-step-2' | 'reset-password' | 'update-password';
 type GradeForSelect = Pick<Grade, 'id' | 'name' | 'level'>;
 
 
@@ -122,7 +122,6 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onBack }) => {
     const { handleLogin, handleRegister, authError, clearAuthError, handleSendPasswordReset, handleUpdatePassword } = useSession();
     const [view, setView] = useState<AuthView>('login');
     const [formData, setFormData] = useState({ name: '', email: '', phone: '', guardianPhone: '', password: '', confirmPassword: '', grade: '', track: '' });
-    const [code, setCode] = useState('');
     const [formError, setFormError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     
@@ -174,14 +173,6 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onBack }) => {
             case 'login':
                 await handleLogin(formData.email, formData.password);
                 break;
-            case 'code-login':
-                const { valid, error } = await validateSubscriptionCode(code);
-                if(valid) {
-                    changeView('register-step-1');
-                } else {
-                    setFormError(error || 'الكود غير صالح.');
-                }
-                break;
             case 'reset-password':
                 await handleSendPasswordReset(formData.email);
                 break;
@@ -214,7 +205,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onBack }) => {
                     grade: gradeId,
                     track: derivedTrack || 'All',
                 };
-                await handleRegister(registrationData, code || null);
+                await handleRegister(registrationData, null);
                 break;
         }
         setIsLoading(false);
@@ -222,13 +213,13 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onBack }) => {
     
     const renderContent = () => {
         const title = {
-            'login': 'تسجيل الدخول', 'code-login': 'تسجيل الدخول بالكود',
+            'login': 'تسجيل الدخول',
             'register-step-1': 'إنشاء حساب جديد', 'register-step-2': 'إنشاء حساب جديد',
             'reset-password': 'إعادة تعيين كلمة المرور', 'update-password': 'تحديث كلمة المرور'
         }[view];
 
         const subtitle = {
-            'login': 'مرحباً بعودتك! أدخل بياناتك للمتابعة.', 'code-login': 'أدخل كود الاشتراك الخاص بك.',
+            'login': 'مرحباً بعودتك! أدخل بياناتك للمتابعة.',
             'register-step-1': 'الخطوة 1: المعلومات الشخصية.', 'register-step-2': 'الخطوة 2: المعلومات الدراسية.',
             'reset-password': 'أدخل بريدك الإلكتروني وسنرسل لك رابطًا لإعادة التعيين.',
             'update-password': 'أدخل كلمة مرور جديدة قوية لحسابك.'
@@ -244,12 +235,6 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onBack }) => {
                     <p className="text-[var(--text-secondary)] mt-3 max-w-xs mx-auto">{subtitle}</p>
                 </div>
                 
-                {code && (view === 'register-step-1' || view === 'register-step-2') && (
-                    <div className="my-4 p-3 bg-green-500/10 border border-green-500/30 rounded-lg text-center text-green-300 text-sm flex items-center justify-center gap-2">
-                         <span>سيتم تفعيل اشتراكك تلقائياً بعد التسجيل.</span>
-                    </div>
-                )}
-                
                 <form onSubmit={handleFormSubmit} className="w-full space-y-4 fade-in">
                     {/* Login View */}
                     {view === 'login' && (
@@ -260,13 +245,6 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onBack }) => {
                                 <button type="button" onClick={() => changeView('reset-password')} className="text-sm font-semibold text-blue-400 hover:text-blue-300">نسيت كلمة المرور؟</button>
                             </div>
                             <button type="submit" disabled={isLoading} className="w-full py-3.5 font-bold text-white bg-gradient-to-r from-indigo-500 to-blue-500 rounded-lg disabled:opacity-60">{isLoading ? 'جاري التحقق...' : 'تسجيل الدخول'}</button>
-                        </>
-                    )}
-                    {/* Code Login View */}
-                    {view === 'code-login' && (
-                        <>
-                             <input type="text" value={code} onChange={(e) => setCode(e.target.value)} required placeholder="أدخل كود الاشتراك" className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg text-center tracking-widest" />
-                             <button type="submit" disabled={isLoading} className="w-full py-3.5 font-bold text-white bg-green-600 rounded-lg disabled:opacity-60">{isLoading ? 'جاري التحقق...' : 'متابعة'}</button>
                         </>
                     )}
                     {/* Reset Password View */}
@@ -335,12 +313,9 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onBack }) => {
                     {renderContent()}
                     <div className="w-full pt-6 border-t border-[var(--border-primary)] text-center space-y-3">
                         {view === 'login' && (
-                            <>
-                                <p className="text-sm text-[var(--text-secondary)]">ليس لديك حساب؟ <button onClick={() => changeView('register-step-1')} className="font-semibold text-blue-400 hover:text-blue-300">إنشاء حساب جديد</button></p>
-                                <p className="text-sm text-[var(--text-secondary)]">أو <button onClick={() => changeView('code-login')} className="font-semibold text-green-400 hover:text-green-300">تسجيل الدخول بكود اشتراك</button></p>
-                            </>
+                            <p className="text-sm text-[var(--text-secondary)]">ليس لديك حساب؟ <button onClick={() => changeView('register-step-1')} className="font-semibold text-blue-400 hover:text-blue-300">إنشاء حساب جديد</button></p>
                         )}
-                        {(view === 'register-step-1' || view === 'register-step-2' || view === 'code-login' || view === 'reset-password' || view === 'update-password') && (
+                        {(view === 'register-step-1' || view === 'register-step-2' || view === 'reset-password' || view === 'update-password') && (
                              <p className="text-sm text-[var(--text-secondary)]">
                                 {view === 'update-password' ? 'تذكرت كلمة المرور؟' : 'لديك حساب بالفعل؟'}
                                 <button onClick={() => changeView('login')} className="font-semibold text-blue-400 hover:text-blue-300 mr-1">

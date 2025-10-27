@@ -123,6 +123,9 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
         setIsPlayerReady(false);
         setIsBuffering(true);
         setShowUpNext(false);
+        setCurrentTime(0);
+        setDuration(0);
+        setLoadedFraction(0);
         
         const playerDiv = document.createElement('div');
         playerContainerRef.current.innerHTML = '';
@@ -195,10 +198,12 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
 
     const handlePlayPause = useCallback(() => {
         if (!isPlayerReady) return;
-        const state = playerRef.current?.getPlayerState();
-        if (state === window.YT.PlayerState.PLAYING) playerRef.current?.pauseVideo();
-        else playerRef.current?.playVideo();
-    }, [isPlayerReady]);
+        if (isPlaying) {
+            playerRef.current?.pauseVideo();
+        } else {
+            playerRef.current?.playVideo();
+        }
+    }, [isPlayerReady, isPlaying]);
     
     const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
         if (!progressRef.current) return;
@@ -275,6 +280,7 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
 
             <div className={`yt-controls-overlay ${showControls || !isPlaying || isQualityMenuOpen ? 'visible' : ''}`}>
                 <div className="yt-progress-bar-container" ref={progressRef} onClick={handleSeek}>
+                    <div className="yt-progress-bar-bg"></div>
                     <div className="yt-progress-bar-bg yt-progress-bar-loaded" style={{ width: `${loadedFraction * 100}%` }}></div>
                     <div className="yt-progress-bar-bg yt-progress-bar-played" style={{ width: `${progressPercent}%` }}></div>
                     <div className="yt-progress-thumb" style={{ left: `${progressPercent}%` }}></div>
