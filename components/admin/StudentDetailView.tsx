@@ -3,7 +3,7 @@ import { User, Grade, Lesson, LessonType, QuizAttempt, ToastType, Subscription }
 import { 
     getGradeById, getSubscriptionByUserId, getQuizAttemptsByUserId, 
     getAllGrades, getStudentProgress, updateUser, deleteUser, 
-    createOrUpdateSubscription, getGradesForSelection, getOrCreateDeviceId
+    createOrUpdateSubscription, getGradesForSelection
 } from '../../services/storageService';
 import { ArrowRightIcon, CheckCircleIcon, ClockIcon, PencilIcon, TrashIcon, CreditCardIcon, BookOpenIcon, UsersIcon } from '../common/Icons';
 import Modal from '../common/Modal';
@@ -70,95 +70,6 @@ const SubscriptionModal: React.FC<{
                 </div>
             </div>
         </Modal>
-    );
-};
-
-// New component for device management
-const DeviceManagementCard: React.FC<{ user: User; onUserUpdate: (updatedUser: User) => void }> = ({ user, onUserUpdate }) => {
-    const { addToast } = useToast();
-    const [limit, setLimit] = useState(user.device_limit ?? 1);
-
-    const handleSaveLimit = async () => {
-        const { error } = await updateUser(user.id, { device_limit: limit });
-        if (error) {
-            addToast('فشل تحديث الحد الأقصى للأجهزة.', ToastType.ERROR);
-        } else {
-            addToast('تم تحديث الحد الأقصى للأجهزة.', ToastType.SUCCESS);
-            onUserUpdate({ ...user, device_limit: limit });
-        }
-    };
-
-    const handleRemoveDevice = async (deviceIdToRemove: string) => {
-        const newDeviceIds = (user.device_ids || []).filter(id => id !== deviceIdToRemove);
-        const { error } = await updateUser(user.id, { device_ids: newDeviceIds });
-        if (error) {
-            addToast('فشل حذف الجهاز.', ToastType.ERROR);
-        } else {
-            addToast('تم حذف الجهاز.', ToastType.SUCCESS);
-            onUserUpdate({ ...user, device_ids: newDeviceIds });
-        }
-    };
-    
-    const handleClearAllDevices = async () => {
-        const { error } = await updateUser(user.id, { device_ids: [] });
-         if (error) {
-            addToast('فشل مسح الأجهزة.', ToastType.ERROR);
-        } else {
-            addToast('تم مسح جميع الأجهزة.', ToastType.SUCCESS);
-            onUserUpdate({ ...user, device_ids: [] });
-        }
-    };
-    
-    const currentDeviceId = getOrCreateDeviceId();
-
-    return (
-        <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)]">
-            <h2 className="text-lg font-bold text-[var(--text-primary)] mb-4">إدارة الأجهزة</h2>
-            
-            <div className="space-y-4">
-                {/* Limit control */}
-                <div>
-                    <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">الحد الأقصى للأجهزة</label>
-                    <div className="flex gap-2">
-                        <input 
-                            type="number"
-                            min="1"
-                            value={limit}
-                            onChange={(e) => setLimit(parseInt(e.target.value) || 1)}
-                            className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)]" 
-                        />
-                        <button onClick={handleSaveLimit} className="px-4 py-2 text-sm font-semibold text-white bg-purple-600 hover:bg-purple-700 rounded-lg">حفظ</button>
-                    </div>
-                </div>
-
-                {/* Device List */}
-                <div>
-                    <div className="flex justify-between items-center mb-2">
-                        <h3 className="text-sm font-medium text-[var(--text-secondary)]">الأجهزة المسجلة ({user.device_ids?.length || 0} / {limit})</h3>
-                        {(user.device_ids?.length || 0) > 0 && (
-                            <button onClick={handleClearAllDevices} className="text-xs text-red-400 hover:underline">مسح الكل</button>
-                        )}
-                    </div>
-                    <div className="space-y-2 max-h-48 overflow-y-auto pr-2 -mr-2">
-                        {(user.device_ids || []).length > 0 ? (
-                            user.device_ids?.map(id => (
-                                <div key={id} className="flex justify-between items-center p-2 bg-[var(--bg-tertiary)] rounded-md">
-                                    <p className="font-mono text-xs text-[var(--text-secondary)]">
-                                        {id.substring(0, 8)}...{id.substring(id.length - 4)}
-                                        {id === currentDeviceId && <span className="text-green-400 font-sans text-xs ml-2">(جهاز المشرف الحالي)</span>}
-                                    </p>
-                                    <button onClick={() => handleRemoveDevice(id)} className="p-1 text-red-500 hover:bg-red-500/10 rounded-full">
-                                        <TrashIcon className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            ))
-                        ) : (
-                            <p className="text-center text-xs text-[var(--text-secondary)] py-4">لا توجد أجهزة مسجلة.</p>
-                        )}
-                    </div>
-                </div>
-            </div>
-        </div>
     );
 };
 
@@ -398,7 +309,6 @@ const handleUpdateUser = async () => {
 
         {/* Right Column - Data */}
         <div className="lg:col-span-2 space-y-6">
-            <DeviceManagementCard user={localUser} onUserUpdate={setLocalUser} />
             <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)]">
                 <h2 className="text-lg font-bold text-[var(--text-primary)] mb-4">ملخص التقدم</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

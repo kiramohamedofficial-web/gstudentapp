@@ -19,13 +19,10 @@ export interface User {
   phone: string;
   guardianPhone: string;
   grade: number | null;
-  stage?: 'Middle' | 'Secondary' | null;
   track?: 'Scientific' | 'Literary' | 'All' | null; // For 2nd & 3rd year secondary students
   role: Role;
   subscriptionId?: string;
   teacherId?: string; // Links user to a teacher profile
-  device_ids?: string[];
-  device_limit?: number;
 }
 
 export interface Subscription {
