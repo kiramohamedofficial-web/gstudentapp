@@ -58,7 +58,7 @@ const NavButton: React.FC<{ onClick: () => void; label: string; icon: React.FC<{
 
 const SubscriptionStatusCard: React.FC<{ subscription: Subscription; onNavClick: () => void; }> = ({ subscription, onNavClick }) => {
     const days = Math.ceil(Math.max(0, (new Date(subscription.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
-    const planLabels: Record<Subscription['plan'], string> = { Monthly: 'الشهرية', Quarterly: 'ربع السنوية', Annual: 'السنوية', SemiAnnually: 'نصف السنوية', Code: 'كود' };
+    const planLabels: Record<Subscription['plan'], string> = { Monthly: 'الشهرية', Quarterly: 'ربع السنوية', Annual: 'السنوية', SemiAnnually: 'نصف السنوية' };
 
     return (
         <div className="px-4 pb-4">

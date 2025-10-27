@@ -146,7 +146,7 @@ const SubscriptionManagementView: React.FC = () => {
     const expiredSubscriptions = useMemo(() => allSubscriptions.filter(s => s.status === 'Expired'), [allSubscriptions]);
 
     const tabLabels: Record<typeof activeTab, string> = { Pending: 'طلبات قيد الانتظار', Active: 'الاشتراكات النشطة', Expired: 'الاشتراكات المنتهية', }
-    const planLabels: Record<Subscription['plan'], string> = { Monthly: 'شهري', Quarterly: 'ربع سنوي', Annual: 'سنوي', SemiAnnually: 'نصف سنوي', Code: 'كود' };
+    const planLabels: Record<Subscription['plan'], string> = { Monthly: 'شهري', Quarterly: 'ربع سنوي', Annual: 'سنوي', SemiAnnually: 'نصف سنوي' };
 
     const renderRequestsTable = () => (
         <tbody className="divide-y divide-[var(--border-primary)]">

@@ -10,7 +10,6 @@ interface State {
 }
 
 class ErrorBoundary extends Component<Props, State> {
-  // FIX: Initialize state as a class property to resolve errors where `state` and `props` were not being recognized.
   state: State = { hasError: false };
 
   static getDerivedStateFromError(_: Error): State {
@@ -23,7 +22,8 @@ class ErrorBoundary extends Component<Props, State> {
     console.error("Uncaught error:", error, errorInfo);
   }
 
-  render() {
+  // FIX: Converted 'render' from an arrow function property to a standard class method to ensure 'this.props' is correctly resolved.
+  render(): ReactNode {
     if (this.state.hasError) {
       // You can render any custom fallback UI
       return (

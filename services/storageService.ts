@@ -344,7 +344,6 @@ export const createOrUpdateSubscription = async (userId: string, plan: Subscript
             case 'Quarterly': endDate.setMonth(startDate.getMonth() + 3); break;
             case 'SemiAnnually': endDate.setMonth(startDate.getMonth() + 6); break;
             case 'Annual': endDate.setFullYear(startDate.getFullYear() + 1); break;
-            case 'Code': endDate.setMonth(startDate.getMonth() + 1); break;
         }
     }
     const subscriptionPayload = { user_id: userId, plan, start_date: startDate.toISOString(), end_date: endDate.toISOString(), status, teacher_id: teacherId };
@@ -463,7 +462,7 @@ export const getSubscriptionsByTeacherId = async (teacherId: string): Promise<Su
 };
 // FIX: Implemented placeholder function.
 export const getSubscriptionRequests = async (): Promise<SubscriptionRequest[]> => {
-    const { data, error } = await supabase.from('subscription_requests').select('*').order('created_at', { ascending: false });
+    const { data, error } = await supabase.from('subscription_request').select('*').order('created_at', { ascending: false });
     if (error) {
         console.error('Error fetching subscription requests:', error.message);
         return [];
@@ -476,7 +475,7 @@ export const getSubscriptionRequests = async (): Promise<SubscriptionRequest[]> 
 };
 // FIX: Implemented placeholder function.
 export const getPendingSubscriptionRequestCount = async (): Promise<number> => {
-    const { count, error } = await supabase.from('subscription_requests').select('*', { count: 'exact', head: true }).eq('status', 'Pending');
+    const { count, error } = await supabase.from('subscription_request').select('*', { count: 'exact', head: true }).eq('status', 'Pending');
     if (error) {
         console.error('Error fetching pending subscription request count:', error.message);
         return 0;
@@ -485,12 +484,12 @@ export const getPendingSubscriptionRequestCount = async (): Promise<number> => {
 };
 // FIX: Implemented placeholder function.
 export const addSubscriptionRequest = async (userId: string, userName: string, plan: SubscriptionRequest['plan'], paymentFromNumber: string, subjectName?: string, unitId?: string): Promise<void> => {
-    await supabase.from('subscription_requests').insert({ user_id: userId, user_name: userName, plan, payment_from_number: paymentFromNumber, status: 'Pending', subject_name: subjectName, unit_id: unitId });
+    await supabase.from('subscription_request').insert({ user_id: userId, user_name: userName, plan, payment_from_number: paymentFromNumber, status: 'Pending', subject_name: subjectName, unit_id: unitId });
 };
 // FIX: Implemented placeholder function.
 export const updateSubscriptionRequest = async (updatedRequest: SubscriptionRequest): Promise<void> => {
     const { id, ...updates } = updatedRequest;
-    await supabase.from('subscription_requests').update({ status: updates.status }).eq('id', id);
+    await supabase.from('subscription_request').update({ status: updates.status }).eq('id', id);
 };
 export const getAllUsers = async (): Promise<User[]> => { 
     const { data, error } = await supabase.from('profiles').select('*');
@@ -560,7 +559,8 @@ export async function redeemCode(code: string, userGradeId: number, userTrack: s
     const endDate = new Date();
     endDate.setDate(startDate.getDate() + codeData.duration_days);
 
-    const subResult = await createOrUpdateSubscription(user.id, 'Code', 'Active', endDate.toISOString(), codeData.teacher_id);
+    // FIX: Change plan from 'Code' to 'Monthly' to match the database enum. The custom end date is preserved.
+    const subResult = await createOrUpdateSubscription(user.id, 'Monthly', 'Active', endDate.toISOString(), codeData.teacher_id);
     if (subResult.error) {
         return { success: false, error: `Failed to activate subscription: ${subResult.error.message}` };
     }

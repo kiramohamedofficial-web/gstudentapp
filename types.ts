@@ -28,7 +28,7 @@ export interface User {
 export interface Subscription {
   id: string;
   userId: string;
-  plan: 'Monthly' | 'Quarterly' | 'Annual' | 'SemiAnnually' | 'Code';
+  plan: 'Monthly' | 'Quarterly' | 'Annual' | 'SemiAnnually';
   startDate: string;
   endDate: string;
   status: 'Active' | 'Expired';
