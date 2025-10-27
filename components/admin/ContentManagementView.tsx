@@ -356,73 +356,98 @@ const ContentManagementView: React.FC = () => {
 
     const refreshData = () => setDataVersion(v => v + 1);
 
-    const handleSaveUnit = (title: string, teacherId: string) => {
+    const closeModal = () => setModalState({ type: null, data: {} });
+
+    const handleSaveUnit = async (title: string, teacherId: string) => {
         const { grade, semester, unit } = modalState.data;
-        if (grade && semester) {
+        if (!grade || !semester) return;
+        try {
             if (unit) {
-                updateUnit(grade.id, semester.id, { ...unit, title, teacherId });
+                await updateUnit(grade.id, semester.id, { ...unit, title, teacherId });
                 addActivityLog('Content Update', `Unit "${unit.title}" updated.`);
                 addToast('تم تعديل الوحدة بنجاح!', ToastType.SUCCESS);
             } else {
-                addUnitToSemester(grade.id, semester.id, { title, teacherId, track: 'All' });
+                await addUnitToSemester(grade.id, semester.id, { title, teacherId, track: 'All' });
                 addActivityLog('Content Add', `New unit "${title}" added.`);
                 addToast('تمت إضافة الوحدة بنجاح!', ToastType.SUCCESS);
             }
+            refreshData();
+            closeModal();
+        } catch (error: any) {
+            console.error("Failed to save unit:", error);
+            addToast(`فشل حفظ الوحدة: ${error.message}`, ToastType.ERROR);
         }
-        refreshData();
-        setModalState({ type: null, data: {} });
     };
 
-    const handleDeleteUnit = () => {
+    const handleDeleteUnit = async () => {
         const { grade, semester, unit } = modalState.data;
-        if (grade && semester && unit) {
-            deleteUnit(grade.id, semester.id, unit.id);
+        if (!grade || !semester || !unit) return;
+        try {
+            await deleteUnit(grade.id, semester.id, unit.id);
             addActivityLog('Content Delete', `Unit "${unit.title}" deleted.`);
             addToast('تم حذف الوحدة بنجاح.', ToastType.SUCCESS);
+            refreshData();
+            closeModal();
+        } catch (error: any) {
+            console.error("Failed to delete unit:", error);
+            addToast(`فشل حذف الوحدة: ${error.message}`, ToastType.ERROR);
         }
-        refreshData();
-        setModalState({ type: null, data: {} });
     };
 
-    const handleSaveLesson = (lessonData: Omit<Lesson, 'id' | 'isCompleted'> | Lesson) => {
+    const handleSaveLesson = async (lessonData: Omit<Lesson, 'id' | 'isCompleted'> | Lesson) => {
         const { grade, semester, unit, lesson } = modalState.data;
-        if (grade && semester && unit) {
+        if (!grade || !semester || !unit) return;
+        try {
             if (lesson) {
-                updateLesson(grade.id, semester.id, unit.id, lessonData as Lesson);
-                addActivityLog('Content Update', `Lesson "${lesson.title}" updated.`);
+                await updateLesson(grade.id, semester.id, unit.id, lessonData as Lesson);
+                addActivityLog('Content Update', `Lesson "${(lessonData as Lesson).title}" updated.`);
                 addToast('تم تعديل الدرس بنجاح!', ToastType.SUCCESS);
             } else {
-                addLessonToUnit(grade.id, semester.id, unit.id, lessonData);
+                await addLessonToUnit(grade.id, semester.id, unit.id, lessonData);
                 addActivityLog('Content Add', `New lesson "${lessonData.title}" added to ${unit.title}.`);
                 addToast('تمت إضافة الدرس بنجاح!', ToastType.SUCCESS);
             }
+            refreshData();
+            closeModal();
+        } catch (error: any) {
+            console.error("Failed to save lesson:", error);
+            addToast(`فشل حفظ الدرس: ${error.message}`, ToastType.ERROR);
         }
-        refreshData();
-        setModalState({ type: null, data: {} });
     };
     
-    const handleDeleteLesson = () => {
+    const handleDeleteLesson = async () => {
         const { grade, semester, unit, lesson } = modalState.data;
-        if (grade && semester && unit && lesson) {
-            deleteLesson(grade.id, semester.id, unit.id, lesson.id);
+        if (!grade || !semester || !unit || !lesson) return;
+        try {
+            await deleteLesson(grade.id, semester.id, unit.id, lesson.id);
             addActivityLog('Content Delete', `Lesson "${lesson.title}" deleted.`);
             addToast('تم حذف الدرس بنجاح.', ToastType.SUCCESS);
+            refreshData();
+            closeModal();
+        } catch (error: any) {
+            console.error("Failed to delete lesson:", error);
+            addToast(`فشل حذف الدرس: ${error.message}`, ToastType.ERROR);
         }
-        refreshData();
-        setModalState({ type: null, data: {} });
     };
 
-    const handleDeleteGroup = () => {
+    const handleDeleteGroup = async () => {
         const { grade, semester, unit, group } = modalState.data;
-        if (grade && semester && unit && group) {
-            (Object.values(group.parts) as (Lesson | undefined)[]).forEach(lesson => {
-                if(lesson) deleteLesson(grade.id, semester.id, unit.id, lesson.id);
-            });
+        if (!grade || !semester || !unit || !group) return;
+        try {
+            const deletePromises = (Object.values(group.parts) as (Lesson | undefined)[])
+                .filter((l): l is Lesson => !!l)
+                .map(l => deleteLesson(grade.id, semester.id, unit.id, l.id));
+            
+            await Promise.all(deletePromises);
+
             addActivityLog('Content Delete', `Lesson group "${group.baseTitle}" deleted.`);
             addToast('تم حذف مجموعة الدرس بنجاح.', ToastType.SUCCESS);
+            refreshData();
+            closeModal();
+        } catch (error: any) {
+            console.error("Failed to delete lesson group:", error);
+            addToast(`فشل حذف مجموعة الدرس: ${error.message}`, ToastType.ERROR);
         }
-        refreshData();
-        setModalState({ type: null, data: {} });
     };
 
     const openModal = (type: string, data: Partial<ModalData>) => setModalState({ type, data });
@@ -478,11 +503,11 @@ const ContentManagementView: React.FC = () => {
                 )}
             </div>
             
-            <UnitEditModal isOpen={['add-unit', 'edit-unit'].includes(modalState.type || '')} onClose={() => setModalState({ type: null, data: {} })} onSave={handleSaveUnit} unit={modalState.type === 'edit-unit' ? modalState.data.unit : null} teachers={teachers} preselectedTeacherId={selectedTeacherId} />
-            <LessonEditModal isOpen={['add-lesson', 'edit-lesson'].includes(modalState.type || '')} onClose={() => setModalState({ type: null, data: {} })} onSave={handleSaveLesson} lesson={modalState.type === 'edit-lesson' ? modalState.data.lesson : null} prefill={modalState.type === 'add-lesson' ? modalState.data.prefill : undefined} />
-            <ConfirmationModal isOpen={modalState.type === 'delete-unit'} onClose={() => setModalState({ type: null, data: {} })} onConfirm={handleDeleteUnit} title="تأكيد حذف الوحدة" message={`هل أنت متأكد من رغبتك في حذف وحدة "${modalState.data.unit?.title}"؟ سيتم حذف جميع الدروس المرتبطة بها بشكل دائم.`} />
-            <ConfirmationModal isOpen={modalState.type === 'delete-lesson'} onClose={() => setModalState({ type: null, data: {} })} onConfirm={handleDeleteLesson} title="تأكيد حذف جزء من الدرس" message={`هل أنت متأكد من رغبتك في حذف "${modalState.data.lesson?.title}"؟ لا يمكن التراجع عن هذا الإجراء.`} />
-            <ConfirmationModal isOpen={modalState.type === 'delete-group'} onClose={() => setModalState({ type: null, data: {} })} onConfirm={handleDeleteGroup} title="تأكيد حذف مجموعة الدرس" message={`هل أنت متأكد من رغبتك في حذف درس "${modalState.data.group?.baseTitle}" بجميع أجزائه (الشرح، الواجب، ...إلخ)؟ لا يمكن التراجع عن هذا الإجراء.`} />
+            <UnitEditModal isOpen={['add-unit', 'edit-unit'].includes(modalState.type || '')} onClose={closeModal} onSave={handleSaveUnit} unit={modalState.type === 'edit-unit' ? modalState.data.unit : null} teachers={teachers} preselectedTeacherId={selectedTeacherId} />
+            <LessonEditModal isOpen={['add-lesson', 'edit-lesson'].includes(modalState.type || '')} onClose={closeModal} onSave={handleSaveLesson} lesson={modalState.type === 'edit-lesson' ? modalState.data.lesson : null} prefill={modalState.type === 'add-lesson' ? modalState.data.prefill : undefined} />
+            <ConfirmationModal isOpen={modalState.type === 'delete-unit'} onClose={closeModal} onConfirm={handleDeleteUnit} title="تأكيد حذف الوحدة" message={`هل أنت متأكد من رغبتك في حذف وحدة "${modalState.data.unit?.title}"؟ سيتم حذف جميع الدروس المرتبطة بها بشكل دائم.`} />
+            <ConfirmationModal isOpen={modalState.type === 'delete-lesson'} onClose={closeModal} onConfirm={handleDeleteLesson} title="تأكيد حذف جزء من الدرس" message={`هل أنت متأكد من رغبتك في حذف "${modalState.data.lesson?.title}"؟ لا يمكن التراجع عن هذا الإجراء.`} />
+            <ConfirmationModal isOpen={modalState.type === 'delete-group'} onClose={closeModal} onConfirm={handleDeleteGroup} title="تأكيد حذف مجموعة الدرس" message={`هل أنت متأكد من رغبتك في حذف درس "${modalState.data.group?.baseTitle}" بجميع أجزائه (الشرح، الواجب، ...إلخ)؟ لا يمكن التراجع عن هذا الإجراء.`} />
         </div>
     );
 };

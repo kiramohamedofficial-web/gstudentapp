@@ -2,7 +2,7 @@ import { createClient, Session, User as SupabaseUser } from '@supabase/supabase-
 import {
   User, Role, Subscription, Grade, Teacher, Lesson, Unit, SubscriptionRequest,
   // FIX: Import 'ActivityLog' to resolve 'Cannot find name 'ActivityLog'' error.
-  StudentQuestion, SubscriptionCode, Semester, QuizAttempt, ActivityLog
+  StudentQuestion, SubscriptionCode, Semester, QuizAttempt, ActivityLog, LessonType
 } from '../types';
 
 // =================================================================
@@ -12,6 +12,22 @@ const supabaseUrl = 'https://csipsaucwcuserhfrehn.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNzaXBzYXVjd2N1c2VyaGZyZWhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEyOTQwMTgsImV4cCI6MjA3Njg3MDAxOH0.FJu12ARvbqG0ny0D9d1Jje3BxXQ-q33gjx7JSH26j1w';
 const supabase = createClient(supabaseUrl, supabaseKey);
 export { supabase };
+
+// =================================================================
+// FILE STORAGE
+// =================================================================
+const ASSET_BUCKET = 'gstudent-assets';
+
+export async function uploadImage(file: File): Promise<string | null> {
+    const filePath = `public/${Date.now()}-${file.name}`;
+    const { data, error } = await supabase.storage.from(ASSET_BUCKET).upload(filePath, file);
+    if (error) {
+        console.error('Error uploading image:', error);
+        return null;
+    }
+    const { data: { publicUrl } } = supabase.storage.from(ASSET_BUCKET).getPublicUrl(data.path);
+    return publicUrl;
+}
 
 // =================================================================
 // DEFAULT DATA (FALLBACK)
@@ -132,77 +148,29 @@ export const updateUserPassword = async (password: string) => {
 // TEACHER MANAGEMENT
 // =================================================================
 interface CreateTeacherParams { id?: string, email: string; password?: string; name: string; subject: string; phone: string; teaching_grades: number[]; teaching_levels: string[]; image_url?: string; }
+
 export async function createTeacher(params: CreateTeacherParams) {
-  let authUserId: string | null = null;
-  try {
-    if (!params.password) throw new Error('Password is required for new teacher.');
-    // Step 1: Create the authentication user.
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: params.email,
-      password: params.password,
-      options: { data: { name: params.name, role: 'teacher' } }
-    });
+  // Use the recommended RPC function as per the user's documentation
+  // This is more robust and avoids client-side race conditions.
+  const { data, error } = await supabase.rpc('create_teacher_account', {
+    teacher_name: params.name,
+    teacher_email: params.email,
+    teacher_password: params.password,
+    teacher_subject: params.subject,
+    teaching_grades_array: params.teaching_grades,
+    teaching_levels_array: params.teaching_levels,
+    teacher_image_url: params.image_url || null
+  });
 
-    if (authError) {
-      if (authError.message.includes('User already registered')) {
-        throw new Error('هذا البريد الإلكتروني مسجل بالفعل. لا يمكن إنشاء حساب مدرس جديد بنفس البريد.');
-      }
-      throw authError;
-    }
-    if (!authData.user) throw new Error('فشل إنشاء حساب المصادقة، لم يتم إرجاع بيانات المستخدم.');
-    
-    authUserId = authData.user.id;
-
-    // Step 2: Create the teacher-specific profile in the 'teachers' table.
-    const { data: teacher, error: teacherError } = await supabase.from('teachers').insert({
-        name: params.name, subject: params.subject, teaching_grades: params.teaching_grades,
-        teaching_levels: params.teaching_levels, image_url: params.image_url
-    }).select().single();
-    if (teacherError || !teacher) throw teacherError || new Error('فشل إنشاء ملف المدرس في جدول المدرسين.');
-
-    // Step 3: Link the generic profile to the new teacher entry.
-    // This step is critical and can fail due to trigger latency.
-    let profileUpdated = false;
-    for (let i = 0; i < 5; i++) { // Retry up to 5 times (approx 5 seconds)
-        await new Promise(res => setTimeout(res, 1000)); // Wait for trigger to fire
-        const { error: profileUpdateError, count } = await supabase.from('profiles').update({
-            teacher_id: teacher.id, phone: `+2${params.phone}`
-        }).eq('id', authData.user.id);
-        
-        if (profileUpdateError) {
-            // If we get a real error, throw it immediately to trigger cleanup.
-            throw profileUpdateError;
-        }
-
-        if (count && count > 0) {
-            profileUpdated = true;
-            break; // Success, exit loop
-        }
-    }
-
-    if (!profileUpdated) {
-        throw new Error('فشل تحديث ملف المستخدم. لم يتم العثور على الملف الشخصي بعد إنشاء الحساب. قد تكون هناك مشكلة في الربط (DB Trigger).');
-    }
-
-    return { success: true, teacher };
-  } catch (error: any) {
-    console.error('Error creating teacher account:', error.message);
-
-    // If any step after auth user creation fails, attempt to clean up by deleting the auth user.
-    if (authUserId) {
-      console.log(`Attempting to clean up failed teacher creation for user ID: ${authUserId}`);
-      // Admin API to delete the auth user, which should cascade.
-      const { error: adminError } = await supabase.auth.admin.deleteUser(authUserId);
-      if (adminError) {
-          console.error(`Cleanup failed for user ID ${authUserId}: ${adminError.message}`);
-      } else {
-          console.log(`Cleanup successful for user ID: ${authUserId}`);
-      }
-    }
-    
-    // Return a user-friendly error message.
-    return { success: false, error: { message: error.message } };
+  if (error) {
+    console.error('Error calling create_teacher_account RPC:', error);
+    // Return a consistent error structure
+    return { success: false, error };
   }
+  
+  // The RPC function should return a JSON object, which is in the `data` property.
+  // We assume the RPC returns an object like { success: boolean, ... }
+  return { success: data.success, data, error: data.success ? null : { message: data.error } };
 }
 
 export async function getAllTeachers(): Promise<Teacher[]> {
@@ -262,6 +230,32 @@ export async function updateTeacher(teacherId: string, updates: any) {
 let curriculumCache: { grades: Grade[] } | null = null;
 let isCurriculumDataLoaded = false;
 
+// Helper function to convert app-side camelCase keys to database-side snake_case keys.
+const mapToDbPayload = (obj: Record<string, any>): Record<string, any> => {
+  const newObj: Record<string, any> = {};
+  if (!obj) return newObj;
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+      newObj[snakeKey] = obj[key];
+    }
+  }
+  return newObj;
+};
+
+// Helper to convert DB lesson type string to application's LessonType enum
+const toLessonType = (dbType: string): LessonType => {
+    if (!dbType) {
+        return LessonType.EXPLANATION; // Default fallback
+    }
+    const capitalized = dbType.charAt(0).toUpperCase() + dbType.slice(1);
+    if (Object.values(LessonType).includes(capitalized as LessonType)) {
+        return capitalized as LessonType;
+    }
+    console.warn(`Unknown lesson type "${dbType}" from database.`);
+    return LessonType.EXPLANATION; // Fallback for unknown types
+};
+
 export const initData = async (): Promise<void> => {
     if (isCurriculumDataLoaded) return;
     try {
@@ -304,7 +298,7 @@ export const initData = async (): Promise<void> => {
                         lessons: (unit.lessons || []).map((lesson: any) => ({
                             id: lesson.id,
                             title: lesson.title,
-                            type: lesson.type,
+                            type: toLessonType(lesson.type),
                             content: lesson.content,
                             imageUrl: lesson.image_url,
                             correctAnswers: lesson.correct_answers,
@@ -337,27 +331,49 @@ export const getGradeById = (gradeId: number | null): Grade | undefined => {
 
 
 export const addUnitToSemester = async (gradeId: number, semesterId: string, unitData: Omit<Unit, 'id'|'lessons'>) => { 
-    await supabase.from('units').insert({ title: unitData.title, teacher_id: unitData.teacherId, semester_id: semesterId, track: unitData.track });
+    const payload = mapToDbPayload(unitData);
+    delete payload.semester_id;
+    const { error } = await supabase.from('units').insert({ ...payload, semester_id: semesterId });
+    if (error) { console.error('Error adding unit:', error); throw error; }
     await refreshData();
 };
 export const addLessonToUnit = async (gradeId: number, semesterId: string, unitId: string, lessonData: Omit<Lesson, 'id'>) => {
-    await supabase.from('lessons').insert({ ...lessonData, unit_id: unitId });
+    const payload = mapToDbPayload(lessonData);
+    if (payload.type) {
+        payload.type = (payload.type as string).toLowerCase();
+    }
+    const { error } = await supabase.from('lessons').insert({ ...payload, unit_id: unitId });
+    if (error) { console.error('Error adding lesson:', error); throw error; }
     await refreshData();
 };
 export const updateLesson = async (gradeId: number, semesterId: string, unitId: string, updatedLesson: Lesson) => {
-    await supabase.from('lessons').update(updatedLesson).eq('id', updatedLesson.id);
+    const { id, ...lessonData } = updatedLesson;
+    const payload = mapToDbPayload(lessonData);
+    if (payload.type) {
+        payload.type = (payload.type as string).toLowerCase();
+    }
+    const { error } = await supabase.from('lessons').update(payload).eq('id', id);
+    if (error) { console.error('Error updating lesson:', error); throw error; }
     await refreshData();
 };
 export const deleteLesson = async (gradeId: number, semesterId: string, unitId: string, lessonId: string) => {
-    await supabase.from('lessons').delete().eq('id', lessonId);
+    const { error } = await supabase.from('lessons').delete().eq('id', lessonId);
+    if (error) { console.error('Error deleting lesson:', error); throw error; }
     await refreshData();
 };
 export const updateUnit = async (gradeId: number, semesterId: string, updatedUnit: Partial<Unit> & { id: string }) => {
-    await supabase.from('units').update(updatedUnit).eq('id', updatedUnit.id);
+    const { id, ...unitData } = updatedUnit;
+    const payload = mapToDbPayload(unitData);
+
+    if (Object.keys(payload).length > 0) {
+        const { error } = await supabase.from('units').update(payload).eq('id', id);
+        if (error) { console.error('Error updating unit:', error); throw error; }
+    }
     await refreshData();
 };
 export const deleteUnit = async (gradeId: number, semesterId: string, unitId: string) => {
-    await supabase.from('units').delete().eq('id', unitId);
+    const { error } = await supabase.from('units').delete().eq('id', unitId);
+    if (error) { console.error('Error deleting unit:', error); throw error; }
     await refreshData();
 };
 
@@ -485,7 +501,33 @@ export const addQuizAttempt = async (attemptData: Omit<QuizAttempt, 'id'>): Prom
 // FIX: Fixed function to correctly call and return from getStudentQuizAttempts.
 export const getQuizAttemptsByUserId = async (userId: string): Promise<QuizAttempt[]> => getStudentQuizAttempts(userId);
 // FIX: Fixed function to correctly call and return from getStudentQuizAttempts.
-export const getLatestQuizAttemptForLesson = async (userId: string, lessonId: string): Promise<QuizAttempt | undefined> => { const attempts = await getStudentQuizAttempts(userId); return attempts.find(a => a.lessonId === lessonId); };
+export const getLatestQuizAttemptForLesson = async (userId: string, lessonId: string): Promise<QuizAttempt | undefined> => {
+    const { data, error } = await supabase
+        .from('quiz_attempts')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('lesson_id', lessonId)
+        .order('submitted_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    if (error) {
+        console.error('Error fetching latest quiz attempt:', error.message);
+        return undefined;
+    }
+    if (!data) return undefined;
+    
+    return {
+        id: data.id,
+        userId: data.user_id,
+        lessonId: data.lesson_id,
+        submittedAt: data.submitted_at,
+        score: data.score,
+        submittedAnswers: data.submitted_answers,
+        timeTaken: data.time_taken,
+        isPass: data.is_pass,
+    };
+};
 
 
 // =================================================================

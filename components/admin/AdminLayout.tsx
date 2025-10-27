@@ -3,7 +3,7 @@ import { User } from '../../types';
 import { CollectionIcon, QrcodeIcon, CreditCardIcon, HomeIcon, XIcon, TemplateIcon, CogIcon, LogoutIcon, UsersIcon, UserCircleIcon, BellIcon, QuestionMarkCircleIcon, UserCheckIcon } from '../common/Icons';
 import { getPendingSubscriptionRequestCount } from '../../services/storageService';
 
-type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'content' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'systemHealth' | 'accountCreationDiagnostics' | 'accountSettings' | 'teachers';
+type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'content' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'systemHealth' | 'accountCreationDiagnostics' | 'accountSettings' | 'teachers' | 'teacherCreationDiagnostics';
 
 const SystemHealthIcon: React.FC<{ className?: string }> = ({ className }) => (
     <img src="https://g.top4top.io/p_3584g68tl0.png" alt="System Health" className={className} />
@@ -32,6 +32,7 @@ const settingsNavItems = [
     { id: 'platformSettings', label: 'إعدادات المنصة', icon: CogIcon },
     { id: 'systemHealth', label: 'فحص الأعطال', icon: SystemHealthIcon },
     { id: 'accountCreationDiagnostics', label: 'فحص إنشاء الحساب', icon: UserCheckIcon },
+    { id: 'teacherCreationDiagnostics', label: 'فحص إضافة مدرس', icon: UserCheckIcon },
 ];
 
 

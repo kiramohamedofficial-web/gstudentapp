@@ -10,7 +10,6 @@ import {
     getAllGrades,
     getPendingSubscriptionRequestCount,
     getAllStudentProgress,
-    // FIX: Corrected function name from getTeachers to getAllTeachers
     getAllTeachers,
 } from '../../services/storageService';
 import { ChartBarIcon, UsersIcon, BellIcon, SearchIcon, InformationCircleIcon, UserCircleIcon, ChevronLeftIcon } from '../common/Icons';
@@ -27,13 +26,14 @@ import Loader from '../common/Loader';
 import { useSession } from '../../hooks/useSession';
 
 const AccountCreationDiagnosticsView = lazy(() => import('./AccountCreationDiagnosticsView'));
+const TeacherCreationDiagnosticsView = lazy(() => import('./TeacherCreationDiagnosticsView'));
 
 interface AdminDashboardProps {
   theme: Theme;
   setTheme: (theme: Theme) => void;
 }
 
-type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'content' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'systemHealth' | 'accountCreationDiagnostics' | 'accountSettings' | 'teachers';
+type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'content' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'systemHealth' | 'accountCreationDiagnostics' | 'accountSettings' | 'teachers' | 'teacherCreationDiagnostics';
 
 const StatCard: React.FC<{ title: string; value: string; icon: React.FC<{ className?: string; }>; delay: number; onClick?: () => void; }> = React.memo(({ title, value, icon: Icon, delay, onClick }) => (
     <div 
@@ -221,7 +221,6 @@ const MainDashboard: React.FC<{ onNavigate: (view: AdminView) => void }> = ({ on
         const fetchData = async () => {
             setIsLoading(true);
             const usersPromise = getAllUsers();
-            // FIX: Corrected function name from getTeachers to getAllTeachers
             const teachersPromise = getAllTeachers();
             const subsPromise = getAllSubscriptions();
             const pendingPromise = getPendingSubscriptionRequestCount();
@@ -335,6 +334,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
       case 'platformSettings': return <PlatformSettingsView user={user} />;
       case 'systemHealth': return <SystemHealthView />;
       case 'accountCreationDiagnostics': return <Suspense fallback={<div className="flex justify-center items-center h-64"><Loader /></div>}><AccountCreationDiagnosticsView /></Suspense>;
+      case 'teacherCreationDiagnostics': return <Suspense fallback={<div className="flex justify-center items-center h-64"><Loader /></div>}><TeacherCreationDiagnosticsView /></Suspense>;
       case 'accountSettings': return <AdminSettingsView theme={theme} setTheme={setTheme} />;
       case 'dashboard':
       default:

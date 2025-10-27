@@ -94,7 +94,7 @@ const TeacherModal: React.FC<{
         setError('');
 
         const phoneRegex = /^01[0125]\d{8}$/;
-        if (!formData.phone.match(phoneRegex)) {
+        if (!phoneRegex.test(formData.phone)) {
             setError('الرجاء إدخال رقم هاتف مصري صحيح (11 رقم).');
             return;
         }
@@ -107,7 +107,7 @@ const TeacherModal: React.FC<{
         const saveData: TeacherModalSaveData = { 
             id: teacher?.id,
             name: formData.name,
-            email: `${formData.phone}@gstudent.app`, // Create an email from phone
+            email: `${formData.phone}@gstudent.com`, // Create an email from phone
             subject: formData.subject,
             imageUrl: formData.imageUrl,
             phone: formData.phone,
@@ -233,6 +233,7 @@ const TeacherManagementView: React.FC = () => {
     useEffect(() => {
         const fetchAndSetTeachers = async () => {
             setIsLoading(true);
+            // FIX: Corrected function name from getTeachers to getAllTeachers
             const data = await getAllTeachers();
             setTeachers(data as Teacher[]);
             setIsLoading(false);
@@ -244,21 +245,21 @@ const TeacherManagementView: React.FC = () => {
 
     // FIX: This function now correctly handles create/update logic and error checking.
     const handleSave = async (data: TeacherModalSaveData) => {
+        setIsLoading(true);
         try {
-            let result: { success: boolean, error?: any };
-        
             if (data.id) { // Editing
                 const { id, ...updates } = data;
-                
-                if (!updates.password?.trim()) {
-                    delete updates.password;
-                }
+                if (!updates.password?.trim()) delete updates.password;
+
                 // FIX: Call updateTeacher with two arguments (id, updates).
-                result = await updateTeacher(id, updates);
+                const result = await updateTeacher(id, updates);
+                if (!result.success) throw new Error(result.error.message || 'فشل تحديث المدرس.');
+                addToast('تم تحديث بيانات المدرس بنجاح.', ToastType.SUCCESS);
+
             } else { // Adding
-                // FIX: Use createTeacher instead of a non-existent function.
+                // FIX: Use createTeacher instead of the stub function addTeacher.
                 // FIX: Map TeacherModalSaveData to the shape expected by createTeacher.
-                result = await createTeacher({
+                const result = await createTeacher({
                     email: data.email,
                     password: data.password,
                     name: data.name,
@@ -268,23 +269,22 @@ const TeacherManagementView: React.FC = () => {
                     teaching_levels: data.teachingLevels || [],
                     image_url: data.imageUrl,
                 });
+                
+                // FIX: Check for the `success` flag from the RPC response for better reliability.
+                if (result.error) throw new Error(result.error.message);
+
+                if (result.data?.success) {
+                    addToast('تمت إضافة المدرس بنجاح.', ToastType.SUCCESS);
+                } else {
+                     throw new Error(result.data?.error || "حدث خطأ غير معروف من الخادم.");
+                }
             }
-            
-            // FIX: Check for the `success` flag for better reliability.
-            if (!result.success) {
-                // Supabase errors are objects with a message property.
-                throw new Error(result.error.message || 'حدث خطأ غير متوقع.');
-            } else {
-                addToast(data.id ? 'تم تحديث بيانات المدرس بنجاح.' : 'تمت إضافة المدرس بنجاح.', ToastType.SUCCESS);
-                refreshData();
-                closeModal();
-            }
-        } catch (error) {
-             if (error instanceof Error) {
-                addToast(`فشل: ${error.message}`, ToastType.ERROR);
-            } else {
-                addToast('حدث خطأ غير معروف أثناء الحفظ.', ToastType.ERROR);
-            }
+            refreshData();
+            closeModal();
+        } catch (error: any) {
+            addToast(`❌ فشل في العملية: ${error.message}`, ToastType.ERROR);
+        } finally {
+            setIsLoading(false);
         }
     };
     

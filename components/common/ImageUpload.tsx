@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useToast } from '../../useToast';
 import { ToastType } from '../../types';
 import { PhotoIcon } from './Icons';
+import { uploadImage } from '../../services/storageService';
 
 interface ImageUploadProps {
     label: string;
@@ -13,9 +14,9 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ label, value, onChange }) => 
     const { addToast } = useToast();
     const [uploadType, setUploadType] = useState<'file' | 'url'>('file');
     const [urlInput, setUrlInput] = useState('');
+    const [isUploading, setIsUploading] = useState(false);
 
     useEffect(() => {
-        // If the initial value is a URL, set the component state accordingly.
         if (value && (value.startsWith('http://') || value.startsWith('https://'))) {
             setUploadType('url');
             setUrlInput(value);
@@ -23,33 +24,35 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ label, value, onChange }) => 
             setUploadType('file');
             setUrlInput('');
         }
-    }, []); // Run only once on mount to set initial state based on value
+    }, [value]);
 
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            if (file.size > 2 * 1024 * 1024) { // 2MB Limit
-                addToast('حجم الصورة يجب ألا يتجاوز 2 ميجابايت.', ToastType.ERROR);
+            if (file.size > 5 * 1024 * 1024) { // 5MB Limit
+                addToast('حجم الصورة يجب ألا يتجاوز 5 ميجابايت.', ToastType.ERROR);
                 e.target.value = '';
                 return;
             }
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                onChange(reader.result as string);
-            };
-            reader.readAsDataURL(file);
+            setIsUploading(true);
+            const publicUrl = await uploadImage(file);
+            setIsUploading(false);
+
+            if (publicUrl) {
+                onChange(publicUrl);
+                addToast('تم رفع الصورة بنجاح.', ToastType.SUCCESS);
+            } else {
+                addToast('فشل رفع الصورة.', ToastType.ERROR);
+            }
         }
     };
 
     const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newUrl = e.target.value;
         setUrlInput(newUrl);
-        // Basic validation before setting the value
-        if (newUrl.startsWith('http://') || newUrl.startsWith('https://')) {
+        if (newUrl.startsWith('http://') || newUrl.startsWith('https://') || newUrl === '') {
             onChange(newUrl);
-        } else if (newUrl === '') {
-            onChange('');
         }
     };
     
@@ -68,13 +71,18 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ label, value, onChange }) => 
             <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">{label}</label>
             <div className="bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg p-4">
                 <div className="flex items-center gap-4">
-                    {value ? (
-                        <img src={value} alt="معاينة" className="w-20 h-20 object-cover rounded-md border border-[var(--border-primary)] flex-shrink-0" />
-                    ) : (
-                        <div className="w-20 h-20 bg-[var(--bg-secondary)] rounded-md flex items-center justify-center border border-dashed border-[var(--border-primary)] flex-shrink-0">
+                    <div className="w-20 h-20 bg-[var(--bg-secondary)] rounded-md flex items-center justify-center border border-dashed border-[var(--border-primary)] flex-shrink-0 relative">
+                        {value ? (
+                            <img src={value} alt="معاينة" className="w-full h-full object-cover rounded-md" />
+                        ) : (
                             <PhotoIcon className="w-8 h-8 text-[var(--text-secondary)]" />
-                        </div>
-                    )}
+                        )}
+                        {isUploading && (
+                             <div className="absolute inset-0 bg-black/70 flex items-center justify-center rounded-md">
+                                <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            </div>
+                        )}
+                    </div>
                     <div className="flex-1 space-y-3">
                         <div className="flex items-center p-1 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-primary)]">
                             <TabButton active={uploadType === 'file'} onClick={() => setUploadType('file')}>رفع ملف</TabButton>
@@ -85,7 +93,8 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ label, value, onChange }) => 
                                 type="file"
                                 accept="image/*"
                                 onChange={handleFileChange}
-                                className="w-full text-sm text-[var(--text-secondary)] file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
+                                disabled={isUploading}
+                                className="w-full text-sm text-[var(--text-secondary)] file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 disabled:opacity-50"
                             />
                         ) : (
                             <input
@@ -102,5 +111,5 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ label, value, onChange }) => 
         </div>
     );
 };
-
+// FIX: Added default export to fix module resolution errors.
 export default ImageUpload;
