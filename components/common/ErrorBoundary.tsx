@@ -9,11 +9,8 @@ interface State {
   hasError: boolean;
 }
 
-// FIX: The ErrorBoundary class must extend React.Component to be a valid React component and access props/state.
-// Fix: Extended React.Component to make this a valid class component.
 class ErrorBoundary extends React.Component<Props, State> {
-  // FIX: The constructor must call super(props) and initialize the component's state.
-  // Fix: Added constructor to initialize state.
+  // FIX: Replaced class property initialization with a constructor to resolve an issue where 'this.props' was not being recognized.
   constructor(props: Props) {
     super(props);
     this.state = { hasError: false };
@@ -30,7 +27,6 @@ class ErrorBoundary extends React.Component<Props, State> {
   }
 
   render(): ReactNode {
-    // `this.state` is now accessible because the class extends React.Component.
     if (this.state.hasError) {
       // You can render any custom fallback UI.
       return (
@@ -52,7 +48,6 @@ class ErrorBoundary extends React.Component<Props, State> {
       );
     }
 
-    // `this.props` is now accessible because the class extends React.Component.
     return this.props.children;
   }
 }

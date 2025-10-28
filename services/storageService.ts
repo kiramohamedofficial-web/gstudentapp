@@ -1,8 +1,12 @@
 
+
+
+
+
 import { createClient, Session, User as SupabaseUser } from '@supabase/supabase-js';
 import {
   User, Role, Subscription, Grade, Teacher, Lesson, Unit, SubscriptionRequest,
-  StudentQuestion, SubscriptionCode, Semester, QuizAttempt, ActivityLog, LessonType, PlatformSettings, Course
+  StudentQuestion, SubscriptionCode, Semester, QuizAttempt, ActivityLog, LessonType, PlatformSettings, Course, Book
 } from '../types';
 
 // =================================================================
@@ -47,15 +51,15 @@ export async function uploadImage(file: File): Promise<string | null> {
 // DEFAULT DATA (FALLBACK)
 // =================================================================
 const defaultGrades: Grade[] = [
-    { id: 1, name: 'الصف الأول الإعدادي', ordinal: '1st', level: 'Middle', levelAr: 'الإعدادي', semesters: [{ id: 's1-1', title: 'الفصل الدراسي الأول', units: [] }, { id: 's1-2', title: 'الفصل الدراسي الثاني', units: [] }] },
-    { id: 2, name: 'الصف الثاني الإعدادي', ordinal: '2nd', level: 'Middle', levelAr: 'الإعدادي', semesters: [{ id: 's2-1', title: 'الفصل الدراسي الأول', units: [] }, { id: 's2-2', title: 'الفصل الدراسي الثاني', units: [] }] },
-    { id: 3, name: 'الصف الثالث الإعدادي', ordinal: '3rd', level: 'Middle', levelAr: 'الإعدادي', semesters: [{ id: 's3-1', title: 'الفصل الدراسي الأول', units: [] }, { id: 's3-2', title: 'الفصل الدراسي الثاني', units: [] }] },
-    { id: 4, name: 'الصف الأول الثانوي', ordinal: '1st', level: 'Secondary', levelAr: 'الثانوي', semesters: [{ id: 's4-1', title: 'الفصل الدراسي الأول', units: [] }, { id: 's4-2', title: 'الفصل الدراسي الثاني', units: [] }] },
-    { id: 5, name: 'الصف الثاني الثانوي - علمي', ordinal: '2nd', level: 'Secondary', levelAr: 'الثانوي', semesters: [{ id: 's5-1', title: 'الفصل الدراسي الأول', units: [] }, { id: 's5-2', title: 'الفصل الدراسي الثاني', units: [] }] },
-    { id: 6, name: 'الصف الثاني الثانوي - أدبي', ordinal: '2nd', level: 'Secondary', levelAr: 'الثانوي', semesters: [{ id: 's6-1', title: 'الفصل الدراسي الأول', units: [] }, { id: 's6-2', title: 'الفصل الدراسي الثاني', units: [] }] },
-    { id: 7, name: 'الصف الثالث الثانوي - علمي علوم', ordinal: '3rd', level: 'Secondary', levelAr: 'الثانوي', semesters: [{ id: 's7-1', title: 'الفصل الدراسي الأول', units: [] }, { id: 's7-2', title: 'الفصل الدراسي الثاني', units: [] }] },
-    { id: 8, name: 'الصف الثالث الثانوي - علمي رياضيات', ordinal: '3rd', level: 'Secondary', levelAr: 'الثانوي', semesters: [{ id: 's8-1', title: 'الفصل الدراسي الأول', units: [] }, { id: 's8-2', title: 'الفصل الدراسي الثاني', units: [] }] },
-    { id: 9, name: 'الصف الثالث الثانوي - أدبي', ordinal: '3rd', level: 'Secondary', levelAr: 'الثانوي', semesters: [{ id: 's9-1', title: 'الفصل الدراسي الأول', units: [] }, { id: 's9-2', title: 'الفصل الدراسي الثاني', units: [] }] }
+    { id: 1, name: 'الصف الأول الإعدادي', level: 'Middle', levelAr: 'الإعدادي', semesters: [{ id: 's1-1', title: 'الفصل الدراسي الأول', units: [] }, { id: 's1-2', title: 'الفصل الدراسي الثاني', units: [] }] },
+    { id: 2, name: 'الصف الثاني الإعدادي', level: 'Middle', levelAr: 'الإعدادي', semesters: [{ id: 's2-1', title: 'الفصل الدراسي الأول', units: [] }, { id: 's2-2', title: 'الفصل الدراسي الثاني', units: [] }] },
+    { id: 3, name: 'الصف الثالث الإعدادي', level: 'Middle', levelAr: 'الإعدادي', semesters: [{ id: 's3-1', title: 'الفصل الدراسي الأول', units: [] }, { id: 's3-2', title: 'الفصل الدراسي الثاني', units: [] }] },
+    { id: 4, name: 'الصف الأول الثانوي', level: 'Secondary', levelAr: 'الثانوي', semesters: [{ id: 's4-1', title: 'الفصل الدراسي الأول', units: [] }, { id: 's4-2', title: 'الفصل الدراسي الثاني', units: [] }] },
+    { id: 5, name: 'الصف الثاني الثانوي - علمي', level: 'Secondary', levelAr: 'الثانوي', semesters: [{ id: 's5-1', title: 'الفصل الدراسي الأول', units: [] }, { id: 's5-2', title: 'الفصل الدراسي الثاني', units: [] }] },
+    { id: 6, name: 'الصف الثاني الثانوي - أدبي', level: 'Secondary', levelAr: 'الثانوي', semesters: [{ id: 's6-1', title: 'الفصل الدراسي الأول', units: [] }, { id: 's6-2', title: 'الفصل الدراسي الثاني', units: [] }] },
+    { id: 7, name: 'الصف الثالث الثانوي - علمي علوم', level: 'Secondary', levelAr: 'الثانوي', semesters: [{ id: 's7-1', title: 'الفصل الدراسي الأول', units: [] }, { id: 's7-2', title: 'الفصل الدراسي الثاني', units: [] }] },
+    { id: 8, name: 'الصف الثالث الثانوي - علمي رياضيات', level: 'Secondary', levelAr: 'الثانوي', semesters: [{ id: 's8-1', title: 'الفصل الدراسي الأول', units: [] }, { id: 's8-2', title: 'الفصل الدراسي الثاني', units: [] }] },
+    { id: 9, name: 'الصف الثالث الثانوي - أدبي', level: 'Secondary', levelAr: 'الثانوي', semesters: [{ id: 's9-1', title: 'الفصل الدراسي الأول', units: [] }, { id: 's9-2', title: 'الفصل الدراسي الثاني', units: [] }] }
 ];
 const defaultCurriculumData = { grades: defaultGrades };
 
@@ -373,7 +377,7 @@ export const initData = async (): Promise<void> => {
         // Fetch only grades and semesters for a fast initial load. Units/lessons are lazy-loaded.
         const { data: dbData, error } = await supabase
             .from('grades')
-            .select(`id, name, ordinal, level, levelAr, semesters (id, title, grade_id)`)
+            .select(`id, name, level, semesters (id, title, grade_id)`)
             .order('id', { ascending: true })
             .order('id', { foreignTable: 'semesters', ascending: true });
 
@@ -383,9 +387,8 @@ export const initData = async (): Promise<void> => {
             const grades: Grade[] = dbData.map((grade: any) => ({
                 id: grade.id,
                 name: grade.name,
-                ordinal: grade.ordinal,
                 level: grade.level,
-                levelAr: grade.levelAr,
+                levelAr: grade.level === 'Middle' ? 'الإعدادي' : 'الثانوي',
                 semesters: (grade.semesters || []).map((semester: any) => ({
                     id: semester.id,
                     title: semester.title,
@@ -418,9 +421,7 @@ export const getUnitsForSemester = async (gradeId: number, semesterId: string): 
     }
     
     // Check cache first. If units are already loaded (even without lessons), return them.
-    if (semester.units.length > 0) {
-        // If units are cached, their `lessons` array might be empty or full depending on previous calls.
-        // This is fine; we return what we have.
+    if (semester.units.length > 0 && semester.units.every(u => u.lessons.length > 0)) {
         return semester.units;
     }
 
@@ -511,14 +512,21 @@ export const getGradeById = (gradeId: number | null): Grade | undefined => {
 };
 
 export const addUnitToSemester = async (gradeId: number, semesterId: string, unitData: Omit<Unit, 'id'|'lessons'>) => { 
-    const { data: newUnit, error } = await supabase.from('units').insert({ ...unitData, semester_id: semesterId }).select().single();
+    // Explicitly map properties to snake_case to prevent errors from typos like 'teacherld'.
+    const payload = {
+        title: unitData.title,
+        teacher_id: unitData.teacherId,
+        track: unitData.track,
+        semester_id: semesterId
+    };
+    const { data: newUnit, error } = await supabase.from('units').insert(payload).select().single();
     if (error) { console.error('Error adding unit:', error.message); throw error; }
 
     if (curriculumCache) {
         const grade = curriculumCache.grades.find(g => g.id === gradeId);
         const semester = grade?.semesters.find(s => s.id === semesterId);
         if(semester) {
-            semester.units.push({ ...newUnit, lessons: [] });
+            semester.units.push({ ...newUnit, lessons: [], teacherId: newUnit.teacher_id });
         }
     }
 };
@@ -566,8 +574,15 @@ export const deleteLesson = async (gradeId: number, semesterId: string, unitId: 
 };
 
 export const updateUnit = async (gradeId: number, semesterId: string, updatedUnit: Partial<Unit> & { id: string }) => {
-    const { id, ...unitData } = updatedUnit;
-    const { error } = await supabase.from('units').update(unitData).eq('id', id);
+    const { id, lessons, ...unitData } = updatedUnit;
+    
+    // Explicitly map to snake_case for robustness.
+    const payload: { [key: string]: any } = {};
+    if (unitData.title) payload.title = unitData.title;
+    if (unitData.teacherId) payload.teacher_id = unitData.teacherId;
+    if (unitData.track) payload.track = unitData.track;
+
+    const { error } = await supabase.from('units').update(payload).eq('id', id);
     if (error) { console.error('Error updating unit:', error.message); throw error; }
     
     if (curriculumCache) {
@@ -979,7 +994,57 @@ export const purchaseCourse = async (userId: string, courseId: string) => {
 };
 
 
-export const getFeaturedBooks = () => [];
+// =================================================================
+// HOME MANAGEMENT (Featured Content)
+// =================================================================
+export const getFeaturedBooks = async (): Promise<Book[]> => {
+    const { data, error } = await supabase.from('featured_books').select('*').order('created_at', { ascending: false });
+    if (error) { console.error('Error fetching featured books:', error.message); return []; }
+    return (data || []).map((b: any) => ({
+        id: b.id, title: b.title, teacherName: b.teacher_name, teacherImage: b.teacher_image,
+        price: b.price, coverImage: b.cover_image
+    }));
+};
+export const addFeaturedBook = async (book: Omit<Book, 'id'>) => {
+    const { error } = await supabase.from('featured_books').insert({
+        title: book.title, teacher_name: book.teacherName, teacher_image: book.teacherImage,
+        price: book.price, cover_image: book.coverImage
+    });
+    if (error) console.error('Error adding featured book:', error.message);
+};
+export const updateFeaturedBook = async (book: Book) => {
+    const { error } = await supabase.from('featured_books').update({
+        title: book.title, teacher_name: book.teacherName, teacher_image: book.teacherImage,
+        price: book.price, cover_image: book.coverImage
+    }).eq('id', book.id);
+    if (error) console.error('Error updating featured book:', error.message);
+};
+export const deleteFeaturedBook = async (id: string) => {
+    const { error } = await supabase.from('featured_books').delete().eq('id', id);
+    if (error) console.error('Error deleting featured book:', error.message);
+};
+
+export const getFeaturedCourses = async (): Promise<Course[]> => {
+    const { data, error } = await supabase.from('featured_courses').select('*').order('created_at', { ascending: false });
+    if (error) { console.error('Error fetching featured courses:', error.message); return []; }
+    return (data || []).map((c: any) => ({
+        id: c.id, title: c.title, description: c.description, teacherId: c.teacher_id, coverImage: c.cover_image,
+        price: c.price, isFree: c.is_free, videos: c.videos || [], pdfUrl: c.pdf_url
+    }));
+};
+export const addFeaturedCourse = async (course: Omit<Course, 'id'>) => {
+    const { error } = await supabase.from('featured_courses').insert(mapCourseToDb(course));
+    if (error) console.error('Error adding featured course:', error.message);
+};
+export const updateFeaturedCourse = async (course: Course) => {
+    const { error } = await supabase.from('featured_courses').update(mapCourseToDb(course)).eq('id', course.id);
+    if (error) console.error('Error updating featured course:', error.message);
+};
+export const deleteFeaturedCourse = async (id: string) => {
+    const { error } = await supabase.from('featured_courses').delete().eq('id', id);
+    if (error) console.error('Error deleting featured course:', error.message);
+};
+
 export async function generateSubscriptionCode(codeData: any): Promise<SubscriptionCode | null> {
     const { data, error } = await supabase.from('subscription_codes').insert(codeData).select().single();
     if (error) {
@@ -1103,7 +1168,7 @@ export const addStudentQuestion = async (userId: string, userName: string, quest
 };
 export const getStudentQuestionsByUserId = async (userId: string): Promise<StudentQuestion[]> => {
     const { data, error } = await supabase.from('student_questions').select('*').eq('user_id', userId).order('created_at', { ascending: false });
-    if (error) { console.warn('Could not fetch questions. This might be a network issue. Original error:', error.message); return []; }
+    if (error) { console.warn('Could not fetch questions. This may be a network issue. Original error:', error.message); return []; }
     return (data || []) as StudentQuestion[];
 };
 export const getAllStudentQuestions = async (): Promise<StudentQuestion[]> => {
@@ -1125,11 +1190,3 @@ export const getAllSubscriptions = async (): Promise<Subscription[]> => {
 export const getSubscriptionByUserId = async (userId: string): Promise<Subscription | null> => { const subs = await getSubscriptionsByUserId(userId); return subs?.[0] || null; }
 export const checkDbConnection = async () => supabase.from('teachers').select('id', { count: 'exact', head: true });
 export const getActivityLogs = (): ActivityLog[] => [];
-export const addFeaturedBook = (book: any) => { console.log('Adding featured book', book); };
-export const updateFeaturedBook = (book: any) => { console.log('Updating featured book', book); };
-export const deleteFeaturedBook = (id: string) => { console.log('Deleting featured book', id); };
-
-export const getFeaturedCourses = (): Course[] => [];
-export const addFeaturedCourse = (course: any) => { console.log('Adding featured course', course); };
-export const updateFeaturedCourse = (course: any) => { console.log('Updating featured course', course); };
-export const deleteFeaturedCourse = (id: string) => { console.log('Deleting featured course', id); };

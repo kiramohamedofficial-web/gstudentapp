@@ -28,6 +28,8 @@ const SubscriptionPriceControlView = lazy(() => import('./SubscriptionPriceContr
 const CourseManagementView = lazy(() => import('./CourseManagementView'));
 const ContentManagementView = lazy(() => import('./ContentManagementView'));
 const DeviceManagementView = lazy(() => import('./DeviceManagementView'));
+const AccountCreationDiagnosticsView = lazy(() => import('./AccountCreationDiagnosticsView'));
+const TeacherCreationDiagnosticsView = lazy(() => import('./TeacherCreationDiagnosticsView'));
 
 
 interface AdminDashboardProps {
@@ -35,7 +37,7 @@ interface AdminDashboardProps {
   setTheme: (theme: Theme) => void;
 }
 
-type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'courseManagement' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers' | 'subscriptionPrices' | 'deviceManagement' | 'content';
+type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'courseManagement' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers' | 'subscriptionPrices' | 'deviceManagement' | 'content' | 'accountCreationDiagnostics' | 'teacherCreationDiagnostics';
 
 const StatCard: React.FC<{ title: string; value: string; icon: React.FC<{ className?: string; }>; delay: number; onClick?: () => void; }> = React.memo(({ title, value, icon: Icon, delay, onClick }) => (
     <div 
@@ -341,8 +343,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
       case 'deviceManagement': return <Suspense fallback={suspenseLoader}><DeviceManagementView /></Suspense>;
       case 'questionBank': return <QuestionBankView />;
       case 'platformSettings': return <PlatformSettingsView user={user} />;
-      case 'systemHealth': return <SystemHealthView />;
+      case 'systemHealth': return <SystemHealthView onNavigate={setActiveView} />;
       case 'accountSettings': return <AdminSettingsView theme={theme} setTheme={setTheme} />;
+      case 'accountCreationDiagnostics': return <Suspense fallback={suspenseLoader}><AccountCreationDiagnosticsView /></Suspense>;
+      case 'teacherCreationDiagnostics': return <Suspense fallback={suspenseLoader}><TeacherCreationDiagnosticsView /></Suspense>;
       case 'dashboard':
       default:
         return <MainDashboard onNavigate={setActiveView} />;

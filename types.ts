@@ -9,7 +9,7 @@ export enum Role {
 
 export type StudentView = 'home' | 'grades' | 'subscription' | 'profile' | 'teachers' | 'courses' | 'singleSubjectSubscription' | 'comprehensiveSubscription' | 'results' | 'smartPlan' | 'chatbot' | 'askTheProf' | 'adhkar' | 'cartoonMovies' | 'teacherProfile' | 'courseDetail';
 export type TeacherView = 'dashboard' | 'content' | 'subscriptions' | 'profile' | 'questionBank';
-export type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'courseManagement' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers' | 'subscriptionPrices' | 'deviceManagement' | 'content';
+export type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'courseManagement' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers' | 'subscriptionPrices' | 'deviceManagement' | 'content' | 'accountCreationDiagnostics' | 'teacherCreationDiagnostics';
 
 
 export interface User {
@@ -91,7 +91,6 @@ export interface Semester {
 export interface Grade {
   id: number;
   name: string; // e.g. 'الصف الأول الثانوي'
-  ordinal: '1st' | '2nd' | '3rd';
   level: 'Middle' | 'Secondary';
   levelAr: 'الإعدادي' | 'الثانوي';
   semesters: Semester[];

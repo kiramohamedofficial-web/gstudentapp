@@ -1,7 +1,9 @@
 
+
+
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Teacher, ToastType, Grade, User } from '../../types';
-import { getAllTeachers, createTeacher, updateTeacher, deleteTeacher, getAllGrades, getAllUsers } from '../../services/storageService';
+import { getAllTeachers, createTeacher, updateTeacher, deleteTeacher, getAllGrades, getAllUsers, supabase } from '../../services/storageService';
 import Modal from '../common/Modal';
 import { PlusIcon, PencilIcon, TrashIcon, UserCircleIcon } from '../common/Icons';
 import { useToast } from '../../useToast';
@@ -21,7 +23,7 @@ interface TeacherModalSaveData {
     imageUrl: string;
     teachingLevels?: ('Middle' | 'Secondary')[];
     teachingGrades?: number[];
-    email: string; // From phone
+    email: string;
     phone: string;
     password?: string;
     id?: string; // for editing
@@ -143,7 +145,7 @@ const TeacherModal: React.FC<{
                     <ImageUpload
                         label="صورة المدرس"
                         value={formData.imageUrl}
-                        onChange={(value) => setFormData(prev => ({ ...prev, imageUrl: value }))}
+                        onChange={(url) => setFormData(prev => ({ ...prev, imageUrl: url }))}
                     />
                      <div className="pt-4 border-t border-[var(--border-primary)]">
                         <h3 className="text-md font-semibold text-[var(--text-primary)] mb-3">التخصص الدراسي</h3>
@@ -246,18 +248,22 @@ const TeacherManagementView: React.FC = () => {
     const handleSave = async (data: TeacherModalSaveData) => {
         setIsLoading(true);
         try {
-            if (data.id) { 
+            if (data.id) { // Editing
                 const { id, ...updates } = data;
-                if (!updates.password?.trim()) {
-                    delete updates.password;
+                const { success, error } = await updateTeacher(id, updates);
+                if (!success) throw error;
+    
+                if (updates.password && updates.password.trim()) {
+                     const { data: profileData, error: profileError } = await supabase.from('profiles').select('id').eq('teacher_id', id).single();
+                     if (profileError) throw new Error(`Could not find user for teacher: ${profileError.message}`);
+                     if (profileData) {
+                         const { error: passwordError } = await supabase.auth.admin.updateUserById(profileData.id, { password: updates.password });
+                         if (passwordError) throw new Error(`Failed to update password: ${passwordError.message}`);
+                     }
                 }
-                const result = await updateTeacher(id, updates);
-                if (!result.success) {
-                    throw new Error(result.error.message || 'فشل تحديث المدرس.');
-                }
+    
                 addToast('تم تحديث بيانات المدرس بنجاح.', ToastType.SUCCESS);
-
-            } else { 
+            } else { // Adding
                 const result = await createTeacher({
                     email: data.email,
                     password: data.password,
@@ -268,17 +274,13 @@ const TeacherManagementView: React.FC = () => {
                     teaching_levels: data.teachingLevels || [],
                     image_url: data.imageUrl,
                 });
-                
-                if (!result.success) {
-                    throw new Error(result.error?.message || 'An unknown error occurred.');
-                }
-                
+                if (!result.success) throw result.error;
                 addToast('تمت إضافة المدرس بنجاح.', ToastType.SUCCESS);
             }
             refreshData();
             closeModal();
         } catch (error: any) {
-            addToast(`❌ فشل في العملية: ${error.message}`, ToastType.ERROR);
+            addToast(`❌ فشل: ${error.message || 'An unknown error occurred.'}`, ToastType.ERROR);
         } finally {
             setIsLoading(false);
         }

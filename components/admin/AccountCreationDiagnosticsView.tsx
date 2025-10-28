@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { UserCheckIcon, ServerIcon, DatabaseIcon, ShieldCheckIcon, TrashIcon } from '../common/Icons';
-import { checkDbConnection, getAllUsers, getGradesForSelection, signUp, getProfile, updateUser } from '../../services/storageService';
+import { checkDbConnection, getAllUsers, getGradesForSelection, signUp, getProfile, updateUser, deleteUser } from '../../services/storageService';
 import { useToast } from '../../useToast';
-import { User } from '../../types';
+import { User, ToastType } from '../../types';
 
 type Status = 'idle' | 'running' | 'ok' | 'warning' | 'error';
 type TestLevel = 'Middle' | 'Secondary';
@@ -82,9 +82,9 @@ const AccountCreationDiagnosticsView: React.FC = () => {
         updateCheck('usersTable', 'running', 'جاري التحقق من الجدول...');
         const users = await getAllUsers();
         if (Array.isArray(users)) {
-             updateCheck('usersTable', 'ok', `تم العثور على جدول 'users' بنجاح.`);
+             updateCheck('usersTable', 'ok', `تم العثور على جدول 'profiles' بنجاح.`);
         } else {
-             updateCheck('usersTable', 'error', `فشل الوصول إلى جدول 'users'.`);
+             updateCheck('usersTable', 'error', `فشل الوصول إلى جدول 'profiles'.`);
         }
 
         // DB Trigger
@@ -99,6 +99,7 @@ const AccountCreationDiagnosticsView: React.FC = () => {
     const handleRunSimulation = async () => {
         setIsSimulating(true);
         setSimulationLogs([]);
+        let createdUserId: string | null = null;
         const addLog = (log: string) => setSimulationLogs(prev => [...prev, log]);
 
         const testEmail = `test.user.${Math.random().toString(36).substring(2, 8)}@gstudent.app`;
@@ -112,86 +113,90 @@ const AccountCreationDiagnosticsView: React.FC = () => {
         };
         const levelName = testLevel === 'Middle' ? 'الإعدادية' : 'الثانوية';
 
-        addLog(`بدء المحاكاة للمرحلة: ${levelName}`);
-        addLog(`- استخدام البريد الإلكتروني: ${testEmail}`);
-        addLog(`- استخدام الصف الدراسي ID: ${testGradeId} (المسار: ${testTrack})`);
-        
-        // Step 1: Auth Sign Up
-        addLog('الخطوة 1: محاولة إنشاء حساب مصادقة...');
-        const { data: authData, error: signUpError } = await signUp(testData);
-        if (signUpError || !authData.user) {
-            addLog(`❌ فشل إنشاء حساب المصادقة: ${signUpError?.message}`);
-            setIsSimulating(false);
-            return;
-        }
-        addLog(`✅ نجاح! تم إنشاء مستخدم المصادقة (ID: ${authData.user.id})`);
-
-        // Step 2: Poll for Profile
-        addLog('الخطوة 2: التحقق من إنشاء ملف المستخدم عبر الربط...');
-        let initialProfile: User | null = null;
-        for (let i = 0; i < 5; i++) {
-            await new Promise(res => setTimeout(res, 1500));
-            addLog(`- محاولة التحقق رقم ${i + 1}...`);
-            const profile = await getProfile(authData.user.id);
-            if (profile) {
-                initialProfile = profile;
-                addLog('✅ نجاح! تم العثور على ملف المستخدم. الربط يعمل.');
-                break;
+        try {
+            addLog(`بدء المحاكاة للمرحلة: ${levelName}`);
+            addLog(`- استخدام البريد الإلكتروني: ${testEmail}`);
+            addLog(`- استخدام الصف الدراسي ID: ${testGradeId} (المسار: ${testTrack})`);
+            
+            // Step 1: Auth Sign Up
+            addLog('الخطوة 1: محاولة إنشاء حساب مصادقة...');
+            const { data: authData, error: signUpError } = await signUp(testData);
+            if (signUpError || !authData.user) {
+                throw new Error(`فشل إنشاء حساب المصادقة: ${signUpError?.message}`);
             }
-        }
+            createdUserId = authData.user.id;
+            addLog(`✅ نجاح! تم إنشاء مستخدم المصادقة (ID: ${createdUserId})`);
 
-        if (!initialProfile) {
-            addLog('❌ فشل! لم يتم العثور على ملف المستخدم. قد تكون هناك مشكلة في الربط (DB Trigger).');
-            setIsSimulating(false);
-            return;
-        }
-        
-        // Step 3: Initial Data Verification
-        addLog('الخطوة 3: التحقق الأولي من البيانات المحفوظة...');
-        let isInitialDataCorrect = true;
-        if (initialProfile.grade === testGradeId) {
-            addLog(`✅ الصف الدراسي: مطابق (ID: ${initialProfile.grade})`);
-        } else {
-            addLog(`❌ الصف الدراسي: غير مطابق! المتوقع: ${testGradeId}, المحفوظ: ${initialProfile.grade}`);
-            isInitialDataCorrect = false;
-        }
+            // Step 2: Poll for Profile
+            addLog('الخطوة 2: التحقق من إنشاء ملف المستخدم عبر الربط...');
+            let initialProfile: User | null = null;
+            for (let i = 0; i < 5; i++) {
+                await new Promise(res => setTimeout(res, 1500));
+                addLog(`- محاولة التحقق رقم ${i + 1}...`);
+                const profile = await getProfile(authData.user.id);
+                if (profile) {
+                    initialProfile = profile;
+                    addLog('✅ نجاح! تم العثور على ملف المستخدم. الربط يعمل.');
+                    break;
+                }
+            }
 
-        const expectedTrack = deriveTrackFromGrade(testGradeId) || 'All';
-        if (initialProfile.track === expectedTrack) {
-            addLog(`✅ المسار الدراسي: مطابق ('${initialProfile.track}')`);
-        } else {
-            addLog(`❌ المسار الدراسي: غير مطابق! المتوقع: '${expectedTrack}', المحفوظ: '${initialProfile.track}'`);
-            isInitialDataCorrect = false;
-        }
-
-        // Step 4: Manual Correction if necessary
-        if (!isInitialDataCorrect) {
-            addLog('الخطوة 4: البيانات الأولية غير صحيحة. بدء محاولة التصحيح اليدوي...');
-            const { error: updateError } = await updateUser(authData.user.id, { grade: testGradeId, track: testTrack });
-            if (updateError) {
-                addLog(`❌ فشل التصحيح اليدوي: ${updateError.message}`);
+            if (!initialProfile) {
+                throw new Error('فشل! لم يتم العثور على ملف المستخدم. قد تكون هناك مشكلة في الربط (DB Trigger).');
+            }
+            
+            // Step 3: Initial Data Verification
+            addLog('الخطوة 3: التحقق الأولي من البيانات المحفوظة...');
+            let isInitialDataCorrect = true;
+            if (initialProfile.grade === testGradeId) {
+                addLog(`✅ الصف الدراسي: مطابق (ID: ${initialProfile.grade})`);
             } else {
+                addLog(`❌ الصف الدراسي: غير مطابق! المتوقع: ${testGradeId}, المحفوظ: ${initialProfile.grade}`);
+                isInitialDataCorrect = false;
+            }
+
+            const expectedTrack = deriveTrackFromGrade(testGradeId) || 'All';
+            if (initialProfile.track === expectedTrack) {
+                addLog(`✅ المسار الدراسي: مطابق ('${initialProfile.track}')`);
+            } else {
+                addLog(`❌ المسار الدراسي: غير مطابق! المتوقع: '${expectedTrack}', المحفوظ: '${initialProfile.track}'`);
+                isInitialDataCorrect = false;
+            }
+
+            // Step 4: Manual Correction if necessary
+            if (!isInitialDataCorrect) {
+                addLog('الخطوة 4: البيانات الأولية غير صحيحة. بدء محاولة التصحيح اليدوي...');
+                const { error: updateError } = await updateUser(authData.user.id, { grade: testGradeId, track: testTrack });
+                if (updateError) {
+                    throw new Error(`فشل التصحيح اليدوي: ${updateError.message}`);
+                }
                 addLog('✅ نجاح! تم إرسال طلب التحديث.');
                 addLog('الخطوة 5: التحقق النهائي بعد التصحيح...');
-                await new Promise(res => setTimeout(res, 1000)); // wait for db update
+                await new Promise(res => setTimeout(res, 1000));
                 const finalProfile = await getProfile(authData.user.id);
 
-                if (finalProfile?.grade === testGradeId) {
-                    addLog(`✅ الصف الدراسي بعد التصحيح: مطابق (ID: ${finalProfile.grade})`);
-                } else {
-                    addLog(`❌ الصف الدراسي بعد التصحيح: لا يزال غير مطابق!`);
+                if (finalProfile?.grade !== testGradeId || finalProfile?.track !== expectedTrack) {
+                    throw new Error(`فشل التحقق النهائي بعد التصحيح. المحفوظ: grade=${finalProfile?.grade}, track='${finalProfile?.track}'`);
                 }
-                 if (finalProfile?.track === expectedTrack) {
-                    addLog(`✅ المسار الدراسي بعد التصحيح: مطابق ('${finalProfile.track}')`);
+                addLog(`✅ البيانات النهائية مطابقة.`);
+            }
+            addLog("🏁 اكتملت المحاكاة بنجاح!");
+            addToast("اكتملت المحاكاة بنجاح!", ToastType.SUCCESS);
+        } catch (error: any) {
+             addLog(`❌ فشل المحاكاة: ${error.message}`);
+             addToast("فشلت المحاكاة. انظر السجلات للمزيد.", ToastType.ERROR);
+        } finally {
+            if (createdUserId) {
+                addLog(`التنظيف: حذف المستخدم التجريبي (ID: ${createdUserId})...`);
+                const { error: deleteError } = await deleteUser(createdUserId);
+                if (deleteError) {
+                    addLog(`❌ فشل حذف المستخدم التجريبي: ${deleteError.message}`);
                 } else {
-                    addLog(`❌ المسار الدراسي بعد التصحيح: لا يزال غير مطابق!`);
+                    addLog(`✅ تم حذف المستخدم التجريبي بنجاح.`);
                 }
             }
+            setIsSimulating(false);
         }
-
-
-        addLog('انتهت المحاكاة.');
-        setIsSimulating(false);
     };
 
 
@@ -216,12 +221,6 @@ const AccountCreationDiagnosticsView: React.FC = () => {
                             ))}
                         </div>
                     </div>
-                     <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)]">
-                        <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2"><TrashIcon className="w-5 h-5 text-amber-400"/> التنظيف</h2>
-                        <p className="text-sm text-[var(--text-secondary)]">
-                            تقوم المحاكاة بإنشاء مستخدمين تجريبيين ببريد إلكتروني يبدأ بـ `test.user.`. لتنظيف النظام، يجب حذف هؤلاء المستخدمين يدوياً من قسم "Authentication" في لوحة تحكم Supabase.
-                        </p>
-                    </div>
                 </div>
 
                 <div className="lg:col-span-2 bg-[var(--bg-secondary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)]">
@@ -237,7 +236,7 @@ const AccountCreationDiagnosticsView: React.FC = () => {
                         </div>
                     </div>
                     <p className="text-sm text-[var(--text-secondary)] mb-4">
-                        ستقوم هذه الأداة بمحاكاة عملية تسجيل طالب جديد بالكامل للتحقق من سلامة كل خطوة.
+                        ستقوم هذه الأداة بمحاكاة عملية تسجيل طالب جديد بالكامل للتحقق من سلامة كل خطوة. سيتم حذف الحساب التجريبي تلقائيًا بعد الانتهاء.
                     </p>
                     <button onClick={handleRunSimulation} disabled={isSimulating} className="w-full mb-4 py-3 font-semibold bg-purple-600 hover:bg-purple-700 rounded-lg text-white transition-all disabled:opacity-50 disabled:cursor-wait">
                         {isSimulating ? 'جاري المحاكاة...' : `بدء محاكاة (طالب ${testLevel === 'Middle' ? 'إعدادي' : 'ثانوي'})`}

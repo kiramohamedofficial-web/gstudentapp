@@ -1,6 +1,7 @@
 
+
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { Grade, Unit, User, Teacher } from '../../types';
+import { Grade, Unit, User, Teacher, Lesson } from '../../types';
 import { getStudentProgress, getAllTeachers, getUnitsForSemester, getLessonsForUnit } from '../../services/storageService';
 import { ArrowRightIcon, ArrowLeftIcon } from '../common/Icons';
 import Loader from '../common/Loader';
@@ -16,11 +17,12 @@ const ProgressBar: React.FC<{ progress: number }> = ({ progress }) => (
     </div>
 );
 
-const TeacherSubjectCard: React.FC<{ unit: Unit; teacher?: Teacher; onClick: () => void; delay: number; progress: number; }> = ({ unit, teacher, onClick, delay, progress }) => {
+const TeacherSubjectCard: React.FC<{ unit: Unit; teacher?: Teacher; onClick: () => void; delay: number; progress: number; isLoading: boolean }> = ({ unit, teacher, onClick, delay, progress, isLoading }) => {
     return (
-        <div
+        <button
             onClick={onClick}
-            className="bg-[var(--bg-secondary)] rounded-2xl shadow-lg border border-[var(--border-primary)] p-4 flex items-center space-x-4 space-x-reverse transition-all duration-300 transform hover:-translate-y-1.5 hover:shadow-cyan-500/10 hover:border-cyan-500/50 cursor-pointer fade-in"
+            disabled={isLoading}
+            className="bg-[var(--bg-secondary)] rounded-2xl shadow-lg border border-[var(--border-primary)] p-4 flex items-center space-x-4 space-x-reverse transition-all duration-300 transform hover:-translate-y-1.5 hover:shadow-cyan-500/10 hover:border-cyan-500/50 cursor-pointer fade-in disabled:cursor-wait"
             style={{ animationDelay: `${delay}ms` }}
         >
             <img 
@@ -39,8 +41,8 @@ const TeacherSubjectCard: React.FC<{ unit: Unit; teacher?: Teacher; onClick: () 
                 </div>
             </div>
             
-            <ArrowLeftIcon className="w-6 h-6 text-[var(--text-secondary)]" />
-        </div>
+            {isLoading ? <Loader /> : <ArrowLeftIcon className="w-6 h-6 text-[var(--text-secondary)]" />}
+        </button>
     );
 };
 
@@ -71,7 +73,9 @@ interface SubjectSelectionScreenProps {
 const SubjectSelectionScreen: React.FC<SubjectSelectionScreenProps> = ({ grade, onSubjectSelect, onBack, user }) => {
     const [activeSemesterId, setActiveSemesterId] = useState<string>(grade.semesters[0]?.id || '');
     const [units, setUnits] = useState<Unit[]>([]);
+    const [lessonsMap, setLessonsMap] = useState<Record<string, Lesson[]>>({});
     const [isLoadingUnits, setIsLoadingUnits] = useState(true);
+    const [isFetchingLessonsFor, setIsFetchingLessonsFor] = useState<string | null>(null);
     const [activeSubject, setActiveSubject] = useState<string>('الكل');
     const [teachers, setTeachers] = useState<Teacher[]>([]);
     const [userProgress, setUserProgress] = useState<Record<string, boolean>>({});
@@ -105,32 +109,36 @@ const SubjectSelectionScreen: React.FC<SubjectSelectionScreenProps> = ({ grade, 
             setIsLoadingUnits(false);
             return;
         }
-        const fetchUnitsAndThenLessons = async () => {
+        const fetchUnits = async () => {
             setIsLoadingUnits(true);
-            // Step 1: Fetch units for quick display
             const fetchedUnits = await getUnitsForSemester(grade.id, activeSemesterId);
             setUnits(fetchedUnits);
-            setIsLoadingUnits(false); // UI now shows cards
-
-            // Step 2: Fetch lessons for each unit to update progress bars
-            const unitsWithLessons = await Promise.all(fetchedUnits.map(async (unit) => {
-                const lessons = await getLessonsForUnit(grade.id, activeSemesterId, unit.id);
-                return { ...unit, lessons };
-            }));
-            setUnits(unitsWithLessons); // This triggers a re-render with the correct progress
+            setLessonsMap({}); // Clear old lesson data
+            setIsLoadingUnits(false);
         };
-        fetchUnitsAndThenLessons();
+        fetchUnits();
     }, [activeSemesterId, grade.id]);
+
+    const handleSelectUnit = async (unit: Unit) => {
+        if (isFetchingLessonsFor) return;
+
+        setIsFetchingLessonsFor(unit.id);
+        const lessons = await getLessonsForUnit(grade.id, activeSemesterId, unit.id);
+        const unitWithLessons = { ...unit, lessons };
+        setIsFetchingLessonsFor(null);
+        onSubjectSelect(unitWithLessons);
+    };
 
     const teacherMap = useMemo(() => new Map(teachers.map(t => [t.id, t])), [teachers]);
 
     const calculateProgress = useCallback((unit: Unit) => {
-        const totalLessons = unit.lessons.length;
-        if (totalLessons === 0) return 0; // Will be 0 on first render, which is fine
+        const lessons = lessonsMap[unit.id] || unit.lessons;
+        const totalLessons = lessons.length;
+        if (totalLessons === 0) return 0;
         
-        const completedLessons = unit.lessons.filter(lesson => userProgress[lesson.id]).length;
+        const completedLessons = lessons.filter(lesson => userProgress[lesson.id]).length;
         return (completedLessons / totalLessons) * 100;
-    }, [userProgress]);
+    }, [userProgress, lessonsMap]);
 
     const unitsForTrack = useMemo(() => {
         return units.filter(unit => 
@@ -208,9 +216,10 @@ const SubjectSelectionScreen: React.FC<SubjectSelectionScreenProps> = ({ grade, 
                             key={`${unit.id}-${index}`}
                             unit={unit} 
                             teacher={teacherMap.get(unit.teacherId)}
-                            onClick={() => onSubjectSelect(unit)} 
+                            onClick={() => handleSelectUnit(unit)} 
                             delay={index * 50}
                             progress={calculateProgress(unit)}
+                            isLoading={isFetchingLessonsFor === unit.id}
                         />
                     ))}
                 </div>
