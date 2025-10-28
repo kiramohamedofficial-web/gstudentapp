@@ -11,6 +11,7 @@ interface StudentLayoutProps {
   theme: Theme;
   setTheme: (theme: Theme) => void;
   gradeName?: string;
+  loadTime?: number | null;
 }
 
 const CurriculumIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -86,7 +87,7 @@ const BottomNavItem: React.FC<{ onClick: () => void; label: string; icon: React.
     </button>
 );
 
-const StudentLayout: React.FC<StudentLayoutProps> = ({ children, onNavClick, activeView, theme, setTheme, gradeName }) => {
+const StudentLayout: React.FC<StudentLayoutProps> = ({ children, onNavClick, activeView, theme, setTheme, gradeName, loadTime }) => {
     const { currentUser: user, handleLogout: onLogout } = useSession();
     const { subscription, isLoading: isSubLoading, notifications } = useSubscription();
 
@@ -259,6 +260,12 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ children, onNavClick, act
             <NavContent navItems={navItems} activeView={activeView} onNavClick={(v) => { onNavClick(v); setIsMobileNavOpen(false); }} onLogout={() => { onLogout(); setIsMobileNavOpen(false); }} subscription={subscription} />
           </div>
         </div>
+      )}
+      {loadTime !== null && (
+          <div className="fixed bottom-20 right-3 md:bottom-3 md:left-3 z-50 bg-black/50 text-white text-xs px-2 py-1 rounded-md backdrop-blur-sm"
+               style={{ fontFamily: 'monospace' }}>
+              Load: {loadTime.toFixed(0)}ms
+          </div>
       )}
     </div>
   );

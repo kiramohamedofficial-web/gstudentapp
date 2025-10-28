@@ -4,7 +4,8 @@ import App from './App';
 import { ToastProvider } from './ToastContext';
 import { SessionProvider } from './hooks/useSession';
 import { SubscriptionProvider } from './hooks/useSubscription';
-import { initData } from './services/storageService';
+
+performance.mark('app-load-start');
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -13,17 +14,16 @@ if (!rootElement) {
 
 const root = ReactDOM.createRoot(rootElement);
 
-// Initialize data before rendering the app to ensure all components have access to it.
-initData().then(() => {
-  root.render(
-    <React.StrictMode>
-      <ToastProvider>
-        <SessionProvider>
-          <SubscriptionProvider>
-            <App />
-          </SubscriptionProvider>
-        </SessionProvider>
-      </ToastProvider>
-    </React.StrictMode>
-  );
-});
+// Render the app immediately. Data initialization is now handled within the App component
+// to show a loading screen to the user faster.
+root.render(
+  <React.StrictMode>
+    <ToastProvider>
+      <SessionProvider>
+        <SubscriptionProvider>
+          <App />
+        </SubscriptionProvider>
+      </SessionProvider>
+    </ToastProvider>
+  </React.StrictMode>
+);

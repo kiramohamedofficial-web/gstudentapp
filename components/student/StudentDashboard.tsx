@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useMemo, useEffect, lazy, Suspense, useCallback } from 'react';
 import { Unit, Lesson, StudentView, Theme, Teacher, Course } from '../../types';
 import { getGradeById } from '../../services/storageService';
 import StudentLayout from '../layout/StudentLayout';
@@ -41,6 +41,28 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
   const { currentUser: user } = useSession();
   const [activeView, setActiveView] = useState<StudentView>('home');
   const [isDataSaverEnabled, setIsDataSaverEnabled] = useState(false);
+  const [loadTime, setLoadTime] = useState<number | null>(null);
+
+  useEffect(() => {
+    // Measure performance after the component mounts
+    performance.mark('student-dashboard-render');
+    const measure = performance.measure(
+        'student-dashboard-load-time', 
+        'app-load-start', 
+        'student-dashboard-render'
+    );
+    
+    if (measure) {
+        setLoadTime(measure.duration);
+        console.log(`Student Dashboard Load Time: ${measure.duration.toFixed(2)} ms`);
+    }
+
+    // Clean up marks to avoid memory leaks on potential remounts
+    return () => {
+        performance.clearMarks('student-dashboard-render');
+        performance.clearMeasures('student-dashboard-load-time');
+    };
+  }, []);
 
   useEffect(() => {
     const savedDataSaver = localStorage.getItem('dataSaverEnabled');
@@ -58,15 +80,15 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [initialLesson, setInitialLesson] = useState<Lesson | null>(null);
 
-  const handleNavClick = (view: StudentView) => {
+  const handleNavClick = useCallback((view: StudentView) => {
     setSelectedUnit(null);
     setInitialLesson(null);
     setSelectedTeacher(null);
     setSelectedCourse(null);
     setActiveView(view);
-  };
+  }, []);
   
-  const handleHomeNavigation = (view: StudentView, data?: { unit?: Unit; lesson?: Lesson; teacher?: Teacher; course?: Course; }) => {
+  const handleHomeNavigation = useCallback((view: StudentView, data?: { unit?: Unit; lesson?: Lesson; teacher?: Teacher; course?: Course; }) => {
       if (view === 'grades' && data?.unit) {
           setSelectedUnit(data.unit);
           setInitialLesson(data.lesson);
@@ -80,7 +102,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
       } else {
           setActiveView(view);
       }
-  };
+  }, []);
 
   const handleSubjectSelect = (unit: Unit) => {
     setSelectedUnit(unit);
@@ -190,6 +212,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
         activeView={activeView} 
         onNavClick={handleNavClick} 
         gradeName={studentGrade?.name}
+        loadTime={loadTime}
     >
       <Suspense fallback={<SuspenseLoader />}>
         {renderContent()}

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useMemo, useEffect, lazy, Suspense, useCallback } from 'react';
 import { User, ActivityLog, Grade, Theme, Teacher } from '../../types';
 import AdminLayout from '../layout/AdminLayout';
 import SubscriptionManagementView from './FinancialView';
@@ -307,20 +307,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
   const [selectedStudent, setSelectedStudent] = useState<User | null>(null);
   const [studentDataVersion, setStudentDataVersion] = useState(0);
 
-  const handleViewStudentDetails = (student: User) => {
+  const handleViewStudentDetails = useCallback((student: User) => {
     setSelectedStudent(student);
     setActiveView('students'); // Keep the view logical
-  };
+  }, []);
 
-  const handleBackToStudents = () => {
+  const handleBackToStudents = useCallback(() => {
     setSelectedStudent(null);
     setStudentDataVersion(v => v + 1); // Force refresh of student list
-  };
+  }, []);
 
-  const handleNavClick = (view: AdminView) => {
+  const handleNavClick = useCallback((view: AdminView) => {
     setSelectedStudent(null);
     setActiveView(view);
-  };
+  }, []);
 
   if (!user) return null;
 

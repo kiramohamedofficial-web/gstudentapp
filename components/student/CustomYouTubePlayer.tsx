@@ -150,6 +150,7 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
                     e.target.playVideo();
                 },
                 onStateChange: (e: any) => {
+                    if (!window.YT?.PlayerState) return; // Defensive check for stability
                     const state = e.data;
                     setIsPlaying(state === window.YT.PlayerState.PLAYING);
                     setIsBuffering(state === window.YT.PlayerState.BUFFERING);

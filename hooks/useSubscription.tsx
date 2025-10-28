@@ -23,9 +23,15 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const fetchSubscription = useCallback(async () => {
         if (currentUser) {
             setIsLoading(true);
-            const subs = await getSubscriptionsByUserId(currentUser.id);
-            setSubscriptions(subs);
-            setIsLoading(false);
+            try {
+                const subs = await getSubscriptionsByUserId(currentUser.id);
+                setSubscriptions(subs);
+            } catch (error) {
+                console.error("Failed to fetch subscriptions:", error);
+                setSubscriptions([]); // Reset to empty on error to ensure a consistent state
+            } finally {
+                setIsLoading(false);
+            }
         } else {
             setSubscriptions([]);
             setIsLoading(false);

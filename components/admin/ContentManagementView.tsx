@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Grade, Semester, Unit, Lesson, LessonType, ToastType, Teacher, QuizType, QuizQuestion } from '../../types';
 import {
@@ -242,6 +241,7 @@ const ContentManagementView: React.FC = () => {
     const [selectedGradeId, setSelectedGradeId] = useState<string>('');
     const [selectedSemesterId, setSelectedSemesterId] = useState<string>('');
     const [units, setUnits] = useState<Unit[]>([]);
+    const [lessonsMap, setLessonsMap] = useState<Record<string, Lesson[]>>({}); // Cache for lessons
     const [isLoadingUnits, setIsLoadingUnits] = useState(false);
     const [expandedUnitId, setExpandedUnitId] = useState<string | null>(null);
     const [loadingLessons, setLoadingLessons] = useState<Set<string>>(new Set());
@@ -249,6 +249,8 @@ const ContentManagementView: React.FC = () => {
     const optionsMenuRef = useRef<HTMLDivElement>(null);
 
     const refreshData = useCallback(() => setDataVersion(v => v + 1), []);
+    const closeModal = useCallback(() => setModalState({ type: null, data: {} }), []);
+    const openModal = useCallback((type: string, data = {}) => setModalState({ type, data }), []);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -288,31 +290,32 @@ const ContentManagementView: React.FC = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const openModal = (type: string, data = {}) => setModalState({ type, data });
-    const closeModal = () => setModalState({ type: null, data: {} });
-
     const selectedGrade = useMemo(() => grades.find(g => g.id.toString() === selectedGradeId), [grades, selectedGradeId]);
     const selectedSemester = useMemo(() => selectedGrade?.semesters.find(s => s.id === selectedSemesterId), [selectedGrade, selectedSemesterId]);
     const teacherMap = useMemo(() => new Map(teachers.map(t => [t.id, t.name])), [teachers]);
     
-    const handleToggleExpand = async (unitId: string) => {
+    const handleToggleExpand = useCallback(async (unitId: string) => {
         const newExpandedId = expandedUnitId === unitId ? null : unitId;
         setExpandedUnitId(newExpandedId);
-        
-        const unit = units.find(u => u.id === unitId);
-        if (newExpandedId && unit && unit.lessons.length === 0 && selectedGradeId && selectedSemesterId) {
-            setLoadingLessons(prev => new Set(prev).add(unitId));
-            const fetchedLessons = await getLessonsForUnit(parseInt(selectedGradeId), selectedSemesterId, newExpandedId);
-            setUnits(prevUnits => prevUnits.map(u => u.id === unitId ? {...u, lessons: fetchedLessons} : u));
-            setLoadingLessons(prev => {
-                const newSet = new Set(prev);
-                newSet.delete(unitId);
-                return newSet;
-            });
-        }
-    };
 
-    const handleSaveUnit = async (unitData: Partial<Unit>) => {
+        if (newExpandedId && !lessonsMap[newExpandedId] && selectedGradeId && selectedSemesterId) {
+            setLoadingLessons(prev => new Set(prev).add(unitId));
+            try {
+                const fetchedLessons = await getLessonsForUnit(parseInt(selectedGradeId), selectedSemesterId, newExpandedId);
+                setLessonsMap(prevMap => ({ ...prevMap, [newExpandedId]: fetchedLessons }));
+            } catch (error) {
+                addToast('فشل تحميل الدروس لهذه الوحدة.', ToastType.ERROR);
+            } finally {
+                setLoadingLessons(prev => {
+                    const newSet = new Set(prev);
+                    newSet.delete(unitId);
+                    return newSet;
+                });
+            }
+        }
+    }, [expandedUnitId, lessonsMap, selectedGradeId, selectedSemesterId, addToast]);
+
+    const handleSaveUnit = useCallback(async (unitData: Partial<Unit>) => {
         if (selectedGrade && selectedSemester) {
             try {
                 if (modalState.data.unit?.id) { // Editing
@@ -328,9 +331,9 @@ const ContentManagementView: React.FC = () => {
                 addToast(`فشل حفظ الوحدة: ${error.message}`, ToastType.ERROR);
             }
         }
-    };
+    }, [addToast, closeModal, modalState.data, refreshData, selectedGrade, selectedSemester]);
 
-    const handleDeleteUnit = async () => {
+    const handleDeleteUnit = useCallback(async () => {
         const { unit } = modalState.data;
         if (selectedGrade && selectedSemester && unit) {
             try {
@@ -342,13 +345,13 @@ const ContentManagementView: React.FC = () => {
                 addToast(`فشل حذف الوحدة: ${error.message}`, ToastType.ERROR);
             }
         }
-    };
+    }, [addToast, closeModal, modalState.data, refreshData, selectedGrade, selectedSemester]);
     
-    const handleAddLesson = (unit: Unit, type: LessonType) => {
+    const handleAddLesson = useCallback((unit: Unit, type: LessonType) => {
         openModal('add-lesson', { unit, lesson: { type } });
-    };
+    }, [openModal]);
 
-    const handleSaveLesson = async (lessonData: Lesson | Omit<Lesson, 'id'>) => {
+    const handleSaveLesson = useCallback(async (lessonData: Lesson | Omit<Lesson, 'id'>) => {
         const { unit } = modalState.data;
         if (selectedGrade && selectedSemester && unit) {
             try {
@@ -365,9 +368,9 @@ const ContentManagementView: React.FC = () => {
                  addToast(`فشل حفظ الدرس: ${error.message}`, ToastType.ERROR);
             }
         }
-    };
+    }, [addToast, closeModal, modalState.data, refreshData, selectedGrade, selectedSemester]);
 
-    const handleDeleteLesson = async () => {
+    const handleDeleteLesson = useCallback(async () => {
         const { unit, lesson } = modalState.data;
         if (selectedGrade && selectedSemester && unit && lesson) {
             try {
@@ -379,7 +382,7 @@ const ContentManagementView: React.FC = () => {
                 addToast(`فشل حذف الدرس: ${error.message}`, ToastType.ERROR);
             }
         }
-    };
+    }, [addToast, closeModal, modalState.data, refreshData, selectedGrade, selectedSemester]);
     
     const getLessonIcon = (type: LessonType) => {
         switch(type) {
@@ -419,7 +422,11 @@ const ContentManagementView: React.FC = () => {
                 {isLoadingUnits ? (
                     <div className="flex justify-center items-center py-20"><Loader /></div>
                 ) : (
-                    units.map(unit => (
+                    units.map(unit => {
+                        const lessonsForUnit = lessonsMap[unit.id];
+                        const lessonCount = lessonsForUnit?.length;
+
+                        return (
                         <div key={unit.id} className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-primary)]">
                             <header onClick={() => handleToggleExpand(unit.id)} className="p-4 flex justify-between items-center cursor-pointer">
                                 <div className="flex items-center gap-3">
@@ -430,7 +437,9 @@ const ContentManagementView: React.FC = () => {
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-4">
-                                    <span className="text-sm font-semibold bg-[var(--bg-tertiary)] px-3 py-1 rounded-full">{unit.lessons.length > 0 ? `${unit.lessons.length} دروس` : 'فارغ'}</span>
+                                    <span className="text-sm font-semibold bg-[var(--bg-tertiary)] px-3 py-1 rounded-full">
+                                        {typeof lessonCount === 'number' ? `${lessonCount} دروس` : (unit.lessons.length > 0 ? `${unit.lessons.length} دروس` : 'فارغ')}
+                                    </span>
                                     <div className="relative">
                                         <button onClick={(e) => { e.stopPropagation(); setOptionsMenuUnitId(p => p === unit.id ? null : unit.id); }} className="p-2 text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] rounded-full"><DotsVerticalIcon className="w-5 h-5"/></button>
                                         {optionsMenuUnitId === unit.id && (
@@ -446,11 +455,9 @@ const ContentManagementView: React.FC = () => {
                                 <div className="p-4 border-t border-[var(--border-primary)] space-y-4">
                                     {loadingLessons.has(unit.id) ? (
                                         <div className="flex justify-center items-center py-4"><Loader /></div>
-                                    ) : unit.lessons.length === 0 ? (
-                                        <p className="text-center text-sm text-[var(--text-secondary)] py-4">لا توجد دروس في هذه الوحدة.</p>
-                                    ) : (
+                                    ) : (lessonsForUnit && lessonsForUnit.length > 0) ? (
                                         <div className="space-y-2">
-                                        {unit.lessons.map(lesson => (
+                                        {lessonsForUnit.map(lesson => (
                                             <div key={lesson.id} className="p-2 bg-[var(--bg-tertiary)] rounded-md flex justify-between items-center">
                                                 <div className="flex items-center gap-2">
                                                     {React.createElement(getLessonIcon(lesson.type), { className: "w-4 h-4 text-[var(--text-secondary)]" })}
@@ -463,6 +470,8 @@ const ContentManagementView: React.FC = () => {
                                             </div>
                                         ))}
                                         </div>
+                                    ) : (
+                                        <p className="text-center text-sm text-[var(--text-secondary)] py-4">لا توجد دروس في هذه الوحدة.</p>
                                     )}
                                     <div>
                                         <p className="text-sm font-semibold mb-2">إضافة جزء جديد:</p>
@@ -476,7 +485,7 @@ const ContentManagementView: React.FC = () => {
                                 </div>
                             )}
                         </div>
-                    ))
+                    )})
                 )}
             </div>
 
