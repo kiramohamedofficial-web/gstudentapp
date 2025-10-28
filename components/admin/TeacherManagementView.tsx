@@ -1,6 +1,7 @@
+
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Teacher, ToastType, Grade, User } from '../../types';
-import { getAllTeachers, createTeacher, updateTeacher, deleteTeacher, getAllGrades, getAllUsers, uploadImage } from '../../services/storageService';
+import { getAllTeachers, createTeacher, updateTeacher, deleteTeacher, getAllGrades, getAllUsers } from '../../services/storageService';
 import Modal from '../common/Modal';
 import { PlusIcon, PencilIcon, TrashIcon, UserCircleIcon } from '../common/Icons';
 import { useToast } from '../../useToast';
@@ -245,7 +246,7 @@ const TeacherManagementView: React.FC = () => {
     const handleSave = async (data: TeacherModalSaveData) => {
         setIsLoading(true);
         try {
-            if (data.id) { // Editing
+            if (data.id) { 
                 const { id, ...updates } = data;
                 if (!updates.password?.trim()) {
                     delete updates.password;
@@ -256,7 +257,7 @@ const TeacherManagementView: React.FC = () => {
                 }
                 addToast('تم تحديث بيانات المدرس بنجاح.', ToastType.SUCCESS);
 
-            } else { // Adding
+            } else { 
                 const result = await createTeacher({
                     email: data.email,
                     password: data.password,
@@ -268,15 +269,11 @@ const TeacherManagementView: React.FC = () => {
                     image_url: data.imageUrl,
                 });
                 
-                if (result.error) {
-                    throw new Error(result.error.message);
+                if (!result.success) {
+                    throw new Error(result.error?.message || 'An unknown error occurred.');
                 }
-
-                if (result.data?.success) {
-                    addToast('تمت إضافة المدرس بنجاح.', ToastType.SUCCESS);
-                } else {
-                     throw new Error(result.data?.error || "حدث خطأ غير معروف من الخادم.");
-                }
+                
+                addToast('تمت إضافة المدرس بنجاح.', ToastType.SUCCESS);
             }
             refreshData();
             closeModal();

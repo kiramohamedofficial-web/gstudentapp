@@ -1,14 +1,16 @@
+
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Grade, Semester, Unit, Lesson, LessonType, ToastType, Teacher, QuizType, QuizQuestion } from '../../types';
 import {
     getAllGrades, addLessonToUnit, updateLesson, deleteLesson,
-    addUnitToSemester, updateUnit, deleteUnit, getAllTeachers
+    addUnitToSemester, updateUnit, deleteUnit, getAllTeachers, getUnitsForSemester, getLessonsForUnit
 } from '../../services/storageService';
 import Modal from '../common/Modal';
 import { PlusIcon, PencilIcon, TrashIcon, DotsVerticalIcon, BookOpenIcon, VideoCameraIcon, DocumentTextIcon, ChevronDownIcon, SparklesIcon, XIcon } from '../common/Icons';
 import { useToast } from '../../useToast';
 import ImageUpload from '../common/ImageUpload';
 import { generateQuiz } from '../../services/geminiService';
+import Loader from '../common/Loader';
 
 // Reusable Confirmation Modal
 const ConfirmationModal: React.FC<{ isOpen: boolean; onClose: () => void; onConfirm: () => void; title: string; message: string; }> = ({ isOpen, onClose, onConfirm, title, message }) => (
@@ -130,7 +132,6 @@ const LessonModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (dat
 
         // Handle correctAnswers conversion from textarea for manual mode
         if (typeof dataToSave.correctAnswers === 'string') {
-            // FIX: The formData for correctAnswers is temporarily a string from the textarea, which conflicts with the 'string[]' type. This explicit cast resolves the 'never' type inference issue.
             dataToSave.correctAnswers = (dataToSave.correctAnswers as string).split('\n').filter(Boolean);
         }
 
@@ -240,7 +241,10 @@ const ContentManagementView: React.FC = () => {
     const [teachers, setTeachers] = useState<Teacher[]>([]);
     const [selectedGradeId, setSelectedGradeId] = useState<string>('');
     const [selectedSemesterId, setSelectedSemesterId] = useState<string>('');
+    const [units, setUnits] = useState<Unit[]>([]);
+    const [isLoadingUnits, setIsLoadingUnits] = useState(false);
     const [expandedUnitId, setExpandedUnitId] = useState<string | null>(null);
+    const [loadingLessons, setLoadingLessons] = useState<Set<string>>(new Set());
     const [optionsMenuUnitId, setOptionsMenuUnitId] = useState<string | null>(null);
     const optionsMenuRef = useRef<HTMLDivElement>(null);
 
@@ -260,6 +264,21 @@ const ContentManagementView: React.FC = () => {
     }, [dataVersion]);
     
     useEffect(() => {
+        if (selectedGradeId && selectedSemesterId) {
+            const fetchUnits = async () => {
+                setIsLoadingUnits(true);
+                setExpandedUnitId(null);
+                const fetchedUnits = await getUnitsForSemester(parseInt(selectedGradeId), selectedSemesterId);
+                setUnits(fetchedUnits);
+                setIsLoadingUnits(false);
+            };
+            fetchUnits();
+        } else {
+            setUnits([]);
+        }
+    }, [selectedGradeId, selectedSemesterId, dataVersion]);
+
+    useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (optionsMenuRef.current && !optionsMenuRef.current.contains(event.target as Node)) {
                 setOptionsMenuUnitId(null);
@@ -275,6 +294,23 @@ const ContentManagementView: React.FC = () => {
     const selectedGrade = useMemo(() => grades.find(g => g.id.toString() === selectedGradeId), [grades, selectedGradeId]);
     const selectedSemester = useMemo(() => selectedGrade?.semesters.find(s => s.id === selectedSemesterId), [selectedGrade, selectedSemesterId]);
     const teacherMap = useMemo(() => new Map(teachers.map(t => [t.id, t.name])), [teachers]);
+    
+    const handleToggleExpand = async (unitId: string) => {
+        const newExpandedId = expandedUnitId === unitId ? null : unitId;
+        setExpandedUnitId(newExpandedId);
+        
+        const unit = units.find(u => u.id === unitId);
+        if (newExpandedId && unit && unit.lessons.length === 0 && selectedGradeId && selectedSemesterId) {
+            setLoadingLessons(prev => new Set(prev).add(unitId));
+            const fetchedLessons = await getLessonsForUnit(parseInt(selectedGradeId), selectedSemesterId, newExpandedId);
+            setUnits(prevUnits => prevUnits.map(u => u.id === unitId ? {...u, lessons: fetchedLessons} : u));
+            setLoadingLessons(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(unitId);
+                return newSet;
+            });
+        }
+    };
 
     const handleSaveUnit = async (unitData: Partial<Unit>) => {
         if (selectedGrade && selectedSemester) {
@@ -344,8 +380,6 @@ const ContentManagementView: React.FC = () => {
             }
         }
     };
-
-    const unitsToDisplay = selectedSemester?.units || [];
     
     const getLessonIcon = (type: LessonType) => {
         switch(type) {
@@ -382,72 +416,78 @@ const ContentManagementView: React.FC = () => {
             </div>
 
             <div className="space-y-4">
-                {unitsToDisplay.map(unit => (
-                    <div key={unit.id} className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-primary)]">
-                        <header onClick={() => setExpandedUnitId(p => p === unit.id ? null : unit.id)} className="p-4 flex justify-between items-center cursor-pointer">
-                            <div className="flex items-center gap-3">
-                                <ChevronDownIcon className={`w-6 h-6 text-[var(--text-secondary)] transition-transform ${expandedUnitId === unit.id ? 'rotate-180' : ''}`} />
-                                <div>
-                                    <h3 className="font-bold text-lg text-[var(--text-primary)]">{unit.title}</h3>
-                                    <p className="text-xs text-[var(--text-secondary)]">أ. {teacherMap.get(unit.teacherId) || 'غير محدد'}</p>
+                {isLoadingUnits ? (
+                    <div className="flex justify-center items-center py-20"><Loader /></div>
+                ) : (
+                    units.map(unit => (
+                        <div key={unit.id} className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-primary)]">
+                            <header onClick={() => handleToggleExpand(unit.id)} className="p-4 flex justify-between items-center cursor-pointer">
+                                <div className="flex items-center gap-3">
+                                    <ChevronDownIcon className={`w-6 h-6 text-[var(--text-secondary)] transition-transform ${expandedUnitId === unit.id ? 'rotate-180' : ''}`} />
+                                    <div>
+                                        <h3 className="font-bold text-lg text-[var(--text-primary)]">{unit.title}</h3>
+                                        <p className="text-xs text-[var(--text-secondary)]">أ. {teacherMap.get(unit.teacherId) || 'غير محدد'}</p>
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="flex items-center gap-4">
-                                <span className="text-sm font-semibold bg-[var(--bg-tertiary)] px-3 py-1 rounded-full">{unit.lessons.length} دروس</span>
-                                <div className="relative">
-                                    <button onClick={(e) => { e.stopPropagation(); setOptionsMenuUnitId(p => p === unit.id ? null : unit.id); }} className="p-2 text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] rounded-full"><DotsVerticalIcon className="w-5 h-5"/></button>
-                                    {optionsMenuUnitId === unit.id && (
-                                        <div ref={optionsMenuRef} className="absolute top-full left-0 mt-2 w-32 bg-[var(--bg-primary)] border border-[var(--border-secondary)] rounded-lg shadow-lg z-10 fade-in-up">
-                                            <button onClick={() => { openModal('edit-unit', { unit }); setOptionsMenuUnitId(null); }} className="w-full text-right px-3 py-2 text-sm hover:bg-[var(--bg-tertiary)]">تعديل</button>
-                                            <button onClick={() => { openModal('delete-unit', { unit }); setOptionsMenuUnitId(null); }} className="w-full text-right px-3 py-2 text-sm text-red-500 hover:bg-[var(--bg-tertiary)]">حذف</button>
+                                <div className="flex items-center gap-4">
+                                    <span className="text-sm font-semibold bg-[var(--bg-tertiary)] px-3 py-1 rounded-full">{unit.lessons.length > 0 ? `${unit.lessons.length} دروس` : 'فارغ'}</span>
+                                    <div className="relative">
+                                        <button onClick={(e) => { e.stopPropagation(); setOptionsMenuUnitId(p => p === unit.id ? null : unit.id); }} className="p-2 text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] rounded-full"><DotsVerticalIcon className="w-5 h-5"/></button>
+                                        {optionsMenuUnitId === unit.id && (
+                                            <div ref={optionsMenuRef} className="absolute top-full left-0 mt-2 w-32 bg-[var(--bg-primary)] border border-[var(--border-secondary)] rounded-lg shadow-lg z-10 fade-in-up">
+                                                <button onClick={() => { openModal('edit-unit', { unit }); setOptionsMenuUnitId(null); }} className="w-full text-right px-3 py-2 text-sm hover:bg-[var(--bg-tertiary)]">تعديل</button>
+                                                <button onClick={() => { openModal('delete-unit', { unit }); setOptionsMenuUnitId(null); }} className="w-full text-right px-3 py-2 text-sm text-red-500 hover:bg-[var(--bg-tertiary)]">حذف</button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </header>
+                            {expandedUnitId === unit.id && (
+                                <div className="p-4 border-t border-[var(--border-primary)] space-y-4">
+                                    {loadingLessons.has(unit.id) ? (
+                                        <div className="flex justify-center items-center py-4"><Loader /></div>
+                                    ) : unit.lessons.length === 0 ? (
+                                        <p className="text-center text-sm text-[var(--text-secondary)] py-4">لا توجد دروس في هذه الوحدة.</p>
+                                    ) : (
+                                        <div className="space-y-2">
+                                        {unit.lessons.map(lesson => (
+                                            <div key={lesson.id} className="p-2 bg-[var(--bg-tertiary)] rounded-md flex justify-between items-center">
+                                                <div className="flex items-center gap-2">
+                                                    {React.createElement(getLessonIcon(lesson.type), { className: "w-4 h-4 text-[var(--text-secondary)]" })}
+                                                    <span className="text-sm">{lesson.title}</span>
+                                                </div>
+                                                <div className="flex gap-1">
+                                                    <button onClick={() => openModal('edit-lesson', { unit, lesson })} className="p-1 text-[var(--text-secondary)] hover:text-yellow-400"><PencilIcon className="w-4 h-4"/></button>
+                                                    <button onClick={() => openModal('delete-lesson', { unit, lesson })} className="p-1 text-[var(--text-secondary)] hover:text-red-500"><TrashIcon className="w-4 h-4"/></button>
+                                                </div>
+                                            </div>
+                                        ))}
                                         </div>
                                     )}
-                                </div>
-                            </div>
-                        </header>
-                        {expandedUnitId === unit.id && (
-                            <div className="p-4 border-t border-[var(--border-primary)] space-y-4">
-                                {unit.lessons.length === 0 ? (
-                                    <p className="text-center text-sm text-[var(--text-secondary)] py-4">لا توجد دروس في هذه الوحدة.</p>
-                                ) : (
-                                    <div className="space-y-2">
-                                    {unit.lessons.map(lesson => (
-                                        <div key={lesson.id} className="p-2 bg-[var(--bg-tertiary)] rounded-md flex justify-between items-center">
-                                            <div className="flex items-center gap-2">
-                                                {React.createElement(getLessonIcon(lesson.type), { className: "w-4 h-4 text-[var(--text-secondary)]" })}
-                                                <span className="text-sm">{lesson.title}</span>
-                                            </div>
-                                            <div className="flex gap-1">
-                                                <button onClick={() => openModal('edit-lesson', { unit, lesson })} className="p-1 text-[var(--text-secondary)] hover:text-yellow-400"><PencilIcon className="w-4 h-4"/></button>
-                                                <button onClick={() => openModal('delete-lesson', { unit, lesson })} className="p-1 text-[var(--text-secondary)] hover:text-red-500"><TrashIcon className="w-4 h-4"/></button>
-                                            </div>
+                                    <div>
+                                        <p className="text-sm font-semibold mb-2">إضافة جزء جديد:</p>
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                            <button onClick={() => handleAddLesson(unit, LessonType.EXPLANATION)} className="flex items-center justify-center gap-2 p-3 bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] rounded-lg"><PlusIcon className="w-4 h-4"/> شرح</button>
+                                            <button onClick={() => handleAddLesson(unit, LessonType.HOMEWORK)} className="flex items-center justify-center gap-2 p-3 bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] rounded-lg"><PlusIcon className="w-4 h-4"/> واجب</button>
+                                            <button onClick={() => handleAddLesson(unit, LessonType.EXAM)} className="flex items-center justify-center gap-2 p-3 bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] rounded-lg"><PlusIcon className="w-4 h-4"/> امتحان</button>
+                                            <button onClick={() => handleAddLesson(unit, LessonType.SUMMARY)} className="flex items-center justify-center gap-2 p-3 bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] rounded-lg"><PlusIcon className="w-4 h-4"/> ملخص</button>
                                         </div>
-                                    ))}
-                                    </div>
-                                )}
-                                <div>
-                                    <p className="text-sm font-semibold mb-2">إضافة جزء جديد:</p>
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                        <button onClick={() => handleAddLesson(unit, LessonType.EXPLANATION)} className="flex items-center justify-center gap-2 p-3 bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] rounded-lg"><PlusIcon className="w-4 h-4"/> شرح</button>
-                                        <button onClick={() => handleAddLesson(unit, LessonType.HOMEWORK)} className="flex items-center justify-center gap-2 p-3 bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] rounded-lg"><PlusIcon className="w-4 h-4"/> واجب</button>
-                                        <button onClick={() => handleAddLesson(unit, LessonType.EXAM)} className="flex items-center justify-center gap-2 p-3 bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] rounded-lg"><PlusIcon className="w-4 h-4"/> امتحان</button>
-                                        <button onClick={() => handleAddLesson(unit, LessonType.SUMMARY)} className="flex items-center justify-center gap-2 p-3 bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] rounded-lg"><PlusIcon className="w-4 h-4"/> ملخص</button>
                                     </div>
                                 </div>
-                            </div>
-                        )}
-                    </div>
-                ))}
+                            )}
+                        </div>
+                    ))
+                )}
             </div>
 
-            {selectedSemester && (
+            {selectedSemester && !isLoadingUnits && (
                 <button onClick={() => openModal('add-unit', { grade: selectedGrade, semester: selectedSemester })} className="w-full p-6 border-2 border-dashed border-[var(--border-primary)] rounded-xl flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:border-solid transition-all">
                     <PlusIcon className="w-6 h-6 ml-2"/> 
                     <span className="font-semibold">إضافة وحدة جديدة</span>
                 </button>
             )}
 
-            {!selectedSemester && unitsToDisplay.length === 0 && (
+            {!selectedSemester && !isLoadingUnits && (
                  <div className="text-center p-12 bg-[var(--bg-secondary)] rounded-xl border-2 border-dashed border-[var(--border-primary)] mt-8">
                     <BookOpenIcon className="w-16 h-16 mx-auto opacity-20 mb-4 text-[var(--text-secondary)]" />
                     <p className="text-[var(--text-secondary)]">اختر صفًا وفصلاً دراسيًا لبدء إدارة المحتوى.</p>

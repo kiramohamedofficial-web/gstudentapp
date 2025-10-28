@@ -21,7 +21,6 @@ const TeachersView: React.FC<TeachersViewProps> = ({ onSelectTeacher }) => {
 
     useEffect(() => {
         const fetchTeachers = async () => {
-            // FIX: Corrected function name from getTeachers to getAllTeachers
             const data = await getAllTeachers();
             setTeachers(data);
             setIsLoading(false);

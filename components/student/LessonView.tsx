@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Lesson, LessonType, Grade, User, StudentView, Subscription } from '../../types';
+import { Lesson, LessonType, Grade, User, StudentView, Subscription, WatchedVideo, Unit } from '../../types';
 import { getAIExplanation } from '../../services/geminiService';
 import Modal from '../common/Modal';
 import { SparklesIcon, ChevronLeftIcon, ChevronRightIcon, DocumentTextIcon, ArrowLeftIcon, LockClosedIcon, ShieldExclamationIcon } from '../common/Icons';
@@ -85,23 +85,44 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, grade, onLesson
 
     }, [subscriptions, currentLesson, grade]);
 
-    const subjectTitle = useMemo(() => {
+    const unit = useMemo(() => {
         for (const semester of grade.semesters) {
-            for (const unit of semester.units) {
-                if (unit.lessons.some(l => l.id === currentLesson.id)) {
-                    return unit.title;
-                }
-            }
+            const foundUnit = semester.units.find(u => u.lessons.some(l => l.id === currentLesson.id));
+            if (foundUnit) return foundUnit;
         }
-        return currentLesson.title;
-    }, [grade, currentLesson]);
+        return undefined;
+    }, [grade, currentLesson.id]);
+
+    const subjectTitle = unit?.title || currentLesson.title;
+
+    useEffect(() => {
+        if (currentLesson.type === LessonType.EXPLANATION && unit) {
+            const historyJSON = localStorage.getItem('watchedVideoHistory');
+            let history: WatchedVideo[] = historyJSON ? JSON.parse(historyJSON) : [];
+
+            const newEntry: WatchedVideo = {
+                lessonId: currentLesson.id,
+                unitId: unit.id,
+                lessonTitle: currentLesson.title,
+                unitTitle: unit.title,
+                watchedAt: Date.now(),
+                teacherId: unit.teacherId,
+            };
+
+            // Remove existing entry for the same lesson to move it to the front
+            history = history.filter(item => item.lessonId !== newEntry.lessonId);
+            // Add new entry to the top
+            history.unshift(newEntry);
+            // Keep only the last 10 watched videos for performance
+            history = history.slice(0, 10);
+            
+            localStorage.setItem('watchedVideoHistory', JSON.stringify(history));
+        }
+    }, [currentLesson.id, currentLesson.type, currentLesson.title, unit]);
 
     const playlist = useMemo(() => {
-        const unitWithLesson = grade.semesters
-            .flatMap(s => s.units)
-            .find(u => u.lessons.some(l => l.id === lesson.id));
-        return unitWithLesson?.lessons.filter(l => l.type === LessonType.EXPLANATION && l.content) || [];
-    }, [grade, lesson.id]);
+        return unit?.lessons.filter(l => l.type === LessonType.EXPLANATION && l.content) || [];
+    }, [unit]);
     
     const currentPlaylistIndex = useMemo(() => playlist.findIndex(l => l.id === currentLesson.id), [playlist, currentLesson]);
 

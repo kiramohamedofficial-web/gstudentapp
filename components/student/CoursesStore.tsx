@@ -47,18 +47,24 @@ const CourseStoreCard: React.FC<{ course: Course; teacher?: Teacher; onView: (co
 const CoursesStore: React.FC<CoursesStoreProps> = ({ onNavigate }) => {
     const [courses, setCourses] = useState<Course[]>([]);
     const [teachers, setTeachers] = useState<Map<string, Teacher>>(new Map());
+    const { addToast } = useToast();
 
     useEffect(() => {
         const fetchData = async () => {
-            const [courseData, teacherData] = await Promise.all([
-                getAllCourses(),
-                getAllTeachers()
-            ]);
-            setCourses(courseData);
-            setTeachers(new Map(teacherData.map(t => [t.id, t])));
+            try {
+                const [courseData, teacherData] = await Promise.all([
+                    getAllCourses(),
+                    getAllTeachers()
+                ]);
+                setCourses(courseData);
+                setTeachers(new Map(teacherData.map(t => [t.id, t])));
+            } catch (error) {
+                console.error("Error fetching courses or teachers for store:", error);
+                addToast('فشل تحميل الكورسات. يرجى المحاولة مرة أخرى.', ToastType.ERROR);
+            }
         };
         fetchData();
-    }, []);
+    }, [addToast]);
 
     const handleViewCourse = (course: Course) => {
         onNavigate('courseDetail', { course });

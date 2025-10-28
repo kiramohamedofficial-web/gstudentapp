@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Teacher, SubscriptionCode, ToastType } from '../../types';
-// FIX: Corrected function name from getTeachers to getAllTeachers
 import { getAllTeachers, generateSubscriptionCodes } from '../../services/storageService';
 import { PrinterIcon, PlusIcon, ClipboardIcon } from '../common/Icons';
 import { useToast } from '../../useToast';
@@ -43,7 +42,6 @@ const QrCodeGeneratorView: React.FC = () => {
 
     useEffect(() => {
         const fetchTeachers = async () => {
-            // FIX: Corrected function name from getTeachers to getAllTeachers
             const teacherData = await getAllTeachers();
             setTeachers(teacherData);
         };

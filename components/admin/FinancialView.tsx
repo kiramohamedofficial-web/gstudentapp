@@ -1,10 +1,9 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { SubscriptionRequest, ToastType, Subscription, Grade, User } from '../../types';
-import { getSubscriptionRequests, updateSubscriptionRequest, createOrUpdateSubscription, getAllSubscriptions, getAllUsers, getAllGrades } from '../../services/storageService';
+import { SubscriptionRequest, ToastType, Subscription, Grade, User, PlatformSettings } from '../../types';
+import { getSubscriptionRequests, updateSubscriptionRequest, createOrUpdateSubscription, getAllSubscriptions, getAllUsers, getAllGrades, getPlatformSettings } from '../../services/storageService';
 import { useToast } from '../../useToast';
-import { useSubscription } from '../../hooks/useSubscription';
 import Modal from '../common/Modal';
-import { BellIcon, CheckCircleIcon, ClockIcon } from '../common/Icons';
+import { BellIcon, CheckCircleIcon, ClockIcon, CreditCardIcon, PhoneIcon, TrashIcon, CheckIcon, UserCircleIcon, CurrencyDollarIcon } from '../common/Icons';
 import Loader from '../common/Loader';
 
 const StatCard: React.FC<{ title: string; value: string | number; icon: React.FC<any>; color: string }> = ({ title, value, icon: Icon, color }) => (
@@ -27,19 +26,12 @@ const ApprovalModal: React.FC<{
     onConfirm: (request: SubscriptionRequest, plan: Subscription['plan'], customEndDate?: string) => void;
 }> = ({ isOpen, onClose, request, onConfirm }) => {
     const [endDate, setEndDate] = useState('');
+
+    useEffect(() => {
+        if (!isOpen) setEndDate('');
+    }, [isOpen]);
     
     if (!request) return null;
-
-    const calculateDefaultEndDate = (plan: Subscription['plan']) => {
-        const d = new Date();
-        switch (plan) {
-            case 'Monthly': d.setMonth(d.getMonth() + 1); break;
-            case 'Quarterly': d.setMonth(d.getMonth() + 3); break;
-            case 'SemiAnnually': d.setMonth(d.getMonth() + 6); break;
-            case 'Annual': d.setFullYear(d.getFullYear() + 1); break;
-        }
-        return d.toISOString().split('T')[0];
-    };
 
     const handleSubmit = () => {
         onConfirm(request, request.plan, endDate || undefined);
@@ -60,10 +52,9 @@ const ApprovalModal: React.FC<{
                         type="date"
                         value={endDate}
                         onChange={(e) => setEndDate(e.target.value)}
-                        placeholder={calculateDefaultEndDate(request.plan)}
                         className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)]"
                     />
-                    <p className="text-xs text-[var(--text-secondary)] mt-1">اتركه فارغًا للاحتساب التلقائي (الافتراضي: {calculateDefaultEndDate(request.plan)})</p>
+                    <p className="text-xs text-[var(--text-secondary)] mt-1">اتركه فارغًا للاحتساب التلقائي.</p>
                 </div>
                  <div className="flex justify-end pt-4">
                     <button onClick={handleSubmit} className="px-5 py-2 font-medium text-white bg-green-600 rounded-md hover:bg-green-700">تأكيد التفعيل</button>
@@ -73,6 +64,82 @@ const ApprovalModal: React.FC<{
     )
 }
 
+const RequestCard: React.FC<{
+    request: SubscriptionRequest;
+    price: number | null;
+    onApprove: (req: SubscriptionRequest) => void;
+    onReject: (req: SubscriptionRequest) => void;
+}> = ({ request, price, onApprove, onReject }) => {
+    const planLabels: Record<SubscriptionRequest['plan'], string> = {
+        Monthly: 'شهري',
+        Quarterly: 'ربع سنوي',
+        Annual: 'سنوي',
+        SemiAnnually: 'نصف سنوي'
+    };
+
+    return (
+        <div className="bg-[var(--bg-secondary)] rounded-2xl shadow-lg border border-transparent hover:border-purple-500/50 transition-all duration-300 transform hover:-translate-y-1.5 flex flex-col">
+            <div className="p-5">
+                 <div className="flex justify-between items-start">
+                    <div>
+                        <h3 className="font-bold text-lg text-[var(--text-primary)] flex items-center gap-2"><UserCircleIcon className="w-5 h-5"/> {request.userName}</h3>
+                        <p className="text-sm text-[var(--text-secondary)] mt-1">{request.subjectName || 'الباقة الشاملة'}</p>
+                    </div>
+                </div>
+                <div className="space-y-3 text-sm mt-4 pt-4 border-t border-[var(--border-primary)]">
+                    <div className="flex justify-between items-center">
+                        <span className="text-[var(--text-secondary)] font-semibold flex items-center gap-2"><CreditCardIcon className="w-4 h-4" /> نوع الباقة</span>
+                        <span className="font-bold text-purple-400 bg-purple-500/10 px-3 py-1 rounded-full text-sm">{planLabels[request.plan]}</span>
+                    </div>
+                    {price !== null && (
+                        <div className="flex justify-between items-center">
+                            <span className="text-[var(--text-secondary)] font-semibold flex items-center gap-2"><CurrencyDollarIcon className="w-4 h-4" /> المبلغ المحول</span>
+                            <span className="font-bold text-lg text-[var(--text-accent)]">{price} ج.م</span>
+                        </div>
+                    )}
+                    <div className="flex justify-between items-center">
+                        <span className="text-[var(--text-secondary)] font-semibold flex items-center gap-2"><PhoneIcon className="w-4 h-4" /> رقم الدفع</span>
+                        <span className="font-mono tracking-wider">{request.paymentFromNumber}</span>
+                    </div>
+                     <div className="flex justify-between items-center">
+                        <span className="text-[var(--text-secondary)] font-semibold flex items-center gap-2"><ClockIcon className="w-4 h-4" /> تاريخ الطلب</span>
+                        <span>{new Date(request.createdAt).toLocaleDateString('ar-EG')}</span>
+                    </div>
+                </div>
+            </div>
+            <div className="p-4 mt-auto bg-[var(--bg-tertiary)] rounded-b-2xl flex gap-3">
+                 <button onClick={() => onReject(request)} className="w-full py-2.5 rounded-lg bg-red-500/10 text-red-400 font-bold hover:bg-red-500/20 transition-colors flex items-center justify-center gap-2">
+                    <TrashIcon className="w-5 h-5"/> رفض
+                </button>
+                <button onClick={() => onApprove(request)} className="w-full py-2.5 rounded-lg bg-green-600 text-white font-bold hover:bg-green-700 transition-colors flex items-center justify-center gap-2">
+                    <CheckIcon className="w-5 h-5"/> تفعيل
+                </button>
+            </div>
+        </div>
+    );
+};
+
+const SubscriptionCard: React.FC<{ subscription: Subscription; user: User | undefined; statusColor: string }> = ({ subscription, user, statusColor }) => {
+    const planLabels: Record<Subscription['plan'], string> = { Monthly: 'شهري', Quarterly: 'ربع سنوي', Annual: 'سنوي', SemiAnnually: 'نصف سنوي' };
+    
+    return (
+        <div className={`bg-[var(--bg-secondary)] rounded-2xl shadow-md border-l-4 p-5 ${statusColor}`}>
+            <div className="flex justify-between items-start">
+                 <div>
+                    <h3 className="font-bold text-lg">{user?.name || 'طالب محذوف'}</h3>
+                    <p className="text-sm text-[var(--text-secondary)]">{user?.phone}</p>
+                </div>
+                 <span className="font-semibold">{planLabels[subscription.plan]}</span>
+            </div>
+             <div className="mt-4 pt-4 border-t border-[var(--border-primary)] space-y-2 text-sm">
+                <div className="flex justify-between"><span className="text-[var(--text-secondary)]">يبدأ في:</span> <span className="font-semibold">{new Date(subscription.startDate).toLocaleDateString('ar-EG')}</span></div>
+                <div className="flex justify-between"><span className="text-[var(--text-secondary)]">ينتهي في:</span> <span className="font-semibold">{new Date(subscription.endDate).toLocaleDateString('ar-EG')}</span></div>
+            </div>
+        </div>
+    );
+}
+
+
 const SubscriptionManagementView: React.FC = () => {
     const [dataVersion, setDataVersion] = useState(0);
     const [activeTab, setActiveTab] = useState<'Pending' | 'Active' | 'Expired'>('Pending');
@@ -80,31 +147,33 @@ const SubscriptionManagementView: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [allRequests, setAllRequests] = useState<SubscriptionRequest[]>([]);
     const [allSubscriptions, setAllSubscriptions] = useState<Subscription[]>([]);
-    const [userMap, setUserMap] = useState<Map<string, string>>(new Map());
+    const [userMap, setUserMap] = useState<Map<string, User>>(new Map());
+    const [allGrades, setAllGrades] = useState<Grade[]>([]);
+    const [settings, setSettings] = useState<PlatformSettings | null>(null);
     const { addToast } = useToast();
-    const { refetchSubscription } = useSubscription();
 
-    const allGrades = useMemo(() => getAllGrades(), []);
-    
     const refreshData = useCallback(() => setDataVersion(v => v + 1), []);
 
     useEffect(() => {
         const fetchData = async () => {
             setIsLoading(true);
-            const requestsPromise = getSubscriptionRequests();
-            const subscriptionsPromise = getAllSubscriptions();
-            const usersPromise = getAllUsers();
-
-            const [requests, subscriptions, users] = await Promise.all([requestsPromise, subscriptionsPromise, usersPromise]);
-            
+            const [requests, subscriptions, users, grades, platformSettings] = await Promise.all([
+                getSubscriptionRequests(),
+                getAllSubscriptions(),
+                getAllUsers(),
+                getAllGrades(),
+                getPlatformSettings()
+            ]);
             setAllRequests(requests);
             setAllSubscriptions(subscriptions);
-            setUserMap(new Map(users.map(u => [u.id, u.name])));
+            setUserMap(new Map(users.map(u => [u.id, u])));
+            setAllGrades(grades);
+            setSettings(platformSettings);
             setIsLoading(false);
         };
         fetchData();
     }, [dataVersion]);
-
+    
     const findTeacherIdForUnit = useCallback((unitIdToFind: string): string | undefined => {
         for (const grade of allGrades) {
             for (const semester of grade.semesters) {
@@ -119,20 +188,16 @@ const SubscriptionManagementView: React.FC = () => {
 
     const handleApproveConfirm = async (request: SubscriptionRequest, plan: Subscription['plan'], customEndDate?: string) => {
         const teacherId = request.unitId ? findTeacherIdForUnit(request.unitId) : undefined;
-        
         const { error } = await createOrUpdateSubscription(request.userId, plan, 'Active', customEndDate, teacherId);
         
         if (error) {
             addToast(`فشل تفعيل الاشتراك: ${error.message}`, ToastType.ERROR);
-            setApprovalRequest(null);
-            return;
+        } else {
+            await updateSubscriptionRequest({ ...request, status: 'Approved' });
+            addToast(`تم تفعيل اشتراك ${request.userName} بنجاح.`, ToastType.SUCCESS);
+            refreshData();
         }
-
-        await updateSubscriptionRequest({ ...request, status: 'Approved' });
-        addToast(`تم تفعيل اشتراك ${request.userName} بنجاح.`, ToastType.SUCCESS);
         setApprovalRequest(null);
-        refreshData();
-        refetchSubscription(); // Force subscription refresh for all users
     };
 
     const handleReject = async (request: SubscriptionRequest) => {
@@ -141,48 +206,73 @@ const SubscriptionManagementView: React.FC = () => {
         refreshData();
     };
 
-    const pendingRequests = useMemo(() => allRequests.filter(r => r.status === 'Pending'), [allRequests]);
-    const activeSubscriptions = useMemo(() => allSubscriptions.filter(s => s.status === 'Active'), [allSubscriptions]);
-    const expiredSubscriptions = useMemo(() => allSubscriptions.filter(s => s.status === 'Expired'), [allSubscriptions]);
+    const getPriceForRequest = (request: SubscriptionRequest): number | null => {
+        if (!settings) return null;
+        const isSingleSubject = !!request.subjectName || !!request.unitId;
+        if (isSingleSubject) {
+            const prices = settings.subscriptionPrices.singleSubject;
+            switch (request.plan) {
+                case 'Monthly': return prices.monthly;
+                case 'SemiAnnually': return prices.semiAnnually;
+                case 'Annual': return prices.annually;
+                default: return null;
+            }
+        } else { // Comprehensive
+            const prices = settings.subscriptionPrices.comprehensive;
+            switch (request.plan) {
+                case 'Monthly': return prices.monthly;
+                case 'Quarterly': return prices.quarterly;
+                case 'Annual': return prices.annual;
+                default: return null;
+            }
+        }
+    };
 
-    const tabLabels: Record<typeof activeTab, string> = { Pending: 'طلبات قيد الانتظار', Active: 'الاشتراكات النشطة', Expired: 'الاشتراكات المنتهية', }
-    const planLabels: Record<Subscription['plan'], string> = { Monthly: 'شهري', Quarterly: 'ربع سنوي', Annual: 'سنوي', SemiAnnually: 'نصف سنوي' };
+    const { pendingRequests, activeSubscriptions, expiredSubscriptions } = useMemo(() => {
+        const active = allSubscriptions.filter(s => s.status === 'Active' && new Date(s.endDate) >= new Date());
+        const expired = allSubscriptions.filter(s => s.status === 'Expired' || new Date(s.endDate) < new Date());
 
-    const renderRequestsTable = () => (
-        <tbody className="divide-y divide-[var(--border-primary)]">
-            {pendingRequests.length > 0 ? pendingRequests.map(req => (
-                <tr key={req.id} className="hover:bg-[var(--bg-tertiary)]/50 transition-colors">
-                    <td className="px-6 py-4 font-semibold text-[var(--text-primary)]">{req.userName}</td>
-                    <td className="px-6 py-4">{req.subjectName || 'الباقة الشاملة'}</td>
-                    <td className="px-6 py-4">{planLabels[req.plan as Subscription['plan']]}</td>
-                    <td className="px-6 py-4 font-mono tracking-wider">{req.paymentFromNumber}</td>
-                    <td className="px-6 py-4">{new Date(req.createdAt).toLocaleDateString('ar-EG', { day: '2-digit', month: 'long', year: 'numeric' })}</td>
-                    <td className="px-6 py-4"><div className="flex justify-center items-center space-x-2 space-x-reverse">
-                        <button onClick={() => setApprovalRequest(req)} className="px-3 py-1 text-xs font-bold text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors">تفعيل</button>
-                        <button onClick={() => handleReject(req)} className="px-3 py-1 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors">رفض</button>
-                    </div></td>
-                </tr>
-            )) : (
-                <tr><td colSpan={6} className="text-center py-16 text-[var(--text-secondary)]">لا توجد طلبات في هذا القسم.</td></tr>
-            )}
-        </tbody>
-    );
+        return {
+            pendingRequests: allRequests.filter(r => r.status === 'Pending'),
+            activeSubscriptions: active,
+            expiredSubscriptions: expired,
+        };
+    }, [allRequests, allSubscriptions]);
+
+    const tabLabels: Record<typeof activeTab, string> = { Pending: 'طلبات قيد الانتظار', Active: 'الاشتراكات النشطة', Expired: 'الاشتراكات المنتهية' };
+
+    const renderContent = () => {
+        if (isLoading) {
+            return <div className="flex justify-center p-16"><Loader /></div>;
+        }
+
+        switch (activeTab) {
+            case 'Pending':
+                return pendingRequests.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {pendingRequests.map(req => {
+                            const price = getPriceForRequest(req);
+                            return <RequestCard key={req.id} request={req} price={price} onApprove={setApprovalRequest} onReject={handleReject} />
+                        })}
+                    </div>
+                ) : <p className="text-center py-16 text-[var(--text-secondary)]">لا توجد طلبات جديدة.</p>;
+            
+            case 'Active':
+                return activeSubscriptions.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {activeSubscriptions.map(sub => <SubscriptionCard key={sub.id} subscription={sub} user={userMap.get(sub.userId)} statusColor="border-green-500" />)}
+                    </div>
+                ) : <p className="text-center py-16 text-[var(--text-secondary)]">لا توجد اشتراكات نشطة.</p>;
+
+            case 'Expired':
+                 return expiredSubscriptions.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {expiredSubscriptions.map(sub => <SubscriptionCard key={sub.id} subscription={sub} user={userMap.get(sub.userId)} statusColor="border-gray-500" />)}
+                    </div>
+                ) : <p className="text-center py-16 text-[var(--text-secondary)]">لا توجد اشتراكات منتهية.</p>;
+        }
+    };
     
-    const renderSubscriptionsTable = (subscriptions: Subscription[]) => (
-         <tbody className="divide-y divide-[var(--border-primary)]">
-            {subscriptions.length > 0 ? subscriptions.map(sub => (
-                <tr key={sub.id} className="hover:bg-[var(--bg-tertiary)]/50 transition-colors">
-                    <td className="px-6 py-4 font-semibold text-[var(--text-primary)]">{userMap.get(sub.userId) || 'طالب محذوف'}</td>
-                    <td className="px-6 py-4">{planLabels[sub.plan]}</td>
-                    <td className="px-6 py-4">{new Date(sub.startDate).toLocaleDateString('ar-EG')}</td>
-                    <td className="px-6 py-4">{new Date(sub.endDate).toLocaleDateString('ar-EG')}</td>
-                </tr>
-            )) : (
-                 <tr><td colSpan={4} className="text-center py-16 text-[var(--text-secondary)]">لا توجد اشتراكات في هذا القسم.</td></tr>
-            )}
-        </tbody>
-    );
-
     return (
         <div className="fade-in">
             <h1 className="text-3xl font-bold mb-6 text-[var(--text-primary)]">إدارة الاشتراكات</h1>
@@ -201,36 +291,9 @@ const SubscriptionManagementView: React.FC = () => {
                     </button>
                 ))}
             </div>
-            {isLoading ? <div className="flex justify-center p-16"><Loader /></div> : (
-                <div className="bg-[var(--bg-secondary)] rounded-xl shadow-lg border border-[var(--border-primary)] overflow-x-auto">
-                    <table className="w-full text-right text-sm text-[var(--text-secondary)]">
-                        <thead className="border-b-2 border-[var(--border-primary)]">
-                        {activeTab === 'Pending' ? (
-                                <tr>
-                                    <th className="px-6 py-4 font-bold text-[var(--text-primary)]">الطالب</th>
-                                    <th className="px-6 py-4 font-bold text-[var(--text-primary)]">المطلوب</th>
-                                    <th className="px-6 py-4 font-bold text-[var(--text-primary)]">الباقة</th>
-                                    <th className="px-6 py-4 font-bold text-[var(--text-primary)]">رقم الدفع</th>
-                                    <th className="px-6 py-4 font-bold text-[var(--text-primary)]">تاريخ الطلب</th>
-                                    <th className="px-6 py-4 font-bold text-[var(--text-primary)] text-center">الإجراء</th>
-                                </tr>
-                        ) : (
-                                <tr>
-                                    <th className="px-6 py-4 font-bold text-[var(--text-primary)]">الطالب</th>
-                                    <th className="px-6 py-4 font-bold text-[var(--text-primary)]">الباقة</th>
-                                    <th className="px-6 py-4 font-bold text-[var(--text-primary)]">تاريخ البدء</th>
-                                    <th className="px-6 py-4 font-bold text-[var(--text-primary)]">تاريخ الانتهاء</th>
-                                </tr>
-                        )}
-                        </thead>
-                        
-                            {activeTab === 'Pending' && renderRequestsTable()}
-                            {activeTab === 'Active' && renderSubscriptionsTable(activeSubscriptions)}
-                            {activeTab === 'Expired' && renderSubscriptionsTable(expiredSubscriptions)}
-                        
-                    </table>
-                </div>
-            )}
+            
+            {renderContent()}
+
             <ApprovalModal isOpen={!!approvalRequest} onClose={() => setApprovalRequest(null)} request={approvalRequest} onConfirm={handleApproveConfirm} />
         </div>
     );

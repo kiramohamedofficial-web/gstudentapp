@@ -76,7 +76,6 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
     const [availableQualities, setAvailableQualities] = useState<string[]>([]);
     const [currentQuality, setCurrentQuality] = useState<string>('auto');
     const [playerError, setPlayerError] = useState<string | null>(null);
-    // FIX: Add state for quality menu visibility
     const [isQualityMenuOpen, setQualityMenuOpen] = useState(false);
     
     const [showUpNext, setShowUpNext] = useState(false);
@@ -88,7 +87,6 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
     const onAutoPlayNextRef = useRef(onAutoPlayNext);
     useEffect(() => { onAutoPlayNextRef.current = onAutoPlayNext; }, [onAutoPlayNext]);
     
-    // Countdown effect for "Up Next"
     useEffect(() => {
         if (showUpNext && onAutoPlayNextRef.current) {
             if (upNextCountdown > 0) {
@@ -144,7 +142,7 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
                     setIsBuffering(false);
                     setDuration(e.target.getDuration());
                     if (isDataSaverEnabled) {
-                        e.target.setPlaybackQuality('small'); // 'small' is 360p
+                        e.target.setPlaybackQuality('small'); 
                         setCurrentQuality('small');
                     } else {
                         setCurrentQuality(e.target.getPlaybackQuality());
@@ -169,7 +167,7 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
                     if (state === window.YT.PlayerState.ENDED) {
                         onLessonCompleteRef.current(videoId);
                         if(onAutoPlayNextRef.current) {
-                            setUpNextCountdown(5); // Reset countdown
+                            setUpNextCountdown(5); 
                             setShowUpNext(true);
                         }
                     }
@@ -186,7 +184,6 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
                 onError: (e: any) => {
                     console.error('YouTube Player Error:', e.data);
                     let errorMessage = 'هذا الفيديو غير متاح حاليًا أو حدث خطأ أثناء تحميله.';
-                    // Based on https://developers.google.com/youtube/iframe_api_reference#onError
                     switch(e.data) {
                         case 2:
                             errorMessage = 'رابط الفيديو غير صالح أو يحتوي على خطأ. يرجى إبلاغ الدعم الفني.';
@@ -199,7 +196,7 @@ const CustomYouTubePlayer: React.FC<CustomYouTubePlayerProps> = ({ videoId, onLe
                             break;
                         case 101:
                         case 150:
-                        case 153: // Added based on user reports
+                        case 153:
                              errorMessage = 'صاحب الفيديو لا يسمح بتشغيله على مواقع خارجية. يرجى إبلاغ الدعم الفني لاستبدال الفيديو.';
                             break;
                     }

@@ -233,6 +233,12 @@ export interface PlatformSettings {
   paymentNumbers: {
     vodafoneCash: string;
   };
+  announcementBanner?: {
+    text: string;
+    subtitle?: string;
+    imageUrl?: string;
+    enabled: boolean;
+  };
 }
 
 export type Theme = 'dark' | 'light' | 'royal' | 'gold' | 'pink' | 'sunset' | 'forest' | 'ocean' | 'wave' | 'matrix';
@@ -259,6 +265,15 @@ export interface AppNotification {
   type: 'info' | 'warning' | 'error';
   createdAt: string;
   link?: StudentView;
+}
+
+export interface WatchedVideo {
+    lessonId: string;
+    unitId: string;
+    lessonTitle: string;
+    unitTitle: string;
+    watchedAt: number; // timestamp
+    teacherId: string;
 }
 
 

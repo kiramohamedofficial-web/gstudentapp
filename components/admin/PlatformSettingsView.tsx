@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { User, PlatformSettings, ToastType } from '../../types';
 import { getPlatformSettings, updatePlatformSettings } from '../../services/storageService';
 import { useToast } from '../../useToast';
-import { TemplateIcon, SparklesIcon, CogIcon, PhotoIcon } from '../common/Icons';
+import { TemplateIcon, SparklesIcon, CogIcon, PhotoIcon, SpeakerphoneIcon } from '../common/Icons';
 import ImageUpload from '../common/ImageUpload';
 
 const FormSection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
@@ -28,20 +28,36 @@ const TextArea: React.FC<{ label: string; name: string; value: string; onChange:
     </div>
 );
 
+const ToggleSwitch: React.FC<{ enabled: boolean; onChange: (enabled: boolean) => void; }> = ({ enabled, onChange }) => (
+    <button
+        type="button"
+        onClick={() => onChange(!enabled)}
+        className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 ${enabled ? 'bg-purple-600' : 'bg-[var(--bg-tertiary)]'}`}
+        role="switch"
+        aria-checked={enabled}
+    >
+        <span
+            aria-hidden="true"
+            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${enabled ? 'translate-x-5' : 'translate-x-0'}`}
+        />
+    </button>
+);
+
 interface PlatformSettingsViewProps {
   user: User;
 }
 
-type SettingsTab = 'hero' | 'features' | 'footer' | 'branding';
+type SettingsTab = 'hero' | 'features' | 'footer' | 'branding' | 'announcements';
 
 const PlatformSettingsView: React.FC<PlatformSettingsViewProps> = ({ user }) => {
     const [settings, setSettings] = useState<PlatformSettings | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isDirty, setIsDirty] = useState(false);
-    const [activeTab, setActiveTab] = useState<SettingsTab>('hero');
+    const [activeTab, setActiveTab] = useState<SettingsTab>('announcements');
     const { addToast } = useToast();
 
     const tabs: { id: SettingsTab; label: string; icon: React.FC<{className?:string}> }[] = [
+        { id: 'announcements', label: 'الإعلانات', icon: SpeakerphoneIcon },
         { id: 'hero', label: 'الواجهة الرئيسية', icon: TemplateIcon },
         { id: 'branding', label: 'الصور والعلامة', icon: PhotoIcon },
         { id: 'features', label: 'قسم المميزات', icon: SparklesIcon },
@@ -58,6 +74,15 @@ const PlatformSettingsView: React.FC<PlatformSettingsViewProps> = ({ user }) => 
     const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
         setSettings(prev => prev ? { ...prev, [name]: value } : null);
+        setIsDirty(true);
+    }, []);
+    
+    const handleBannerChange = useCallback((field: 'text' | 'subtitle' | 'imageUrl' | 'enabled', value: string | boolean) => {
+        setSettings(prev => {
+            if (!prev) return null;
+            const banner = prev.announcementBanner || { text: '', subtitle: '', imageUrl: '', enabled: false };
+            return { ...prev, announcementBanner: { ...banner, [field]: value }};
+        });
         setIsDirty(true);
     }, []);
 
@@ -93,6 +118,42 @@ const PlatformSettingsView: React.FC<PlatformSettingsViewProps> = ({ user }) => 
                         <TextInput label="العنوان الرئيسي" name="heroTitle" value={settings.heroTitle} onChange={handleInputChange} />
                         <TextArea label="النص الفرعي" name="heroSubtitle" value={settings.heroSubtitle} onChange={handleInputChange} />
                         <TextInput label="نص الزر الرئيسي" name="heroButtonText" value={settings.heroButtonText} onChange={handleInputChange} />
+                    </FormSection>
+                );
+            case 'announcements':
+                return (
+                    <FormSection title="شريط الإعلانات العلوي">
+                        <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-tertiary)]">
+                            <div>
+                                <h3 className="font-semibold text-[var(--text-primary)]">تفعيل شريط الإعلانات</h3>
+                                <p className="text-sm text-[var(--text-secondary)] mt-1">إظهار شريط إعلاني أعلى الصفحة الرئيسية للطالب.</p>
+                            </div>
+                            <ToggleSwitch 
+                                enabled={settings.announcementBanner?.enabled ?? false} 
+                                onChange={(enabled) => handleBannerChange('enabled', enabled)}
+                            />
+                        </div>
+                        {settings.announcementBanner?.enabled && (
+                             <div className="space-y-4 pt-4 border-t border-[var(--border-primary)]">
+                                <TextInput 
+                                    label="العنوان الرئيسي للإعلان" 
+                                    name="announcementText" 
+                                    value={settings.announcementBanner?.text || ''} 
+                                    onChange={(e) => handleBannerChange('text', e.target.value)}
+                                />
+                                <TextInput 
+                                    label="النص الفرعي للإعلان (اختياري)" 
+                                    name="announcementSubtitle" 
+                                    value={settings.announcementBanner?.subtitle || ''} 
+                                    onChange={(e) => handleBannerChange('subtitle', e.target.value)}
+                                />
+                                <ImageUpload
+                                    label="صورة الإعلان (اختياري)"
+                                    value={settings.announcementBanner?.imageUrl || ''}
+                                    onChange={(value) => handleBannerChange('imageUrl', value)}
+                                />
+                            </div>
+                        )}
                     </FormSection>
                 );
             case 'branding':

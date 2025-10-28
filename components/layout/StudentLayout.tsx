@@ -146,21 +146,28 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ children, onNavClick, act
         <div className="flex-1 flex flex-col overflow-hidden md:rounded-2xl">
           {/* Header */}
            <header className="app-header">
-                <div className="header-logo" style={{ cursor: 'pointer' }} onClick={() => onNavClick('home')}>
-                    <div className="header-logo-icon"></div>
+                {/* Right Side (in RTL) */}
+                <div className="menu-toggle md:hidden" onClick={() => setIsMobileNavOpen(true)}>
+                    <span></span>
+                    <span></span>
+                    <span></span>
                 </div>
-                
-                <h1 className="hidden md:block text-xl font-bold text-[var(--text-primary)] absolute left-1/2 -translate-x-1/2">
-                    مرحباً، {user.name.split(' ')[0]}
-                </h1>
-
-                <div className="header-actions">
-                    {!isSubLoading && (
-                        <div className={`hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold ${hasActiveSubscription ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                <div className="hidden md:flex">
+                     {!isSubLoading && (
+                        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold ${hasActiveSubscription ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
                             {hasActiveSubscription ? <ShieldCheckIcon className="w-4 h-4" /> : <ShieldExclamationIcon className="w-4 h-4" />}
                             <span>{hasActiveSubscription ? 'الاشتراك فعال' : 'الاشتراك غير فعال'}</span>
                         </div>
                     )}
+                </div>
+
+                {/* Center */}
+                <div className="header-logo absolute left-1/2 -translate-x-1/2" style={{ cursor: 'pointer' }} onClick={() => onNavClick('home')}>
+                    <div className="header-logo-icon"></div>
+                </div>
+
+                {/* Left Side (in RTL) */}
+                <div className="header-actions">
                     <div className="relative">
                         <button onClick={() => { setIsNotificationsOpen(p => !p); setIsProfileMenuOpen(false); }} className="notification-btn">
                             <i className="fas fa-bell"></i>
@@ -213,12 +220,6 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ children, onNavClick, act
                               <div className="p-2"><button onClick={onLogout} className="w-full flex items-center p-3 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors duration-200 space-x-3 space-x-reverse text-right"><LogoutIcon className="w-6 h-6" /><span>تسجيل الخروج</span></button></div>
                           </div>
                       )}
-                    </div>
-
-                    <div className="menu-toggle md:hidden" onClick={() => setIsMobileNavOpen(true)}>
-                        <span></span>
-                        <span></span>
-                        <span></span>
                     </div>
                 </div>
             </header>

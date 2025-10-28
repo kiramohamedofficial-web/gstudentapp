@@ -1,7 +1,9 @@
+
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Grade, Unit, User, Teacher } from '../../types';
-import { getStudentProgress, getAllTeachers } from '../../services/storageService';
+import { getStudentProgress, getAllTeachers, getUnitsForSemester, getLessonsForUnit } from '../../services/storageService';
 import { ArrowRightIcon, ArrowLeftIcon } from '../common/Icons';
+import Loader from '../common/Loader';
 
 // --- Reusable Sub-components ---
 
@@ -68,6 +70,8 @@ interface SubjectSelectionScreenProps {
 
 const SubjectSelectionScreen: React.FC<SubjectSelectionScreenProps> = ({ grade, onSubjectSelect, onBack, user }) => {
     const [activeSemesterId, setActiveSemesterId] = useState<string>(grade.semesters[0]?.id || '');
+    const [units, setUnits] = useState<Unit[]>([]);
+    const [isLoadingUnits, setIsLoadingUnits] = useState(true);
     const [activeSubject, setActiveSubject] = useState<string>('الكل');
     const [teachers, setTeachers] = useState<Teacher[]>([]);
     const [userProgress, setUserProgress] = useState<Record<string, boolean>>({});
@@ -95,24 +99,44 @@ const SubjectSelectionScreen: React.FC<SubjectSelectionScreenProps> = ({ grade, 
         fetchProgress();
     }, [user]);
 
+    useEffect(() => {
+        if (!activeSemesterId) {
+            setUnits([]);
+            setIsLoadingUnits(false);
+            return;
+        }
+        const fetchUnitsAndThenLessons = async () => {
+            setIsLoadingUnits(true);
+            // Step 1: Fetch units for quick display
+            const fetchedUnits = await getUnitsForSemester(grade.id, activeSemesterId);
+            setUnits(fetchedUnits);
+            setIsLoadingUnits(false); // UI now shows cards
+
+            // Step 2: Fetch lessons for each unit to update progress bars
+            const unitsWithLessons = await Promise.all(fetchedUnits.map(async (unit) => {
+                const lessons = await getLessonsForUnit(grade.id, activeSemesterId, unit.id);
+                return { ...unit, lessons };
+            }));
+            setUnits(unitsWithLessons); // This triggers a re-render with the correct progress
+        };
+        fetchUnitsAndThenLessons();
+    }, [activeSemesterId, grade.id]);
+
     const teacherMap = useMemo(() => new Map(teachers.map(t => [t.id, t])), [teachers]);
 
     const calculateProgress = useCallback((unit: Unit) => {
         const totalLessons = unit.lessons.length;
-        if (totalLessons === 0) return 0;
+        if (totalLessons === 0) return 0; // Will be 0 on first render, which is fine
         
         const completedLessons = unit.lessons.filter(lesson => userProgress[lesson.id]).length;
         return (completedLessons / totalLessons) * 100;
     }, [userProgress]);
 
-    const activeSemester = useMemo(() => grade.semesters.find(s => s.id === activeSemesterId), [grade, activeSemesterId]);
-
     const unitsForTrack = useMemo(() => {
-        if (!activeSemester) return [];
-        return activeSemester.units.filter(unit => 
+        return units.filter(unit => 
             !unit.track || unit.track === 'All' || unit.track === user.track
         );
-    }, [activeSemester, user.track]);
+    }, [units, user.track]);
 
     const uniqueSubjects = useMemo(() => {
         const subjects = unitsForTrack.map(unit => unit.title);
@@ -175,7 +199,9 @@ const SubjectSelectionScreen: React.FC<SubjectSelectionScreenProps> = ({ grade, 
             </div>
 
             {/* Content Grid */}
-            {activeSemester ? (
+            {isLoadingUnits ? (
+                <div className="flex justify-center items-center h-64"><Loader /></div>
+            ) : displayUnits.length > 0 ? (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                     {displayUnits.map((unit, index) => (
                         <TeacherSubjectCard
@@ -187,15 +213,10 @@ const SubjectSelectionScreen: React.FC<SubjectSelectionScreenProps> = ({ grade, 
                             progress={calculateProgress(unit)}
                         />
                     ))}
-                    {displayUnits.length === 0 && (
-                        <div className="lg:col-span-2 text-center p-12 bg-[var(--bg-secondary)] rounded-xl border border-dashed border-[var(--border-primary)]">
-                            <p className="text-[var(--text-secondary)]">لا توجد مواد متاحة لهذا الاختيار حاليًا.</p>
-                        </div>
-                    )}
                 </div>
             ) : (
-                <div className="text-center p-12 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-primary)]">
-                    <p className="text-[var(--text-secondary)]">لم يتم العثور على مواد دراسية.</p>
+                <div className="lg:col-span-2 text-center p-12 bg-[var(--bg-secondary)] rounded-xl border border-dashed border-[var(--border-primary)]">
+                    <p className="text-[var(--text-secondary)]">لا توجد مواد متاحة لهذا الاختيار حاليًا.</p>
                 </div>
             )}
         </div>

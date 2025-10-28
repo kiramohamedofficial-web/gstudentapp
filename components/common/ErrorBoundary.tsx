@@ -9,25 +9,30 @@ interface State {
   hasError: boolean;
 }
 
+// FIX: The ErrorBoundary class must extend React.Component to be a valid React component and access props/state.
+// Fix: Extended React.Component to make this a valid class component.
 class ErrorBoundary extends React.Component<Props, State> {
-  // FIX: Explicitly initialize state in the constructor for broader compatibility.
-  // Using a class field initializer might not be correctly handled by all build setups,
-  // which can lead to obscure type errors on instance properties like `props` and `state`.
+  // FIX: The constructor must call super(props) and initialize the component's state.
+  // Fix: Added constructor to initialize state.
   constructor(props: Props) {
     super(props);
     this.state = { hasError: false };
   }
 
-  public static getDerivedStateFromError(_: Error): State {
+  static getDerivedStateFromError(_: Error): State {
+    // Update state so the next render will show the fallback UI.
     return { hasError: true };
   }
 
-  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    // You can also log the error to an error reporting service.
     console.error("Uncaught error:", error, errorInfo);
   }
 
-  public render(): ReactNode {
+  render(): ReactNode {
+    // `this.state` is now accessible because the class extends React.Component.
     if (this.state.hasError) {
+      // You can render any custom fallback UI.
       return (
         <div className="h-screen w-screen flex items-center justify-center bg-[var(--bg-primary)] p-4">
             <div className="text-center max-w-lg p-8 bg-[var(--bg-secondary)] rounded-2xl shadow-2xl border border-[var(--border-primary)]">
@@ -47,6 +52,7 @@ class ErrorBoundary extends React.Component<Props, State> {
       );
     }
 
+    // `this.props` is now accessible because the class extends React.Component.
     return this.props.children;
   }
 }
