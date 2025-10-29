@@ -73,7 +73,7 @@ function determineTrack(gradeId: number | null): { track: Track } {
     return { track: 'All' };
 }
 
-export async function signUp(userData: Omit<User, 'id' | 'role' | 'subscriptionId'> & { email: string, password?: string }) {
+export async function signUp(userData: Omit<User, 'id' | 'role' | 'subscriptionId' | 'allowedDevices'> & { email: string, password?: string }) {
     const { email, password, name, phone, guardianPhone, grade } = userData;
 
     if (!password) {
@@ -89,6 +89,7 @@ export async function signUp(userData: Omit<User, 'id' | 'role' | 'subscriptionI
         grade_id: grade,
         role: 'student',
         track: track,
+        allowed_devices: 1,
     };
 
     const { data, error } = await supabase.auth.signUp({
@@ -123,11 +124,12 @@ export async function signIn(identifier: string, password: string) {
     if (signInError) return { data: null, error: { message: 'بيانات الدخول غير صحيحة.' } };
     if (!signInData.user) return { data: null, error: { message: 'لم يتم العثور على المستخدم بعد تسجيل الدخول.' } };
 
-    const { data: profile } = await supabase.from('profiles').select('role').eq('id', signInData.user.id).single();
+    const { data: profile } = await supabase.from('profiles').select('role, allowed_devices').eq('id', signInData.user.id).single();
     if (profile?.role === 'admin' || profile?.role === 'teacher') {
         return { data: signInData, error: null };
     }
 
+    const allowedDevices = profile?.allowed_devices ?? 1;
     const userId = signInData.user.id;
     const deviceId = getOrCreateDeviceId();
     const deviceInfo = { id: deviceId };
@@ -143,11 +145,11 @@ export async function signIn(identifier: string, password: string) {
         return { data: signInData, error: null }; // Fail open if check fails
     }
 
-    if (activeSessions && activeSessions.length > 0) {
+    if (activeSessions && activeSessions.length >= allowedDevices) {
         const isSameDevice = activeSessions.some(session => session.device_info?.id === deviceId);
         if (!isSameDevice) {
             await supabase.auth.signOut();
-            return { data: null, error: { message: "تم تسجيل دخولك بالفعل من جهاز آخر. يرجى تسجيل الخروج أولاً." } };
+            return { data: null, error: { message: `لقد وصلت للحد الأقصى لعدد الأجهزة (${allowedDevices}). يرجى تسجيل الخروج من جهاز آخر أولاً.` } };
         }
         // Same device, just let them in.
         return { data: signInData, error: null };
@@ -211,7 +213,7 @@ export const getSession = async () => { const { data: { session } } = await supa
 export const onAuthStateChange = (callback: (event: string, session: Session | null) => void) => supabase.auth.onAuthStateChange((event, session) => callback(event, session));
 
 export const getProfile = async (userId: string): Promise<User | null> => {
-    let { data: profileData, error } = await supabase.from('profiles').select('id, name, phone, guardian_phone, grade_id, track, role, teacher_id').eq('id', userId).single();
+    let { data: profileData, error } = await supabase.from('profiles').select('id, name, phone, guardian_phone, grade_id, track, role, teacher_id, allowed_devices').eq('id', userId).single();
 
     if (error) {
         if (error.code !== 'PGRST116') console.error("Error fetching profile:", error.message);
@@ -224,12 +226,13 @@ export const getProfile = async (userId: string): Promise<User | null> => {
     return {
         id: profileData.id, email: authUser?.email || '', name: profileData.name, phone: profileData.phone,
         guardianPhone: profileData.guardian_phone, grade: profileData.grade_id, track: profileData.track,
-        role: profileData.role as Role, teacherId: profileData.teacher_id
+        role: profileData.role as Role, teacherId: profileData.teacher_id,
+        allowedDevices: profileData.allowed_devices ?? 1,
     };
 };
 
 export const getUserByTeacherId = async (teacherId: string): Promise<User | null> => {
-    const { data: profileData, error } = await supabase.from('profiles').select('id, name, phone, guardian_phone, grade_id, track, role, teacher_id').eq('teacher_id', teacherId).single();
+    const { data: profileData, error } = await supabase.from('profiles').select('id, name, phone, guardian_phone, grade_id, track, role, teacher_id, allowed_devices').eq('teacher_id', teacherId).single();
     if (error) {
         if (error.code !== 'PGRST116') console.error("Error fetching profile by teacherId:", error.message);
         return null;
@@ -237,7 +240,8 @@ export const getUserByTeacherId = async (teacherId: string): Promise<User | null
     return {
         id: profileData.id, email: '', name: profileData.name, phone: profileData.phone,
         guardianPhone: profileData.guardian_phone, grade: profileData.grade_id, track: profileData.track,
-        role: profileData.role as Role, teacherId: profileData.teacher_id
+        role: profileData.role as Role, teacherId: profileData.teacher_id,
+        allowedDevices: profileData.allowed_devices ?? 1,
     };
 };
 
@@ -333,22 +337,40 @@ export async function deleteTeacher(teacherId: string) {
 }
 
 export async function updateTeacher(teacherId: string, updates: any) {
-  const { data, error } = await supabase.from('teachers').update({
-    name: updates.name, subject: updates.subject, teaching_grades: updates.teachingGrades,
-    teaching_levels: updates.teachingLevels, image_url: updates.imageUrl
-  }).eq('id', teacherId).select().single();
-  if (error) return { success: false, error };
+    const { data, error } = await supabase.from('teachers').update({
+        name: updates.name,
+        subject: updates.subject,
+        teaching_grades: updates.teachingGrades,
+        teaching_levels: updates.teachingLevels,
+        image_url: updates.imageUrl
+    }).eq('id', teacherId).select().single();
+    if (error) return { success: false, error };
 
-  if (updates.name || updates.phone) {
-    const { data: profileData } = await supabase.from('profiles').select('id').eq('teacher_id', teacherId).single();
-    if (profileData) {
-      const profilePayload: Record<string, any> = {};
-      if (updates.name) profilePayload.name = updates.name;
-      if (updates.phone) profilePayload.phone = `+2${updates.phone}`;
-      await supabase.from('profiles').update(profilePayload).eq('id', profileData.id);
+    if (updates.name || updates.phone) {
+        const { data: profileData } = await supabase.from('profiles').select('id').eq('teacher_id', teacherId).single();
+        if (profileData) {
+            const profilePayload: Record<string, any> = {};
+            if (updates.name) profilePayload.name = updates.name;
+            if (updates.phone) {
+                // Assuming phone is 11 digits like 010...
+                // The `profiles.phone` should be in international format e.g., +2010...
+                profilePayload.phone = `+20${updates.phone.substring(1)}`;
+            }
+            const { error: profileUpdateError } = await supabase.from('profiles').update(profilePayload).eq('id', profileData.id);
+            if (profileUpdateError) return { success: false, error: profileUpdateError };
+
+            // Also update auth user email if phone changed to maintain consistency
+            if (updates.phone) {
+                const newEmail = `${updates.phone}@gstudent.app`;
+                const { error: authUpdateError } = await supabase.auth.admin.updateUserById(profileData.id, { email: newEmail });
+                if (authUpdateError) {
+                    console.warn(`Failed to update auth user email for teacher ${teacherId}: ${authUpdateError.message}`);
+                    // Don't fail the whole operation, but log it. The main profile phone is updated.
+                }
+            }
+        }
     }
-  }
-  return { success: true, data };
+    return { success: true, data };
 }
 
 // =================================================================
@@ -821,7 +843,7 @@ export const getSubscriptionRequests = async (): Promise<SubscriptionRequest[]> 
 export const getPendingSubscriptionRequestCount = async (): Promise<number> => {
     const { count, error } = await supabase.from('subscription_requests').select('*', { count: 'exact', head: true }).eq('status', 'Pending');
     if (error) {
-        console.warn('Could not fetch pending subscription request count. This might be a network issue. The app will return 0. Original error:', error.message);
+        console.warn('Could not fetch pending subscription request count. This may be a network issue. The app will return 0. Original error:', error.message);
         return 0;
     }
     return count || 0;
@@ -834,11 +856,12 @@ export const updateSubscriptionRequest = async (updatedRequest: SubscriptionRequ
     await supabase.from('subscription_requests').update({ status: updates.status }).eq('id', id);
 };
 export const getAllUsers = async (): Promise<User[]> => { 
-    const { data, error } = await supabase.from('profiles').select('id, name, phone, guardian_phone, grade_id, track, role, teacher_id');
+    const { data, error } = await supabase.from('profiles').select('id, name, phone, guardian_phone, grade_id, track, role, teacher_id, allowed_devices');
     if (error) { console.warn("Could not fetch all profiles. This may be a network issue. The app will proceed with an empty list. Original error:", error.message); return []; } 
     return (data || []).map((p: any) => ({ 
         id: p.id, name: p.name, email: '', phone: p.phone, guardianPhone: p.guardian_phone, 
         grade: p.grade_id, track: p.track, role: p.role as Role, teacherId: p.teacher_id,
+        allowedDevices: p.allowed_devices ?? 1,
     })); 
 };
 export const getTeacherById = async (id: string): Promise<Teacher | null> => { const teachers = await getAllTeachers(); return teachers.find(t => t.id === id) || null; };
@@ -1189,6 +1212,7 @@ export const updateUser = async (userId: string, updates: Partial<User>) => {
     if (updates.guardianPhone) payload.guardian_phone = updates.guardianPhone;
     if (updates.grade !== undefined) payload.grade_id = updates.grade;
     if (updates.track !== undefined) payload.track = updates.track;
+    if (updates.allowedDevices !== undefined) payload.allowed_devices = updates.allowedDevices;
     if (Object.keys(payload).length === 0) return { error: null };
     const { error } = await supabase.from('profiles').update(payload).eq('id', userId);
     return { error };

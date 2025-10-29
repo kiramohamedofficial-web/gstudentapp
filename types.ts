@@ -21,6 +21,7 @@ export interface User {
   grade: number | null;
   track?: 'Scientific' | 'Literary' | 'All' | null; // For 2nd & 3rd year secondary students
   role: Role;
+  allowedDevices: number;
   subscriptionId?: string;
   teacherId?: string; // Links user to a teacher profile
 }

@@ -209,14 +209,11 @@ const CourseView: React.FC<CourseViewProps> = ({ grade, unit, user, onBack, onNa
   }, [unit.lessons, userProgress]);
   
   const overallProgress = useMemo(() => {
-    const allUnitsForTrack = grade.semesters.flatMap(s => s.units.filter(u =>
-        !u.track || u.track === 'All' || u.track === user.track
-    ));
-    const allLessons = allUnitsForTrack.flatMap(u => u.lessons);
+    const allLessons = unit.lessons;
     if (allLessons.length === 0) return 0;
     const completedCount = allLessons.filter(lesson => userProgress[lesson.id]).length;
     return Math.round((completedCount / allLessons.length) * 100);
-  }, [grade, user.track, userProgress]);
+  }, [unit.lessons, userProgress]);
 
 
   const handleLessonComplete = async (lessonId: string) => {
@@ -253,16 +250,16 @@ const CourseView: React.FC<CourseViewProps> = ({ grade, unit, user, onBack, onNa
        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
           <div className="w-full md:w-auto md:order-1 order-2">
               <div className="bg-[rgba(var(--bg-secondary-rgb),0.5)] border border-[var(--border-primary)] rounded-2xl p-6 text-center shadow-lg backdrop-blur-sm w-full md:w-48">
-                  <p className="text-md text-[var(--text-secondary)] mb-2">معدل الإنجاز الكلي</p>
-                  <p className="text-5xl font-black text-gradient-purple-blue">{overallProgress}%</p>
+                  <p className="text-md text-[var(--text-secondary)] mb-2">إنجاز المادة</p>
+                  <p className="text-5xl font-black gradient-text">{overallProgress}%</p>
               </div>
           </div>
           <div className="flex-1 text-right md:order-2 order-1">
               <h1 className="text-4xl md:text-5xl font-black text-[var(--text-primary)] leading-tight">
-                  الدروس <span className="text-gradient-purple">والمحتوى</span> <span className="text-gradient-blue">التعليمي</span>
+                  محتوى مادة <span className="gradient-text">{unit.title}</span> 
               </h1>
               <p className="text-md text-[var(--text-secondary)] mt-2">
-                  {grade.name} - {unit.title}
+                  {grade.name}
               </p>
           </div>
       </div>

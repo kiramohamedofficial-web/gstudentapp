@@ -1,6 +1,4 @@
 
-
-
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Teacher, ToastType, Grade, User } from '../../types';
 import { getAllTeachers, createTeacher, updateTeacher, deleteTeacher, getAllGrades, getAllUsers, supabase } from '../../services/storageService';
@@ -23,7 +21,7 @@ interface TeacherModalSaveData {
     imageUrl: string;
     teachingLevels?: ('Middle' | 'Secondary')[];
     teachingGrades?: number[];
-    email: string;
+    email: string; // From phone
     phone: string;
     password?: string;
     id?: string; // for editing
@@ -54,7 +52,7 @@ const TeacherModal: React.FC<{
                     name: teacher.name || '',
                     subject: teacher.subject || '',
                     imageUrl: teacher.imageUrl || '',
-                    phone: teacherUser?.phone?.replace('+2', '') || '',
+                    phone: teacherUser?.phone?.replace('+20', '') || '',
                     password: '' // Don't pre-fill password
                 });
                 setSelectedLevels(teacher.teachingLevels || []);
@@ -110,7 +108,7 @@ const TeacherModal: React.FC<{
         const saveData: TeacherModalSaveData = { 
             id: teacher?.id,
             name: formData.name,
-            email: `${formData.phone}@gstudent.com`,
+            email: `${formData.phone}@gstudent.app`, // Use .app domain
             subject: formData.subject,
             imageUrl: formData.imageUrl,
             phone: formData.phone,
@@ -249,20 +247,21 @@ const TeacherManagementView: React.FC = () => {
         setIsLoading(true);
         try {
             if (data.id) { // Editing
-                const { id, ...updates } = data;
+                const { id, password, ...updates } = data;
+                
                 const { success, error } = await updateTeacher(id, updates);
                 if (!success) throw error;
-    
-                if (updates.password && updates.password.trim()) {
-                     const { data: profileData, error: profileError } = await supabase.from('profiles').select('id').eq('teacher_id', id).single();
-                     if (profileError) throw new Error(`Could not find user for teacher: ${profileError.message}`);
+
+                // Handle password update separately if provided
+                if (password && password.trim()) {
+                     const { data: profileData } = await supabase.from('profiles').select('id').eq('teacher_id', id).single();
                      if (profileData) {
-                         const { error: passwordError } = await supabase.auth.admin.updateUserById(profileData.id, { password: updates.password });
+                         const { error: passwordError } = await supabase.auth.admin.updateUserById(profileData.id, { password: password });
                          if (passwordError) throw new Error(`Failed to update password: ${passwordError.message}`);
                      }
                 }
-    
                 addToast('تم تحديث بيانات المدرس بنجاح.', ToastType.SUCCESS);
+
             } else { // Adding
                 const result = await createTeacher({
                     email: data.email,

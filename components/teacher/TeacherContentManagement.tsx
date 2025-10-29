@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { Grade, Semester, Unit, Lesson, LessonType, ToastType, Teacher, QuizType } from '../../types';
 import {
     getAllGrades, addLessonToUnit, updateLesson, deleteLesson,
-    addUnitToSemester, updateUnit, deleteUnit, addActivityLog
+    addUnitToSemester, updateUnit, deleteUnit
 } from '../../services/storageService';
 import Modal from '../common/Modal';
 import { PlusIcon, PencilIcon, TrashIcon, CollectionIcon, ChevronDownIcon, VideoCameraIcon, DocumentTextIcon, BookOpenIcon } from '../common/Icons';
@@ -50,7 +50,7 @@ const UnitEditModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (t
 };
 
 // Lesson Add/Edit Modal (New)
-const LessonModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (data: Lesson | Omit<Lesson, 'id'>) => void; lesson: Lesson | null; }> = ({ isOpen, onClose, onSave, lesson }) => {
+const LessonModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (data: Lesson | Omit<Lesson, 'id'>) => void; lesson: Partial<Lesson> | null; }> = ({ isOpen, onClose, onSave, lesson }) => {
     const [formData, setFormData] = useState<Partial<Lesson>>({});
     
     React.useEffect(() => {
@@ -89,7 +89,7 @@ const LessonModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (dat
     const type = formData.type || LessonType.EXPLANATION;
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={lesson ? 'تعديل الدرس' : 'إضافة درس جديد'}>
+        <Modal isOpen={isOpen} onClose={onClose} title={formData.id ? 'تعديل الدرس' : 'إضافة درس جديد'}>
             <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto p-1">
                 <input type="text" placeholder="عنوان الدرس" name="title" value={formData.title || ''} onChange={handleChange} className="w-full p-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md" required/>
                 <select name="type" value={formData.type} onChange={handleChange} className="w-full p-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md">
@@ -125,8 +125,8 @@ const TeacherContentManagement: React.FC<TeacherContentManagementProps> = ({ tea
     
     const grades = useMemo(() => getAllGrades().filter(g => teacher.teachingGrades?.includes(g.id)), [teacher, dataVersion]);
     
-    const [selectedGradeId, setSelectedGradeId] = useState<string>('');
-    const [selectedSemesterId, setSelectedSemesterId] = useState<string>('');
+    const [selectedGradeId, setSelectedGradeId] = useState<string>(grades[0]?.id.toString() || '');
+    const [selectedSemesterId, setSelectedSemesterId] = useState<string>(grades[0]?.semesters[0]?.id || '');
     const [expandedUnit, setExpandedUnit] = useState<string | null>(null);
     
     const selectedGrade = useMemo(() => grades.find(g => g.id.toString() === selectedGradeId), [grades, selectedGradeId]);
@@ -151,7 +151,7 @@ const TeacherContentManagement: React.FC<TeacherContentManagementProps> = ({ tea
                     await updateUnit(grade.id, semester.id, newOrUpdatedUnit);
                     addToast('تم تعديل الوحدة!', ToastType.SUCCESS);
                 } else {
-                    await addUnitToSemester(grade.id, semester.id, { title, teacherId: teacher.id });
+                    await addUnitToSemester(grade.id, semester.id, { title, teacherId: teacher.id, track: grade.level === 'Secondary' ? 'All' : undefined });
                     addToast('تمت إضافة الوحدة!', ToastType.SUCCESS);
                 }
                 refreshData();
@@ -176,11 +176,16 @@ const TeacherContentManagement: React.FC<TeacherContentManagementProps> = ({ tea
         }
     };
 
+    const handleAddLesson = (unit: Unit, type: LessonType, baseTitle: string) => {
+        const suggestedTitle = `${type} ${baseTitle}`;
+        openModal('add-lesson', { unit, lesson: { type, title: suggestedTitle } });
+    };
+
     const handleSaveLesson = async (lessonData: Lesson | Omit<Lesson, 'id'>) => {
         const { unit } = modalState.data;
         if (selectedGrade && selectedSemester && unit) {
             try {
-                if ('id' in lessonData) {
+                if ('id' in lessonData && lessonData.id) {
                     await updateLesson(selectedGrade.id, selectedSemester.id, unit.id, lessonData);
                     addToast('تم تحديث الدرس', ToastType.SUCCESS);
                 } else {
@@ -217,14 +222,30 @@ const TeacherContentManagement: React.FC<TeacherContentManagementProps> = ({ tea
             case LessonType.SUMMARY: return DocumentTextIcon;
             default: return CollectionIcon;
         }
-    }
+    };
+
+    const groupedLessonsByUnit = useMemo(() => {
+        const result: Record<string, { baseTitle: string, lessons: Lesson[] }[]> = {};
+        units.forEach(unit => {
+            const groups: Record<string, Lesson[]> = {};
+            unit.lessons.forEach(lesson => {
+                const baseTitle = lesson.title.replace(/^(شرح|واجب|امتحان|ملخص)\s/, '').trim();
+                if (!groups[baseTitle]) {
+                    groups[baseTitle] = [];
+                }
+                groups[baseTitle].push(lesson);
+            });
+            result[unit.id] = Object.entries(groups).map(([baseTitle, lessons]) => ({ baseTitle, lessons }));
+        });
+        return result;
+    }, [units]);
     
     return (
         <div>
             <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-6 gap-4">
                 <h1 className="text-3xl font-bold text-[var(--text-primary)]">إدارة المحتوى الخاص بك</h1>
                  <div className="flex items-center space-x-2 space-x-reverse">
-                    <select value={selectedGradeId} onChange={(e) => { setSelectedGradeId(e.target.value); setSelectedSemesterId(''); }} className="p-2 text-sm rounded-md bg-[var(--bg-secondary)] border border-[var(--border-primary)]">
+                    <select value={selectedGradeId} onChange={(e) => { setSelectedGradeId(e.target.value); setSelectedSemesterId(grades.find(g => g.id.toString() === e.target.value)?.semesters[0]?.id || ''); }} className="p-2 text-sm rounded-md bg-[var(--bg-secondary)] border border-[var(--border-primary)]">
                         <option value="">اختر الصف</option>
                         {grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                     </select>
@@ -250,22 +271,34 @@ const TeacherContentManagement: React.FC<TeacherContentManagementProps> = ({ tea
                                 </div>
                             </div>
                             {expandedUnit === unit.id && (
-                                <div className="p-4 border-t border-[var(--border-primary)] space-y-2">
-                                    {unit.lessons.length > 0 ? unit.lessons.map(lesson => (
-                                        <div key={lesson.id} className="p-2 bg-[var(--bg-tertiary)] rounded-md flex justify-between items-center">
-                                            <div className="flex items-center gap-2">
-                                                {React.createElement(getLessonIcon(lesson.type), { className: "w-4 h-4 text-[var(--text-secondary)]" })}
-                                                <span className="text-sm">{lesson.title}</span>
+                                <div className="p-4 border-t border-[var(--border-primary)] space-y-4">
+                                    {(groupedLessonsByUnit[unit.id] || []).length > 0 ? (
+                                        (groupedLessonsByUnit[unit.id] || []).map(({baseTitle, lessons}) => (
+                                            <div key={baseTitle} className="p-3 bg-[var(--bg-tertiary)] rounded-lg border border-[var(--border-secondary)]">
+                                                <h4 className="font-bold text-[var(--text-primary)] mb-2">{baseTitle}</h4>
+                                                <div className="space-y-2">
+                                                    {lessons.map(lesson => (
+                                                        <div key={lesson.id} className="p-2 bg-[var(--bg-secondary)] rounded-md flex justify-between items-center">
+                                                             <div className="flex items-center gap-2">
+                                                                {React.createElement(getLessonIcon(lesson.type), { className: "w-4 h-4 text-[var(--text-secondary)]" })}
+                                                                <span className="text-sm">{lesson.title}</span>
+                                                            </div>
+                                                            <div className="flex gap-1">
+                                                                <button onClick={() => openModal('edit-lesson', { unit, lesson })} className="p-1 text-[var(--text-secondary)] hover:text-yellow-400"><PencilIcon className="w-4 h-4"/></button>
+                                                                <button onClick={() => openModal('delete-lesson', { unit, lesson })} className="p-1 text-[var(--text-secondary)] hover:text-red-500"><TrashIcon className="w-4 h-4"/></button>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3 text-xs">
+                                                    <button onClick={() => handleAddLesson(unit, LessonType.EXPLANATION, baseTitle)} className="flex items-center justify-center gap-1 p-2 bg-[var(--bg-secondary)] hover:bg-[var(--border-primary)] rounded-md"><PlusIcon className="w-3 h-3"/> شرح</button>
+                                                    <button onClick={() => handleAddLesson(unit, LessonType.HOMEWORK, baseTitle)} className="flex items-center justify-center gap-1 p-2 bg-[var(--bg-secondary)] hover:bg-[var(--border-primary)] rounded-md"><PlusIcon className="w-3 h-3"/> واجب</button>
+                                                    <button onClick={() => handleAddLesson(unit, LessonType.EXAM, baseTitle)} className="flex items-center justify-center gap-1 p-2 bg-[var(--bg-secondary)] hover:bg-[var(--border-primary)] rounded-md"><PlusIcon className="w-3 h-3"/> امتحان</button>
+                                                    <button onClick={() => handleAddLesson(unit, LessonType.SUMMARY, baseTitle)} className="flex items-center justify-center gap-1 p-2 bg-[var(--bg-secondary)] hover:bg-[var(--border-primary)] rounded-md"><PlusIcon className="w-3 h-3"/> ملخص</button>
+                                                </div>
                                             </div>
-                                            <div className="flex gap-1">
-                                                <button onClick={() => openModal('edit-lesson', { unit, lesson })} className="p-1 text-[var(--text-secondary)] hover:text-yellow-400"><PencilIcon className="w-4 h-4"/></button>
-                                                <button onClick={() => openModal('delete-lesson', { unit, lesson })} className="p-1 text-[var(--text-secondary)] hover:text-red-500"><TrashIcon className="w-4 h-4"/></button>
-                                            </div>
-                                        </div>
-                                    )) : <p className="text-center text-sm text-[var(--text-secondary)] py-2">لا توجد دروس في هذه الوحدة بعد.</p>}
-                                    <button onClick={() => openModal('add-lesson', { unit })} className="w-full text-sm text-center p-2 mt-2 rounded-md bg-transparent hover:bg-[var(--border-primary)] border-2 border-dashed border-[var(--border-primary)] text-[var(--text-secondary)]">
-                                        <PlusIcon className="w-4 h-4 inline-block ml-1"/> إضافة درس
-                                    </button>
+                                        ))
+                                    ) : <p className="text-center text-sm text-[var(--text-secondary)] py-2">لا توجد دروس في هذه الوحدة بعد.</p>}
                                 </div>
                             )}
                         </div>

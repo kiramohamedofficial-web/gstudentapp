@@ -73,6 +73,48 @@ const SubscriptionModal: React.FC<{
     );
 };
 
+const DeviceManagementCard: React.FC<{
+    allowedDevices: number;
+    onUpdate: (newCount: number) => void;
+}> = ({ allowedDevices, onUpdate }) => {
+    const handleIncrease = () => {
+        onUpdate(allowedDevices + 1);
+    };
+
+    const handleDecrease = () => {
+        if (allowedDevices > 1) {
+            onUpdate(allowedDevices - 1);
+        }
+    };
+
+    return (
+        <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)]">
+            <h2 className="text-lg font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2">
+                <HardDriveIcon className="w-5 h-5 text-purple-400"/>
+                عدد الأجهزة المسموح به
+            </h2>
+            <div className="flex items-center justify-center gap-4">
+                <button
+                    onClick={handleDecrease}
+                    disabled={allowedDevices <= 1}
+                    className="w-12 h-12 flex items-center justify-center font-bold text-3xl bg-[var(--bg-tertiary)] rounded-full disabled:opacity-50 transition-colors hover:bg-[var(--border-primary)]"
+                    aria-label="Decrease allowed devices"
+                >
+                    -
+                </button>
+                <span className="text-4xl font-bold w-16 text-center" aria-live="polite">{allowedDevices}</span>
+                <button
+                    onClick={handleIncrease}
+                    className="w-12 h-12 flex items-center justify-center font-bold text-3xl bg-[var(--bg-tertiary)] rounded-full transition-colors hover:bg-[var(--border-primary)]"
+                    aria-label="Increase allowed devices"
+                >
+                    +
+                </button>
+            </div>
+        </div>
+    );
+};
+
 const SessionManagementCard: React.FC<{ onClear: () => void; }> = ({ onClear }) => {
     return (
         <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)]">
@@ -285,15 +327,25 @@ const handleUpdateUser = async () => {
     }
   };
   
-    const handleClearDevices = async () => {
-        const { error } = await clearUserDevices(localUser.id);
-        if (error) {
-            addToast(`فشل مسح الجلسات: ${error.message}`, ToastType.ERROR);
-        } else {
-            addToast('تم مسح جميع جلسات الطالب بنجاح.', ToastType.SUCCESS);
-            refreshData();
-        }
-    };
+  const handleUpdateAllowedDevices = async (newCount: number) => {
+    const { error } = await updateUser(localUser.id, { allowedDevices: newCount });
+    if (error) {
+        addToast(`فشل تحديث عدد الأجهزة: ${error.message}`, ToastType.ERROR);
+    } else {
+        addToast("تم تحديث عدد الأجهزة المسموح به.", ToastType.SUCCESS);
+        setLocalUser(prev => ({ ...prev, allowedDevices: newCount }));
+    }
+  };
+
+  const handleClearDevices = async () => {
+    const { error } = await clearUserDevices(localUser.id);
+    if (error) {
+        addToast(`فشل مسح الجلسات: ${error.message}`, ToastType.ERROR);
+    } else {
+        addToast('تم مسح جميع جلسات الطالب بنجاح.', ToastType.SUCCESS);
+        refreshData();
+    }
+  };
 
   if (!localUser) return <div>لا يمكن تحميل بيانات الطالب.</div>;
   
@@ -333,6 +385,7 @@ const handleUpdateUser = async () => {
                     </button>
                 </div>
             </div>
+            <DeviceManagementCard allowedDevices={localUser.allowedDevices ?? 1} onUpdate={handleUpdateAllowedDevices} />
             <SessionManagementCard onClear={handleClearDevices} />
         </div>
 
