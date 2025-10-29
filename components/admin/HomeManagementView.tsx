@@ -8,6 +8,7 @@ import Modal from '../common/Modal';
 import { PlusIcon, PencilIcon, TrashIcon, BookBookmarkIcon, TemplateIcon } from '../common/Icons';
 import { useToast } from '../../useToast';
 import ImageUpload from '../common/ImageUpload';
+import Loader from '../common/Loader';
 
 const ConfirmationModal: React.FC<{ isOpen: boolean; onClose: () => void; onConfirm: () => void; title: string; message: string; }> = ({ isOpen, onClose, onConfirm, title, message }) => (
     <Modal isOpen={isOpen} onClose={onClose} title={title}>
@@ -32,20 +33,28 @@ const HomeManagementView: React.FC = () => {
     const [modalState, setModalState] = useState<{ type: string | null; data: any }>({ type: null, data: {} });
     const [formData, setFormData] = useState<any>({});
     const [activeTab, setActiveTab] = useState<'courses' | 'books'>('courses');
-
-    const courses = useMemo(() => getFeaturedCourses(), [dataVersion]);
-    const books = useMemo(() => getFeaturedBooks(), [dataVersion]);
-    
+    const [courses, setCourses] = useState<Course[]>([]);
+    const [books, setBooks] = useState<Book[]>([]);
     const [teachers, setTeachers] = useState<Teacher[]>([]);
-    useEffect(() => {
-        const fetchTeachers = async () => {
-            const teacherData = await getAllTeachers();
-            setTeachers(teacherData);
-        };
-        fetchTeachers();
-    }, [dataVersion]);
+    const [isLoading, setIsLoading] = useState(true);
 
     const refreshData = useCallback(() => setDataVersion(v => v + 1), []);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            setIsLoading(true);
+            const [courseData, bookData, teacherData] = await Promise.all([
+                getFeaturedCourses(),
+                getFeaturedBooks(),
+                getAllTeachers()
+            ]);
+            setCourses(courseData);
+            setBooks(bookData);
+            setTeachers(teacherData);
+            setIsLoading(false);
+        };
+        fetchData();
+    }, [dataVersion]);
     
     const openModal = (type: string, data = {}) => {
         setFormData(data);
@@ -66,28 +75,38 @@ const HomeManagementView: React.FC = () => {
         setFormData((prev: any) => ({ ...prev, [name]: value }));
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         const { type, data } = modalState;
-        switch(type) {
-            case 'edit-course': updateFeaturedCourse({ ...data, ...formData }); break;
-            case 'add-course': addFeaturedCourse(formData); break;
-            case 'edit-book': updateFeaturedBook({ ...data, ...formData }); break;
-            case 'add-book': addFeaturedBook(formData); break;
+        try {
+            switch(type) {
+                case 'edit-course': await updateFeaturedCourse({ ...data, ...formData }); break;
+                case 'add-course': await addFeaturedCourse(formData); break;
+                case 'edit-book': await updateFeaturedBook({ ...data, ...formData }); break;
+                case 'add-book': await addFeaturedBook(formData); break;
+            }
+            addToast('تم حفظ التغييرات بنجاح', ToastType.SUCCESS);
+            refreshData();
+            closeModal();
+        } catch (error) {
+            addToast('فشل حفظ التغييرات.', ToastType.ERROR);
+            console.error(error);
         }
-        addToast('تم حفظ التغييرات بنجاح', ToastType.SUCCESS);
-        refreshData();
-        closeModal();
     };
 
-    const handleDelete = () => {
+    const handleDelete = async () => {
         const { type, data } = modalState;
-         switch(type) {
-            case 'delete-course': deleteFeaturedCourse(data.id); break;
-            case 'delete-book': deleteFeaturedBook(data.id); break;
+        try {
+             switch(type) {
+                case 'delete-course': await deleteFeaturedCourse(data.id); break;
+                case 'delete-book': await deleteFeaturedBook(data.id); break;
+            }
+            addToast('تم الحذف بنجاح', ToastType.SUCCESS);
+            refreshData();
+            closeModal();
+        } catch (error) {
+            addToast('فشل الحذف.', ToastType.ERROR);
+            console.error(error);
         }
-        addToast('تم الحذف بنجاح', ToastType.SUCCESS);
-        refreshData();
-        closeModal();
     };
 
 
@@ -156,13 +175,15 @@ const HomeManagementView: React.FC = () => {
             </div>
             
             <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)]">
-                {activeTab === 'courses' ? renderCourses() : renderBooks()}
+                {isLoading ? (
+                    <div className="flex justify-center items-center py-20"><Loader /></div>
+                ) : activeTab === 'courses' ? renderCourses() : renderBooks()}
             </div>
             
             <Modal isOpen={['add-course', 'edit-course'].includes(modalState.type || '')} onClose={closeModal} title={modalState.type === 'add-course' ? 'إضافة كورس جديد' : 'تعديل كورس'}>
                 <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="space-y-4">
                     <FormInput label="العنوان" name="title" value={formData.title || ''} onChange={handleFormChange} />
-                    <FormInput label="العنوان الفرعي" name="subtitle" value={formData.description || ''} onChange={handleFormChange} />
+                    <FormInput label="العنوان الفرعي" name="description" value={formData.description || ''} onChange={handleFormChange} />
                     <div>
                         <label htmlFor="teacherId" className="block text-sm font-medium text-[var(--text-secondary)] mb-1">المدرس</label>
                         <select name="teacherId" id="teacherId" value={formData.teacherId || ''} onChange={handleFormChange} required className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)] focus:ring-purple-500 focus:border-purple-500">
@@ -172,11 +193,6 @@ const HomeManagementView: React.FC = () => {
                     </div>
                     <ImageUpload label="صورة الغلاف" value={formData.coverImage || ''} onChange={(value) => handleImageChange('coverImage', value)} />
                     <FormInput label="السعر" name="price" type="number" value={formData.price ?? 0} onChange={handleFormChange} />
-                    <div className="grid grid-cols-3 gap-4">
-                        <FormInput label="ملفات" name="fileCount" type="number" value={formData.fileCount ?? 0} onChange={handleFormChange} />
-                        <FormInput label="فيديوهات" name="videoCount" type="number" value={formData.videoCount ?? 0} onChange={handleFormChange} />
-                        <FormInput label="اختبارات" name="quizCount" type="number" value={formData.quizCount ?? 0} onChange={handleFormChange} />
-                    </div>
                     <div className="flex justify-end pt-4"><button type="submit" className="px-5 py-2 font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700">حفظ</button></div>
                 </form>
             </Modal>
@@ -187,6 +203,7 @@ const HomeManagementView: React.FC = () => {
                     <FormInput label="اسم المدرس" name="teacherName" value={formData.teacherName || ''} onChange={handleFormChange} />
                     <ImageUpload label="صورة المدرس" value={formData.teacherImage || ''} onChange={(value) => handleImageChange('teacherImage', value)} />
                     <ImageUpload label="صورة الغلاف" value={formData.coverImage || ''} onChange={(value) => handleImageChange('coverImage', value)} />
+                    <FormInput label="رابط PDF" name="pdfUrl" value={formData.pdfUrl || ''} onChange={handleFormChange} />
                     <FormInput label="السعر" name="price" type="number" value={formData.price ?? 0} onChange={handleFormChange} />
                     <div className="flex justify-end pt-4"><button type="submit" className="px-5 py-2 font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700">حفظ</button></div>
                 </form>

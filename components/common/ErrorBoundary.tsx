@@ -1,4 +1,5 @@
-import React, { ErrorInfo, ReactNode } from 'react';
+// FIX: Using named imports for React class component types to resolve an issue where 'this.props' was not found on the component instance. This change ensures that the types for Component, ErrorInfo, and ReactNode are correctly resolved.
+import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { ShieldExclamationIcon } from './Icons';
 
 interface Props {
@@ -9,24 +10,22 @@ interface State {
   hasError: boolean;
 }
 
-class ErrorBoundary extends React.Component<Props, State> {
-  // FIX: Switched to constructor-based state initialization. The class property syntax was causing a TypeScript error where 'this.props' was not being recognized. Using a constructor is the standard and most compatible way to define state in a class component, avoiding potential build tool misconfigurations.
-  constructor(props: Props) {
-    super(props);
-    this.state = { hasError: false };
-  }
+class ErrorBoundary extends Component<Props, State> {
+  public state: State = {
+    hasError: false,
+  };
 
-  static getDerivedStateFromError(_: Error): State {
+  public static getDerivedStateFromError(_: Error): State {
     // Update state so the next render will show the fallback UI.
     return { hasError: true };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     // You can also log the error to an error reporting service.
     console.error("Uncaught error:", error, errorInfo);
   }
 
-  render(): ReactNode {
+  public render(): ReactNode {
     if (this.state.hasError) {
       // You can render any custom fallback UI.
       return (

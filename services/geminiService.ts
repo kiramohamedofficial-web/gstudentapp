@@ -144,7 +144,7 @@ export const getChatbotResponseStream = async (
 
   const modelMap: Record<ChatMode, string> = {
     normal: 'gemini-2.5-flash',
-    fast: 'gemini-2.5-flash-lite',
+    fast: 'gemini-flash-lite-latest',
     thinking: 'gemini-2.5-pro',
   };
 

@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { Grade, Semester, Unit, Lesson, LessonType, ToastType, Teacher, QuizType, QuizQuestion } from '../../types';
 import {
     getAllGrades, addLessonToUnit, updateLesson, deleteLesson,
-    addUnitToSemester, updateUnit, deleteUnit, getAllTeachers, getUnitsForSemester, getLessonsForUnit
+    addUnitToSemester, updateUnit, deleteUnit, getAllTeachers, getUnitsForSemester
 } from '../../services/storageService';
 import Modal from '../common/Modal';
 import { PlusIcon, PencilIcon, TrashIcon, DotsVerticalIcon, BookOpenIcon, VideoCameraIcon, DocumentTextIcon, ChevronDownIcon, SparklesIcon, XIcon } from '../common/Icons';
@@ -241,10 +241,8 @@ const ContentManagementView: React.FC = () => {
     const [selectedGradeId, setSelectedGradeId] = useState<string>('');
     const [selectedSemesterId, setSelectedSemesterId] = useState<string>('');
     const [units, setUnits] = useState<Unit[]>([]);
-    const [lessonsMap, setLessonsMap] = useState<Record<string, Lesson[]>>({}); // Cache for lessons
     const [isLoadingUnits, setIsLoadingUnits] = useState(false);
     const [expandedUnitId, setExpandedUnitId] = useState<string | null>(null);
-    const [loadingLessons, setLoadingLessons] = useState<Set<string>>(new Set());
     const [optionsMenuUnitId, setOptionsMenuUnitId] = useState<string | null>(null);
     const optionsMenuRef = useRef<HTMLDivElement>(null);
 
@@ -267,14 +265,11 @@ const ContentManagementView: React.FC = () => {
     
     useEffect(() => {
         if (selectedGradeId && selectedSemesterId) {
-            const fetchUnits = async () => {
-                setIsLoadingUnits(true);
-                setExpandedUnitId(null);
-                const fetchedUnits = await getUnitsForSemester(parseInt(selectedGradeId), selectedSemesterId);
-                setUnits(fetchedUnits);
-                setIsLoadingUnits(false);
-            };
-            fetchUnits();
+            setIsLoadingUnits(true);
+            setExpandedUnitId(null);
+            const fetchedUnits = getUnitsForSemester(parseInt(selectedGradeId), selectedSemesterId);
+            setUnits(fetchedUnits);
+            setIsLoadingUnits(false);
         } else {
             setUnits([]);
         }
@@ -294,26 +289,10 @@ const ContentManagementView: React.FC = () => {
     const selectedSemester = useMemo(() => selectedGrade?.semesters.find(s => s.id === selectedSemesterId), [selectedGrade, selectedSemesterId]);
     const teacherMap = useMemo(() => new Map(teachers.map(t => [t.id, t.name])), [teachers]);
     
-    const handleToggleExpand = useCallback(async (unitId: string) => {
+    const handleToggleExpand = useCallback((unitId: string) => {
         const newExpandedId = expandedUnitId === unitId ? null : unitId;
         setExpandedUnitId(newExpandedId);
-
-        if (newExpandedId && !lessonsMap[newExpandedId] && selectedGradeId && selectedSemesterId) {
-            setLoadingLessons(prev => new Set(prev).add(unitId));
-            try {
-                const fetchedLessons = await getLessonsForUnit(parseInt(selectedGradeId), selectedSemesterId, newExpandedId);
-                setLessonsMap(prevMap => ({ ...prevMap, [newExpandedId]: fetchedLessons }));
-            } catch (error) {
-                addToast('فشل تحميل الدروس لهذه الوحدة.', ToastType.ERROR);
-            } finally {
-                setLoadingLessons(prev => {
-                    const newSet = new Set(prev);
-                    newSet.delete(unitId);
-                    return newSet;
-                });
-            }
-        }
-    }, [expandedUnitId, lessonsMap, selectedGradeId, selectedSemesterId, addToast]);
+    }, [expandedUnitId]);
 
     const handleSaveUnit = useCallback(async (unitData: Partial<Unit>) => {
         if (selectedGrade && selectedSemester) {
@@ -423,9 +402,7 @@ const ContentManagementView: React.FC = () => {
                     <div className="flex justify-center items-center py-20"><Loader /></div>
                 ) : (
                     units.map(unit => {
-                        const lessonsForUnit = lessonsMap[unit.id];
-                        const lessonCount = lessonsForUnit?.length;
-
+                        const lessonCount = unit.lessons?.length;
                         return (
                         <div key={unit.id} className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-primary)]">
                             <header onClick={() => handleToggleExpand(unit.id)} className="p-4 flex justify-between items-center cursor-pointer">
@@ -438,7 +415,7 @@ const ContentManagementView: React.FC = () => {
                                 </div>
                                 <div className="flex items-center gap-4">
                                     <span className="text-sm font-semibold bg-[var(--bg-tertiary)] px-3 py-1 rounded-full">
-                                        {typeof lessonCount === 'number' ? `${lessonCount} دروس` : (unit.lessons.length > 0 ? `${unit.lessons.length} دروس` : 'فارغ')}
+                                        {typeof lessonCount === 'number' ? `${lessonCount} دروس` : 'فارغ'}
                                     </span>
                                     <div className="relative">
                                         <button onClick={(e) => { e.stopPropagation(); setOptionsMenuUnitId(p => p === unit.id ? null : unit.id); }} className="p-2 text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] rounded-full"><DotsVerticalIcon className="w-5 h-5"/></button>
@@ -453,11 +430,9 @@ const ContentManagementView: React.FC = () => {
                             </header>
                             {expandedUnitId === unit.id && (
                                 <div className="p-4 border-t border-[var(--border-primary)] space-y-4">
-                                    {loadingLessons.has(unit.id) ? (
-                                        <div className="flex justify-center items-center py-4"><Loader /></div>
-                                    ) : (lessonsForUnit && lessonsForUnit.length > 0) ? (
+                                    {(unit.lessons && unit.lessons.length > 0) ? (
                                         <div className="space-y-2">
-                                        {lessonsForUnit.map(lesson => (
+                                        {unit.lessons.map(lesson => (
                                             <div key={lesson.id} className="p-2 bg-[var(--bg-tertiary)] rounded-md flex justify-between items-center">
                                                 <div className="flex items-center gap-2">
                                                     {React.createElement(getLessonIcon(lesson.type), { className: "w-4 h-4 text-[var(--text-secondary)]" })}

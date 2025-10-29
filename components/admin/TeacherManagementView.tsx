@@ -1,6 +1,3 @@
-
-
-
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Teacher, ToastType, Grade, User } from '../../types';
 import { getAllTeachers, createTeacher, updateTeacher, deleteTeacher, getAllGrades, getAllUsers, supabase } from '../../services/storageService';
@@ -248,23 +245,16 @@ const TeacherManagementView: React.FC = () => {
     const handleSave = async (data: TeacherModalSaveData) => {
         setIsLoading(true);
         try {
+            let result: { success: boolean, error?: any };
+        
             if (data.id) { // Editing
                 const { id, ...updates } = data;
-                const { success, error } = await updateTeacher(id, updates);
-                if (!success) throw error;
-    
-                if (updates.password && updates.password.trim()) {
-                     const { data: profileData, error: profileError } = await supabase.from('profiles').select('id').eq('teacher_id', id).single();
-                     if (profileError) throw new Error(`Could not find user for teacher: ${profileError.message}`);
-                     if (profileData) {
-                         const { error: passwordError } = await supabase.auth.admin.updateUserById(profileData.id, { password: updates.password });
-                         if (passwordError) throw new Error(`Failed to update password: ${passwordError.message}`);
-                     }
+                if (!updates.password?.trim()) {
+                    delete updates.password;
                 }
-    
-                addToast('تم تحديث بيانات المدرس بنجاح.', ToastType.SUCCESS);
+                result = await updateTeacher(id, updates);
             } else { // Adding
-                const result = await createTeacher({
+                result = await createTeacher({
                     email: data.email,
                     password: data.password,
                     name: data.name,
@@ -274,13 +264,21 @@ const TeacherManagementView: React.FC = () => {
                     teaching_levels: data.teachingLevels || [],
                     image_url: data.imageUrl,
                 });
-                if (!result.success) throw result.error;
-                addToast('تمت إضافة المدرس بنجاح.', ToastType.SUCCESS);
             }
-            refreshData();
-            closeModal();
+            
+            if (!result.success) {
+                throw new Error(result.error?.message || 'حدث خطأ غير متوقع.');
+            } else {
+                addToast(data.id ? 'تم تحديث بيانات المدرس بنجاح.' : 'تمت إضافة المدرس بنجاح.', ToastType.SUCCESS);
+                refreshData();
+                closeModal();
+            }
         } catch (error: any) {
-            addToast(`❌ فشل: ${error.message || 'An unknown error occurred.'}`, ToastType.ERROR);
+             if (error instanceof Error) {
+                addToast(`فشل: ${error.message}`, ToastType.ERROR);
+            } else {
+                addToast(`فشل: ${error.message || 'حدث خطأ غير معروف أثناء الحفظ.'}`, ToastType.ERROR);
+            }
         } finally {
             setIsLoading(false);
         }
