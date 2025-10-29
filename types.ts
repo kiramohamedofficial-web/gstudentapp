@@ -9,7 +9,7 @@ export enum Role {
 
 export type StudentView = 'home' | 'grades' | 'subscription' | 'profile' | 'teachers' | 'courses' | 'singleSubjectSubscription' | 'comprehensiveSubscription' | 'results' | 'smartPlan' | 'chatbot' | 'askTheProf' | 'adhkar' | 'cartoonMovies' | 'teacherProfile' | 'courseDetail';
 export type TeacherView = 'dashboard' | 'content' | 'subscriptions' | 'profile' | 'questionBank';
-export type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'courseManagement' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers' | 'subscriptionPrices' | 'deviceManagement' | 'content' | 'accountCreationDiagnostics' | 'teacherCreationDiagnostics';
+export type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'courseManagement' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers' | 'subscriptionPrices' | 'deviceManagement' | 'content' | 'accountCreationDiagnostics' | 'teacherCreationDiagnostics' | 'supervisors';
 
 
 export interface User {
@@ -23,7 +23,7 @@ export interface User {
   role: Role;
   allowedDevices: number;
   subscriptionId?: string;
-  teacherId?: string; // Links user to a teacher profile
+  teacherId?: string; // Links user to a teacher profile OR supervisor to a supervised teacher
 }
 
 export interface Subscription {

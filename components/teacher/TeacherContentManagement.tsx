@@ -1,13 +1,15 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import { Grade, Semester, Unit, Lesson, LessonType, ToastType, Teacher, QuizType } from '../../types';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { Grade, Semester, Unit, Lesson, LessonType, ToastType, Teacher, QuizType, QuizQuestion } from '../../types';
 import {
     getAllGrades, addLessonToUnit, updateLesson, deleteLesson,
     addUnitToSemester, updateUnit, deleteUnit
 } from '../../services/storageService';
 import Modal from '../common/Modal';
-import { PlusIcon, PencilIcon, TrashIcon, CollectionIcon, ChevronDownIcon, VideoCameraIcon, DocumentTextIcon, BookOpenIcon } from '../common/Icons';
+import { PlusIcon, PencilIcon, TrashIcon, CollectionIcon, ChevronDownIcon, VideoCameraIcon, DocumentTextIcon, BookOpenIcon, SparklesIcon, XIcon } from '../common/Icons';
 import { useToast } from '../../useToast';
 import ImageUpload from '../common/ImageUpload';
+import { generateQuiz } from '../../services/geminiService';
+import Loader from '../common/Loader';
 
 // Reusable Confirmation Modal
 const ConfirmationModal: React.FC<{ isOpen: boolean; onClose: () => void; onConfirm: () => void; title: string; message: string; }> = ({ isOpen, onClose, onConfirm, title, message }) => (
@@ -50,64 +52,229 @@ const UnitEditModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (t
 };
 
 // Lesson Add/Edit Modal (New)
-const LessonModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (data: Lesson | Omit<Lesson, 'id'>) => void; lesson: Partial<Lesson> | null; }> = ({ isOpen, onClose, onSave, lesson }) => {
+const LessonModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (data: Lesson | Omit<Lesson, 'id'>) => void; lesson: Partial<Lesson> | null; gradeName: string }> = ({ isOpen, onClose, onSave, lesson, gradeName }) => {
+    const { addToast } = useToast();
     const [formData, setFormData] = useState<Partial<Lesson>>({});
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [aiTopic, setAiTopic] = useState('');
+    const [aiDifficulty, setAiDifficulty] = useState<'سهل' | 'متوسط' | 'صعب'>('متوسط');
+    const [aiNumQuestions, setAiNumQuestions] = useState(5);
     
-    React.useEffect(() => {
+    useEffect(() => {
         if (isOpen) {
-            setFormData(lesson || { type: LessonType.EXPLANATION, correctAnswers: [] });
+            const initialData = lesson ? { ...lesson } : { type: LessonType.EXPLANATION, correctAnswers: [], questions: [{ questionText: '', options: ['', '', '', ''], correctAnswerIndex: 0 }] };
+            if (!initialData.type) initialData.type = LessonType.EXPLANATION;
+            if ((initialData.type === LessonType.HOMEWORK || initialData.type === LessonType.EXAM) && !initialData.questions) {
+                initialData.questions = [{ questionText: '', options: ['', '', '', ''], correctAnswerIndex: 0 }];
+            }
+            setFormData(initialData);
         }
     }, [lesson, isOpen]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value, type } = e.target;
-        // @ts-ignore
         const isNumber = e.target.type === 'number';
         setFormData(prev => ({ ...prev, [name]: isNumber ? Number(value) : value }));
+    };
+    
+    const addQuestion = () => {
+        setFormData(prev => ({
+            ...prev,
+            questions: [...(prev.questions || []), { questionText: '', options: ['', '', '', ''], correctAnswerIndex: 0 }]
+        }));
+    };
+
+    const removeQuestion = (index: number) => {
+        setFormData(prev => ({
+            ...prev,
+            questions: (prev.questions || []).filter((_, i) => i !== index)
+        }));
+    };
+
+    const handleQuestionChange = (qIndex: number, field: keyof QuizQuestion, value: any, optIndex?: number) => {
+        setFormData(prev => {
+            const updatedQuestions = (prev.questions || []).map((q, i) => {
+                if (i !== qIndex) {
+                    return q;
+                }
+                if (field === 'options' && typeof optIndex === 'number') {
+                    const updatedOptions = q.options.map((opt, oIdx) => (oIdx === optIndex ? value : opt));
+                    return { ...q, options: updatedOptions };
+                } else {
+                    const finalValue = field === 'correctAnswerIndex' ? Number(value) : value;
+                    return { ...q, [field]: finalValue };
+                }
+            });
+            return { ...prev, questions: updatedQuestions };
+        });
     };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        let dataToSave: Partial<Lesson> = {
-            ...formData,
-            correctAnswers: typeof formData.correctAnswers === 'string' ? formData.correctAnswers.split('\n').filter(Boolean) : (formData.correctAnswers || []),
-        };
-        
+        let dataToSave: Partial<Lesson> = { ...formData };
+
+        if (typeof dataToSave.correctAnswers === 'string') {
+            dataToSave.correctAnswers = (dataToSave.correctAnswers as string).split('\n').filter(Boolean);
+        }
+
         if (dataToSave.type === LessonType.HOMEWORK || dataToSave.type === LessonType.EXAM) {
-            dataToSave.quizType = QuizType.IMAGE;
+            dataToSave.quizType = dataToSave.imageUrl ? QuizType.IMAGE : QuizType.MCQ;
+            if (dataToSave.quizType === QuizType.IMAGE) {
+                dataToSave.questions = undefined;
+            } else {
+                dataToSave.imageUrl = undefined;
+                dataToSave.correctAnswers = undefined;
+            }
         } else {
             dataToSave.quizType = undefined;
+            dataToSave.questions = undefined;
             dataToSave.imageUrl = undefined;
             dataToSave.correctAnswers = undefined;
             dataToSave.timeLimit = undefined;
             dataToSave.passingScore = undefined;
         }
-
+        
         onSave(dataToSave as Lesson);
+    };
+
+    const handleGenerateQuiz = async () => {
+        if (!aiTopic.trim() || !gradeName) {
+            addToast('يرجى إدخال موضوع للاختبار.', ToastType.ERROR);
+            return;
+        }
+        if ((formData.questions?.length || 0) > 1 || (formData.questions?.[0]?.questionText.trim() !== '')) {
+            if (!window.confirm('لديك أسئلة حالية. هل تريد استبدالها بالأسئلة التي سيتم إنشاؤها؟')) {
+                return;
+            }
+        }
+        setIsGenerating(true);
+        try {
+            const generatedQuestions = await generateQuiz(aiTopic, gradeName, aiDifficulty, aiNumQuestions);
+            if (generatedQuestions && generatedQuestions.length > 0) {
+                setFormData(prev => ({ ...prev, questions: generatedQuestions }));
+                addToast(`تم إنشاء ${generatedQuestions.length} أسئلة بنجاح.`, ToastType.SUCCESS);
+            } else {
+                throw new Error('لم يتم إرجاع أي أسئلة.');
+            }
+        } catch (error: any) {
+            addToast(error.message || 'فشل توليد الأسئلة.', ToastType.ERROR);
+        } finally {
+            setIsGenerating(false);
+        }
     };
     
     const type = formData.type || LessonType.EXPLANATION;
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={formData.id ? 'تعديل الدرس' : 'إضافة درس جديد'}>
-            <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto p-1">
-                <input type="text" placeholder="عنوان الدرس" name="title" value={formData.title || ''} onChange={handleChange} className="w-full p-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md" required/>
-                <select name="type" value={formData.type} onChange={handleChange} className="w-full p-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md">
+            <form onSubmit={handleSubmit} className="space-y-6 max-h-[75vh] overflow-y-auto p-1 -mr-2 pr-4">
+                <input type="text" placeholder="عنوان الدرس" name="title" value={formData.title || ''} onChange={handleChange} className="w-full p-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg" required/>
+                <select name="type" value={formData.type} onChange={handleChange} className="w-full p-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg">
                     {Object.values(LessonType).map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
-                {type === LessonType.EXPLANATION && <input type="text" placeholder="معرف فيديو يوتيوب" name="content" value={formData.content || ''} onChange={handleChange} className="w-full p-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md"/>}
-                {type === LessonType.SUMMARY && <textarea placeholder="محتوى الملخص" name="content" value={formData.content || ''} onChange={handleChange} className="w-full p-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md" rows={5}></textarea>}
+                
+                {type === LessonType.EXPLANATION && <input type="text" placeholder="معرف فيديو يوتيوب" name="content" value={formData.content || ''} onChange={handleChange} className="w-full p-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg"/>}
+                {type === LessonType.SUMMARY && <textarea placeholder="محتوى الملخص" name="content" value={formData.content || ''} onChange={handleChange} className="w-full p-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg" rows={5}></textarea>}
+                
                 {(type === LessonType.HOMEWORK || type === LessonType.EXAM) && (
-                    <div className="space-y-4 p-3 border border-dashed border-[var(--border-primary)] rounded-lg">
-                        <ImageUpload label="صورة الواجب/الامتحان" value={formData.imageUrl || ''} onChange={url => setFormData(p => ({...p, imageUrl: url}))} />
-                        <textarea placeholder="الإجابات الصحيحة (كل إجابة في سطر)" name="correctAnswers" value={Array.isArray(formData.correctAnswers) ? formData.correctAnswers.join('\n') : formData.correctAnswers || ''} onChange={handleChange} rows={4} className="w-full p-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md"/>
-                        <div className="grid grid-cols-2 gap-4">
-                            <input type="number" placeholder="درجة النجاح (%)" name="passingScore" value={formData.passingScore || ''} onChange={handleChange} className="w-full p-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md"/>
-                            {type === LessonType.EXAM && <input type="number" placeholder="الوقت بالدقائق" name="timeLimit" value={formData.timeLimit || ''} onChange={handleChange} className="w-full p-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md"/>}
+                     <div className="space-y-4">
+                        <div className="p-4 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-primary)]">
+                            <h3 className="text-md font-semibold text-[var(--text-secondary)] mb-3">إعدادات الاختبار</h3>
+                            <div className="grid grid-cols-2 gap-4">
+                                <input type="number" placeholder="درجة النجاح (%)" name="passingScore" value={formData.passingScore || ''} onChange={handleChange} className="w-full p-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg"/>
+                                {type === LessonType.EXAM && <input type="number" placeholder="الوقت بالدقائق" name="timeLimit" value={formData.timeLimit || ''} onChange={handleChange} className="w-full p-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg"/>}
+                            </div>
                         </div>
+                        
+                        <div className="p-4 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-primary)] space-y-4">
+                            <h3 className="text-md font-semibold text-[var(--text-secondary)] flex items-center gap-2">
+                                <SparklesIcon className="w-5 h-5 text-purple-400" />
+                                توليد الأسئلة بالذكاء الاصطناعي
+                            </h3>
+                            <input 
+                                type="text" 
+                                placeholder="موضوع الاختبار (مثال: نظرية فيثاغورس)" 
+                                value={aiTopic}
+                                onChange={(e) => setAiTopic(e.target.value)}
+                                className="w-full p-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg"
+                            />
+                            <div className="grid grid-cols-2 gap-4">
+                                <select value={aiDifficulty} onChange={(e) => setAiDifficulty(e.target.value as any)} className="w-full p-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg">
+                                    <option value="سهل">سهل</option>
+                                    <option value="متوسط">متوسط</option>
+                                    <option value="صعب">صعب</option>
+                                </select>
+                                <input 
+                                    type="number" 
+                                    placeholder="عدد الأسئلة" 
+                                    value={aiNumQuestions}
+                                    onChange={(e) => setAiNumQuestions(Math.max(1, parseInt(e.target.value) || 1))}
+                                    min="1"
+                                    className="w-full p-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg"
+                                />
+                            </div>
+                            <button 
+                                type="button" 
+                                onClick={handleGenerateQuiz}
+                                disabled={isGenerating}
+                                className="w-full py-2.5 font-bold text-white bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+                            >
+                                {isGenerating ? (
+                                    <>
+                                        <div className="w-5 h-5 border-2 border-white/50 border-t-white rounded-full animate-spin"></div>
+                                        <span>جاري التوليد...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <SparklesIcon className="w-5 h-5"/>
+                                        <span>توليد</span>
+                                    </>
+                                )}
+                            </button>
+                        </div>
+
+                        { (formData.questions || []).map((q, qIndex) => (
+                            <div key={qIndex} className="p-4 bg-[var(--bg-tertiary)] rounded-lg border border-[var(--border-primary)]">
+                                <div className="flex justify-between items-center mb-3">
+                                    <p className="font-bold text-[var(--text-primary)]">السؤال رقم {qIndex + 1}</p>
+                                    <button type="button" onClick={() => removeQuestion(qIndex)} className="px-3 py-1 text-sm bg-red-500/20 text-red-400 rounded-md hover:bg-red-500/30">حذف السؤال</button>
+                                </div>
+                                <textarea
+                                    value={q.questionText}
+                                    onChange={(e) => handleQuestionChange(qIndex, 'questionText', e.target.value)}
+                                    placeholder="نص السؤال..."
+                                    className="w-full p-2 rounded-md bg-[var(--bg-secondary)] border border-[var(--border-primary)] mb-3"
+                                    rows={3}
+                                />
+                                <p className="text-sm text-[var(--text-secondary)] mb-2">اختر الإجابة الصحيحة:</p>
+                                <div className="space-y-2">
+                                    {q.options.map((opt, optIndex) => (
+                                        <div key={optIndex} className="flex items-center space-x-3 space-x-reverse p-2 rounded-md bg-[var(--bg-secondary)] border border-[var(--border-primary)] focus-within:border-purple-500">
+                                            <input
+                                                type="text"
+                                                value={opt}
+                                                onChange={(e) => handleQuestionChange(qIndex, 'options', e.target.value, optIndex)}
+                                                placeholder={`الخيار ${String.fromCharCode(1575 + optIndex)}`}
+                                                className="w-full bg-transparent focus:outline-none"
+                                            />
+                                            <input
+                                                type="radio"
+                                                name={`correctAnswer_${qIndex}`}
+                                                checked={q.correctAnswerIndex === optIndex}
+                                                onChange={() => handleQuestionChange(qIndex, 'correctAnswerIndex', optIndex)}
+                                                className="h-5 w-5 text-purple-600 focus:ring-purple-500 border-gray-600 bg-gray-700"
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                        <button type="button" onClick={addQuestion} className="w-full py-2.5 mt-4 font-bold text-white bg-purple-600 rounded-lg hover:bg-purple-700">
+                            + أضف سؤال جديد
+                        </button>
                     </div>
                 )}
-                <div className="flex justify-end pt-4"><button type="submit" className="px-5 py-2 font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700">حفظ</button></div>
+                <div className="flex justify-end pt-4"><button type="submit" className="px-6 py-2.5 font-semibold text-white bg-purple-600 rounded-lg hover:bg-purple-700">حفظ</button></div>
             </form>
         </Modal>
     );
@@ -315,7 +482,7 @@ const TeacherContentManagement: React.FC<TeacherContentManagementProps> = ({ tea
             )}
 
             <UnitEditModal isOpen={['add-unit', 'edit-unit'].includes(modalState.type || '')} onClose={closeModal} onSave={handleSaveUnit} unit={modalState.data.unit} />
-            <LessonModal isOpen={['add-lesson', 'edit-lesson'].includes(modalState.type || '')} onClose={closeModal} onSave={handleSaveLesson} lesson={modalState.data.lesson} />
+            <LessonModal isOpen={['add-lesson', 'edit-lesson'].includes(modalState.type || '')} onClose={closeModal} onSave={handleSaveLesson} lesson={modalState.data.lesson} gradeName={selectedGrade?.name || ''} />
             <ConfirmationModal isOpen={modalState.type === 'delete-unit'} onClose={closeModal} onConfirm={handleDeleteUnit} title="تأكيد حذف الوحدة" message={`هل أنت متأكد من حذف وحدة "${modalState.data.unit?.title}" وكل دروسها؟`} />
             <ConfirmationModal isOpen={modalState.type === 'delete-lesson'} onClose={closeModal} onConfirm={handleDeleteLesson} title="تأكيد حذف الدرس" message={`هل أنت متأكد من حذف درس "${modalState.data.lesson?.title}"؟`} />
         </div>

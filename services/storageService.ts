@@ -1,4 +1,3 @@
-
 import { createClient, Session, User as SupabaseUser } from '@supabase/supabase-js';
 import {
   User, Role, Subscription, Grade, Teacher, Lesson, Unit, SubscriptionRequest,
@@ -30,7 +29,7 @@ export function getOrCreateDeviceId(): string {
 // =================================================================
 // FILE STORAGE
 // =================================================================
-const ASSET_BUCKET = 'gstudent-assets';
+const ASSET_BUCKET = 'assets';
 
 export async function uploadImage(file: File): Promise<string | null> {
     const filePath = `public/${Date.now()}-${file.name}`;
@@ -125,7 +124,7 @@ export async function signIn(identifier: string, password: string) {
     if (!signInData.user) return { data: null, error: { message: 'لم يتم العثور على المستخدم بعد تسجيل الدخول.' } };
 
     const { data: profile } = await supabase.from('profiles').select('role, allowed_devices').eq('id', signInData.user.id).single();
-    if (profile?.role === 'admin' || profile?.role === 'teacher') {
+    if (profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'supervisor') {
         return { data: signInData, error: null };
     }
 
@@ -261,7 +260,7 @@ export const updateUserPassword = async (password: string) => {
 
 
 // =================================================================
-// TEACHER MANAGEMENT
+// TEACHER & SUPERVISOR MANAGEMENT
 // =================================================================
 interface CreateTeacherParams { id?: string, email: string; password?: string; name: string; subject: string; phone: string; teaching_grades: number[]; teaching_levels: string[]; image_url?: string; }
 
@@ -287,6 +286,25 @@ export async function createTeacher(params: CreateTeacherParams) {
 
   const errorMessage = data?.error || 'An unknown error occurred inside the database function.';
   return { success: false, error: { message: errorMessage }, data: null };
+}
+
+export async function createSupervisor(params: { email: string; password?: string; name: string; supervised_teacher_id: string; }) {
+    const { data, error } = await supabase.rpc('create_supervisor_account', {
+        supervisor_name: params.name,
+        supervisor_email: params.email,
+        supervisor_password: params.password,
+        supervised_teacher_id: params.supervised_teacher_id,
+    });
+    return { data, error };
+}
+
+export async function updateSupervisor(userId: string, updates: { name: string; supervised_teacher_id: string; }) {
+    const { error } = await supabase.rpc('update_supervisor_details', {
+        p_user_id: userId,
+        p_name: updates.name,
+        p_supervised_teacher_id: updates.supervised_teacher_id
+    });
+    return { error };
 }
 
 export async function getAllTeachers(): Promise<Teacher[]> {
@@ -1041,12 +1059,12 @@ export const deleteCourse = async (courseId: string) => {
 };
 
 export const checkCoursePurchase = async (userId: string, courseId: string): Promise<boolean> => {
-    const { data, error } = await supabase.from('user_courses').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('course_id', courseId);
+    const { count, error } = await supabase.from('user_courses').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('course_id', courseId);
     if(error) {
         console.warn("Could not check course purchase. This may be a network issue. Original error:", error.message);
         return false;
     }
-    return (data?.count || 0) > 0;
+    return (count || 0) > 0;
 };
 
 export const purchaseCourse = async (userId: string, courseId: string) => {
@@ -1219,6 +1237,29 @@ export const updateUser = async (userId: string, updates: Partial<User>) => {
 };
 export const clearUserDevices = async (userId: string) => {
     const { error } = await supabase.from('user_sessions').delete().eq('user_id', userId);
+    return { error };
+};
+export const clearAllStudentDevices = async () => {
+    const { data: studentProfiles, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('role', 'student');
+
+    if (profileError) {
+        console.error("Failed to fetch student IDs for session clearing:", profileError.message);
+        return { error: profileError };
+    }
+
+    const studentIds = studentProfiles.map(p => p.id);
+    if (studentIds.length === 0) {
+        return { error: null }; // No students to log out
+    }
+
+    const { error } = await supabase
+        .from('user_sessions')
+        .delete()
+        .in('user_id', studentIds);
+
     return { error };
 };
 export const deleteUser = async (id: string) => { const { error } = await supabase.auth.admin.deleteUser(id); return { error }; };

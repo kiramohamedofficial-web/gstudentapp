@@ -118,11 +118,41 @@ export const generateQuiz = async (
       },
     });
 
-    const jsonResponse = JSON.parse(response.text);
-    return jsonResponse.questions || [];
+    // Sanitize the response text before parsing
+    let jsonString = response.text.trim();
+    if (jsonString.startsWith('```json')) {
+        jsonString = jsonString.slice(7, -3).trim();
+    } else if (jsonString.startsWith('```')) {
+        jsonString = jsonString.slice(3, -3).trim();
+    }
+    
+    if (!jsonString) {
+        throw new Error("استجاب الذكاء الاصطناعي برد فارغ.");
+    }
+
+    try {
+        const jsonResponse = JSON.parse(jsonString);
+        if (jsonResponse && Array.isArray(jsonResponse.questions)) {
+            return jsonResponse.questions;
+        } else {
+            console.warn("Gemini Quiz Generation Warning: JSON response is valid but lacks the 'questions' array.", jsonResponse);
+            throw new Error("استجاب الذكاء الاصطناعي بتنسيق غير متوقع.");
+        }
+    } catch (parseError) {
+        console.error("Gemini Quiz Generation Error: Failed to parse JSON response.", {
+            originalText: response.text,
+            sanitizedText: jsonString,
+            parseError,
+        });
+        throw new Error("فشل في تحليل استجابة الذكاء الاصطناعي. قد تكون بتنسيق غير صحيح.");
+    }
+
   } catch (error) {
-    console.error("Gemini Quiz Generation Error:", error);
-    throw new Error("فشل توليد الأسئلة. يرجى المحاولة مرة أخرى.");
+    console.error("Gemini Quiz Generation API Error:", error);
+    if (error instanceof Error) {
+       throw new Error(error.message);
+    }
+    throw new Error("فشل توليد الأسئلة. يرجى المحاولة مرة أخرى لاحقًا.");
   }
 };
 

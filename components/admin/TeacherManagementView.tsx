@@ -126,19 +126,19 @@ const TeacherModal: React.FC<{
                 <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 -mr-4 pl-1">
                     <div>
                         <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">اسم المدرس</label>
-                        <input name="name" value={formData.name} onChange={handleChange} required className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)]" />
+                        <input name="name" value={formData.name} onChange={handleChange} required className="w-full p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)]" />
                     </div>
                      <div>
                         <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">رقم هاتف المدرس (للدخول)</label>
-                        <input name="phone" value={formData.phone} onChange={handleChange} required className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-left" placeholder="01xxxxxxxxx" maxLength={11}/>
+                        <input name="phone" value={formData.phone} onChange={handleChange} required className="w-full p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-left" placeholder="01xxxxxxxxx" maxLength={11}/>
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">كلمة المرور</label>
-                        <input name="password" type="password" value={formData.password} onChange={handleChange} required={!teacher} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)]" placeholder={teacher ? "اتركها فارغة لعدم التغيير" : "كلمة مرور قوية"} />
+                        <input name="password" type="password" value={formData.password} onChange={handleChange} required={!teacher} className="w-full p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)]" placeholder={teacher ? "اتركها فارغة لعدم التغيير" : "كلمة مرور قوية"} />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">المادة الأساسية</label>
-                        <input name="subject" value={formData.subject} onChange={handleChange} required className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)]" />
+                        <input name="subject" value={formData.subject} onChange={handleChange} required className="w-full p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)]" />
                     </div>
                     <ImageUpload
                         label="صورة المدرس"
@@ -179,7 +179,7 @@ const TeacherModal: React.FC<{
                 {error && <p className="text-red-500 text-sm">{error}</p>}
 
                 <div className="flex justify-end pt-4">
-                    <button type="submit" className="px-5 py-2 font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700">حفظ</button>
+                    <button type="submit" className="px-6 py-2.5 font-semibold text-white bg-purple-600 rounded-lg hover:bg-purple-700">حفظ</button>
                 </div>
             </form>
         </Modal>
