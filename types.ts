@@ -23,7 +23,6 @@ export interface User {
   role: Role;
   subscriptionId?: string;
   teacherId?: string; // Links user to a teacher profile
-  max_devices?: number;
 }
 
 export interface Subscription {
@@ -184,7 +183,6 @@ export interface Book {
   teacherImage: string;
   price: number;
   coverImage: string;
-  pdfUrl?: string;
 }
 
 export interface QuizAttempt {

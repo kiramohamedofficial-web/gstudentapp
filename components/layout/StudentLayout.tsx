@@ -261,6 +261,12 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ children, onNavClick, act
           </div>
         </div>
       )}
+      {loadTime !== null && (
+          <div className="fixed bottom-20 right-3 md:bottom-3 md:left-3 z-50 bg-black/50 text-white text-xs px-2 py-1 rounded-md backdrop-blur-sm"
+               style={{ fontFamily: 'monospace' }}>
+              Load: {loadTime.toFixed(0)}ms
+          </div>
+      )}
     </div>
   );
 };

@@ -3,10 +3,9 @@ import { User, Grade, Lesson, LessonType, QuizAttempt, ToastType, Subscription }
 import { 
     getGradeById, getSubscriptionByUserId, getQuizAttemptsByUserId, 
     getAllGrades, getStudentProgress, updateUser, deleteUser, 
-    createOrUpdateSubscription, getGradesForSelection, clearUserDevices,
-    updateUserDeviceLimit
+    createOrUpdateSubscription, getGradesForSelection, clearUserDevices
 } from '../../services/storageService';
-import { ArrowRightIcon, CheckCircleIcon, ClockIcon, PencilIcon, TrashIcon, CreditCardIcon, BookOpenIcon, UsersIcon, HardDriveIcon, PlusIcon } from '../common/Icons';
+import { ArrowRightIcon, CheckCircleIcon, ClockIcon, PencilIcon, TrashIcon, CreditCardIcon, BookOpenIcon, UsersIcon, HardDriveIcon } from '../common/Icons';
 import Modal from '../common/Modal';
 import { useToast } from '../../useToast';
 
@@ -133,12 +132,9 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
   const [editFormData, setEditFormData] = useState<Partial<User>>({});
   const [userProgress, setUserProgress] = useState<Record<string, boolean>>({});
   const [localUser, setLocalUser] = useState(user);
-  const [deviceLimit, setDeviceLimit] = useState(user.max_devices ?? 1);
-  const [isDeviceLimitLoading, setIsDeviceLimitLoading] = useState(false);
 
   useEffect(() => {
     setLocalUser(user);
-    setDeviceLimit(user.max_devices ?? 1);
   }, [user]);
 
   const refreshData = useCallback(() => setDataVersion(v => v + 1), []);
@@ -299,20 +295,6 @@ const handleUpdateUser = async () => {
         }
     };
 
-    const handleChangeDeviceLimit = async (change: number) => {
-        const newLimit = Math.max(1, deviceLimit + change);
-        setIsDeviceLimitLoading(true);
-        const { error } = await updateUserDeviceLimit(localUser.id, newLimit);
-        setIsDeviceLimitLoading(false);
-
-        if (error) {
-            addToast(`فشل تحديث حد الأجهزة: ${error.message}`, ToastType.ERROR);
-        } else {
-            setDeviceLimit(newLimit);
-            addToast(`تم تحديث حد الأجهزة إلى ${newLimit}.`, ToastType.SUCCESS);
-        }
-    };
-
   if (!localUser) return <div>لا يمكن تحميل بيانات الطالب.</div>;
   
   return (
@@ -349,17 +331,6 @@ const handleUpdateUser = async () => {
                         <CreditCardIcon className="w-5 h-5"/>
                         <span>تعديل الاشتراك</span>
                     </button>
-                </div>
-            </div>
-            <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)]">
-                <h2 className="text-lg font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2"><HardDriveIcon className="w-5 h-5 text-purple-400"/> إدارة الأجهزة</h2>
-                <p className="text-sm text-[var(--text-secondary)] mb-4">
-                    التحكم في الحد الأقصى لعدد الأجهزة التي يمكن للطالب تسجيل الدخول منها في نفس الوقت.
-                </p>
-                <div className="flex items-center justify-center gap-6 bg-[var(--bg-tertiary)] p-3 rounded-lg">
-                    <button onClick={() => handleChangeDeviceLimit(-1)} disabled={deviceLimit <= 1 || isDeviceLimitLoading} className="w-10 h-10 rounded-full bg-red-500/20 text-red-300 font-bold text-2xl hover:bg-red-500/40 disabled:opacity-50 transition-colors">-</button>
-                    <span className="text-4xl font-bold w-12 text-center">{deviceLimit}</span>
-                    <button onClick={() => handleChangeDeviceLimit(1)} disabled={isDeviceLimitLoading} className="w-10 h-10 rounded-full bg-green-500/20 text-green-300 font-bold text-2xl hover:bg-green-500/40 disabled:opacity-50 transition-colors">+</button>
                 </div>
             </div>
             <SessionManagementCard onClear={handleClearDevices} />

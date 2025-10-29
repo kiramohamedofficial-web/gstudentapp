@@ -13,8 +13,7 @@ import {
     deleteUser,
     sendPasswordResetEmail,
     updateUserPassword,
-    getOrCreateDeviceId,
-    checkAndRegisterDevice
+    getOrCreateDeviceId
 } from '../services/storageService';
 import { useToast } from '../useToast';
 
@@ -45,51 +44,44 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     
     useEffect(() => {
         const { data: { subscription } } = onAuthStateChange(async (event, session) => {
-            try {
-                if (event === 'PASSWORD_RECOVERY') {
-                    setAuthView('update-password');
-                    addToast('مرحباً بك مجدداً. الرجاء إدخال كلمة المرور الجديدة.', 'info');
-                    // The finally block will handle isLoading
-                    return;
+            if (event === 'PASSWORD_RECOVERY') {
+                setAuthView('update-password');
+                addToast('مرحباً بك مجدداً. الرجاء إدخال كلمة المرور الجديدة.', 'info');
+                setIsLoading(false);
+                return;
+            }
+
+            if (session) {
+                let profile: User | null = null;
+                let attempts = 0;
+                while (!profile && attempts < 5) {
+                    profile = await getProfile(session.user.id);
+                    if (!profile) {
+                        attempts++;
+                        await new Promise(res => setTimeout(res, 1000 * attempts));
+                    }
                 }
 
-                if (session) {
-                    const profileData = await getProfile(session.user.id);
-
-                    if (profileData) {
-                        const profile: User = {
-                            ...profileData,
-                            email: session.user.email || ''
-                        };
-
-                        const deviceCheck = await checkAndRegisterDevice(profile);
-                        if (deviceCheck.success) {
-                            setCurrentUser(profile);
-                        } else {
-                            addToast(deviceCheck.error || 'فشل التحقق من الجهاز.', 'error');
-                            await signOut();
-                            setCurrentUser(null);
-                        }
-                    } else {
-                        // This can happen briefly after signup due to db trigger delay.
-                        // On a page reload, it indicates a problem.
-                        // Instead of retrying, we sign out for safety.
-                        console.error("No profile found for active session. Signing out.");
-                        addToast('فشل تحميل الملف الشخصي. تم تسجيل خروجك.', 'error');
-                        await signOut();
-                        setCurrentUser(null);
-                    }
+                if (profile) {
+                    setCurrentUser(profile);
                 } else {
+                    console.error("User is logged in but profile data is missing after multiple attempts.");
+                    addToast('فشل تحميل بيانات الملف الشخصي. قد تحتاج إلى تسجيل الخروج والدخول مرة أخرى.', 'error');
+                    await signOut();
                     setCurrentUser(null);
                 }
-            } catch (error) {
-                console.error("Error in onAuthStateChange handler:", error);
-                addToast('حدث خطأ في المصادقة. تم تسجيل خروجك.', 'error');
+            } else {
                 setCurrentUser(null);
-            } finally {
+            }
+            setIsLoading(false);
+        });
+
+        (async () => {
+            const session = await getSession();
+            if (!session) {
                 setIsLoading(false);
             }
-        });
+        })();
 
         return () => {
             subscription?.unsubscribe();

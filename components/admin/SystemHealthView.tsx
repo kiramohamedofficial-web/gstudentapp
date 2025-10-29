@@ -58,24 +58,6 @@ const SystemHealthView: React.FC<SystemHealthViewProps> = ({ onNavigate }) => {
 
     const getInitialChecks = useCallback((): Check[] => [
         {
-            id: 'pageLoad',
-            title: 'سلامة تحميل الصفحات',
-            icon: ShieldCheckIcon,
-            description: 'محاكاة تحميل المكونات الرئيسية للتأكد من عدم وجود أخطاء تمنع عرض الصفحات.',
-            status: 'idle',
-            details: 'جاهز للفحص.',
-            action: async () => {
-                try {
-                    await import('../../components/student/StudentDashboard');
-                    await import('../../components/admin/AdminDashboard');
-                    await import('../../components/teacher/TeacherDashboard');
-                    return { status: 'ok', details: 'تم تحميل جميع المكونات الرئيسية بنجاح.' };
-                } catch (error: any) {
-                    return { status: 'error', details: `فشل تحميل أحد المكونات الرئيسية. التفاصيل: ${error.message}` };
-                }
-            }
-        },
-        {
             id: 'db', title: 'اتصال قاعدة البيانات', icon: ServerIcon,
             description: 'فحص الاتصال بخادم قاعدة البيانات الرئيسية Supabase.',
             status: 'idle', details: 'جاهز للفحص.',

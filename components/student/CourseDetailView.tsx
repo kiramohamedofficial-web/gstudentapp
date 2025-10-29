@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Course, CourseVideo, Teacher, ToastType } from '../../types';
 import { getAllTeachers, checkCoursePurchase, purchaseCourse } from '../../services/storageService';
-import { ArrowRightIcon, BookOpenIcon, LockClosedIcon, PlayIcon, ShieldExclamationIcon, UserCircleIcon, VideoCameraIcon, DocumentTextIcon } from '../common/Icons';
+import { ArrowRightIcon, BookOpenIcon, LockClosedIcon, PlayIcon, ShieldExclamationIcon, UserCircleIcon, VideoCameraIcon } from '../common/Icons';
 import Loader from '../common/Loader';
 import CustomYouTubePlayer from './CustomYouTubePlayer';
 import { useSession } from '../../hooks/useSession';
 import { useToast } from '../../useToast';
-import PdfViewer from './PdfViewer';
 
 interface CourseDetailViewProps {
     course: Course;
@@ -35,7 +34,6 @@ const CourseDetailView: React.FC<CourseDetailViewProps> = ({ course, onBack, isD
     const [isPurchased, setIsPurchased] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [playingVideo, setPlayingVideo] = useState<CourseVideo | null>(null);
-    const [isViewingPdf, setIsViewingPdf] = useState(false);
     
     useEffect(() => {
         const fetchData = async () => {
@@ -72,10 +70,6 @@ const CourseDetailView: React.FC<CourseDetailViewProps> = ({ course, onBack, isD
     }
     
     const videoId = playingVideo?.videoUrl ? parseYouTubeVideoId(playingVideo.videoUrl) : null;
-
-    if (isViewingPdf && course.pdfUrl) {
-        return <PdfViewer pdfUrl={course.pdfUrl} title={course.title} onBack={() => setIsViewingPdf(false)} />;
-    }
 
     if (playingVideo && videoId) {
         return (
@@ -161,11 +155,10 @@ const CourseDetailView: React.FC<CourseDetailViewProps> = ({ course, onBack, isD
                              <p className="text-sm text-center text-[var(--text-secondary)]">{teacher.subject}</p>
                         </div>
                     )}
-                    {course.pdfUrl && (course.isFree || isPurchased) && (
-                        <button onClick={() => setIsViewingPdf(true)} className="block w-full text-center p-4 rounded-xl bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] transition-colors font-semibold flex items-center justify-center gap-2">
-                            <DocumentTextIcon className="w-5 h-5"/>
-                            عرض ملف PDF المرفق
-                        </button>
+                    {course.pdfUrl && (
+                        <a href={course.pdfUrl} target="_blank" rel="noopener noreferrer" className="block text-center p-4 rounded-xl bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] transition-colors font-semibold">
+                            تحميل ملف PDF المرفق
+                        </a>
                     )}
                 </div>
             </div>

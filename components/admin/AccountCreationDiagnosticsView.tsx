@@ -135,8 +135,7 @@ const AccountCreationDiagnosticsView: React.FC = () => {
                 addLog(`- محاولة التحقق رقم ${i + 1}...`);
                 const profile = await getProfile(authData.user.id);
                 if (profile) {
-                    // FIX: The getProfile function returns an object without an email. We add the known test email to satisfy the User type.
-                    initialProfile = { ...profile, email: testEmail };
+                    initialProfile = profile;
                     addLog('✅ نجاح! تم العثور على ملف المستخدم. الربط يعمل.');
                     break;
                 }

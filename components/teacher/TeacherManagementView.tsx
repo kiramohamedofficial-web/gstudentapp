@@ -1,11 +1,11 @@
+
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Teacher, ToastType, Grade, User } from '../../types';
-import { getAllTeachers, createTeacher, updateTeacher, deleteTeacher, getAllGrades, getAllUsers, supabase } from '../../services/storageService';
+import { getAllTeachers, createTeacher, updateTeacher, deleteTeacher, getAllGrades, getAllUsers } from '../../services/storageService';
 import Modal from '../common/Modal';
 import { PlusIcon, PencilIcon, TrashIcon, UserCircleIcon } from '../common/Icons';
 import { useToast } from '../../useToast';
 import Loader from '../common/Loader';
-import ImageUpload from '../common/ImageUpload';
 
 const Checkbox: React.FC<{ label: string; checked: boolean; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; name: string; }> = ({ label, checked, onChange, name }) => (
     <label className="flex items-center space-x-2 space-x-reverse cursor-pointer p-2 rounded-md hover:bg-white/5 transition-colors">
@@ -20,7 +20,7 @@ interface TeacherModalSaveData {
     imageUrl: string;
     teachingLevels?: ('Middle' | 'Secondary')[];
     teachingGrades?: number[];
-    email: string;
+    email: string; // From phone
     phone: string;
     password?: string;
     id?: string; // for editing
@@ -77,7 +77,7 @@ const TeacherModal: React.FC<{
     };
 
     const handleGradeChange = (gradeId: number, isChecked: boolean) => {
-        setSelectedGrades(prev => isChecked ? [...prev, gradeId] : prev.filter(id => id !== id));
+        setSelectedGrades(prev => isChecked ? [...prev, gradeId] : prev.filter(id => id !== gradeId));
     };
     
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -86,6 +86,17 @@ const TeacherModal: React.FC<{
             setFormData(prev => ({ ...prev, [name]: value.replace(/[^0-9]/g, '') }));
         } else {
             setFormData(prev => ({ ...prev, [name]: value }));
+        }
+    };
+
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setFormData(prev => ({ ...prev, imageUrl: reader.result as string }));
+            };
+            reader.readAsDataURL(file);
         }
     };
 
@@ -107,7 +118,7 @@ const TeacherModal: React.FC<{
         const saveData: TeacherModalSaveData = { 
             id: teacher?.id,
             name: formData.name,
-            email: `${formData.phone}@gstudent.com`,
+            email: `${formData.phone}@gstudent.app`, // Create an email from phone
             subject: formData.subject,
             imageUrl: formData.imageUrl,
             phone: formData.phone,
@@ -139,11 +150,11 @@ const TeacherModal: React.FC<{
                         <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">المادة الأساسية</label>
                         <input name="subject" value={formData.subject} onChange={handleChange} required className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)]" />
                     </div>
-                    <ImageUpload
-                        label="صورة المدرس"
-                        value={formData.imageUrl}
-                        onChange={(url) => setFormData(prev => ({ ...prev, imageUrl: url }))}
-                    />
+                    <div>
+                        <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">صورة المدرس</label>
+                        {formData.imageUrl && <img src={formData.imageUrl} alt="Preview" className="w-24 h-24 rounded-full object-cover mb-2" />}
+                        <input type="file" accept="image/*" onChange={handleImageUpload} className="w-full text-sm text-[var(--text-secondary)] file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"/>
+                    </div>
                      <div className="pt-4 border-t border-[var(--border-primary)]">
                         <h3 className="text-md font-semibold text-[var(--text-primary)] mb-3">التخصص الدراسي</h3>
                         <div className="space-y-4">
@@ -242,18 +253,22 @@ const TeacherManagementView: React.FC = () => {
     
     const refreshData = useCallback(() => setDataVersion(v => v + 1), []);
 
+    // FIX: This function now correctly handles create/update logic and error checking.
     const handleSave = async (data: TeacherModalSaveData) => {
-        setIsLoading(true);
         try {
             let result: { success: boolean, error?: any };
         
             if (data.id) { // Editing
                 const { id, ...updates } = data;
+                
                 if (!updates.password?.trim()) {
                     delete updates.password;
                 }
+                // FIX: Call updateTeacher with two arguments (id, updates).
                 result = await updateTeacher(id, updates);
             } else { // Adding
+                // FIX: Use createTeacher instead of the stub function addTeacher.
+                // FIX: Map TeacherModalSaveData to the shape expected by createTeacher.
                 result = await createTeacher({
                     email: data.email,
                     password: data.password,
@@ -266,31 +281,30 @@ const TeacherManagementView: React.FC = () => {
                 });
             }
             
+            // FIX: Check for the `success` flag instead of just the `error` property for better reliability.
             if (!result.success) {
-                throw new Error(result.error?.message || 'حدث خطأ غير متوقع.');
+                // Supabase errors are objects with a message property.
+                throw new Error(result.error.message || 'حدث خطأ غير متوقع.');
             } else {
                 addToast(data.id ? 'تم تحديث بيانات المدرس بنجاح.' : 'تمت إضافة المدرس بنجاح.', ToastType.SUCCESS);
                 refreshData();
                 closeModal();
             }
-        } catch (error: any) {
+        } catch (error) {
              if (error instanceof Error) {
                 addToast(`فشل: ${error.message}`, ToastType.ERROR);
             } else {
-                addToast(`فشل: ${error.message || 'حدث خطأ غير معروف أثناء الحفظ.'}`, ToastType.ERROR);
+                addToast('حدث خطأ غير معروف أثناء الحفظ.', ToastType.ERROR);
             }
-        } finally {
-            setIsLoading(false);
         }
     };
     
     const handleDelete = async () => {
         if (modalState.teacher) {
-            setIsLoading(true);
             try {
                 const { success, error } = await deleteTeacher(modalState.teacher.id);
                 if (!success) {
-                     throw new Error(error?.message || 'حدث خطأ غير متوقع.');
+                     throw new Error(error.message || 'حدث خطأ غير متوقع.');
                 } else {
                     addToast('تم حذف المدرس بنجاح.', ToastType.SUCCESS);
                     refreshData();
@@ -302,8 +316,6 @@ const TeacherManagementView: React.FC = () => {
                 } else {
                     addToast('حدث خطأ غير معروف أثناء الحذف.', ToastType.ERROR);
                 }
-            } finally {
-                setIsLoading(false);
             }
         }
     };

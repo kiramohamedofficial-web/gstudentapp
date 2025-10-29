@@ -19,7 +19,7 @@ const DeviceManagementView: React.FC = () => {
         
         // 1. Get all active sessions
         const { data: activeSessions, error: sessionError } = await supabase
-            .from('device_sessions')
+            .from('user_sessions')
             .select('user_id')
             .eq('active', true);
             

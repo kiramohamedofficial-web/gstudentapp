@@ -9,22 +9,11 @@ interface VideoModalProps {
     video: CourseVideo | null;
 }
 
-const parseYouTubeVideoId = (url: any): string | null => {
-    if (typeof url !== 'string' || !url) return null;
-    // This regex should handle standard, short, and embed URLs
+const parseYouTubeVideoId = (url: string): string | null => {
+    if (!url) return null;
     const regex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?|shorts)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
     const match = url.match(regex);
-    
-    if (match) {
-        return match[1];
-    }
-
-    // Check if the input is already a valid 11-character ID
-    if (url.length === 11 && /^[a-zA-Z0-9_-]+$/.test(url)) {
-        return url;
-    }
-
-    return null;
+    return match ? match[1] : null;
 };
 
 const VideoModal: React.FC<VideoModalProps> = ({ isOpen, onClose, onSave, video }) => {
@@ -53,7 +42,7 @@ const VideoModal: React.FC<VideoModalProps> = ({ isOpen, onClose, onSave, video 
 
         const videoId = parseYouTubeVideoId(videoUrl);
         if (!videoId) {
-            setError('رابط يوتيوب غير صالح. الرجاء استخدام رابط الفيديو الكامل أو معرف الفيديو.');
+            setError('رابط يوتيوب غير صالح. الرجاء استخدام رابط الفيديو الكامل.');
             return;
         }
 

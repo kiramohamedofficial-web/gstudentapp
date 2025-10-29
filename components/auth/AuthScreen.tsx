@@ -92,27 +92,17 @@ const PhoneInput: React.FC<{ name: string; placeholder: string; value: string; o
     </div>
 );
 
-// Returns the 10 digits of a valid Egyptian number (e.g., 1012345678)
+// Returns the 10 digits of an Egyptian number (without the leading '0')
 const normalizePhoneNumber = (phone: string): string => {
-    // Strips all non-digit characters, including spaces, hyphens, and country codes like +20
-    const digitsOnly = phone.trim().replace(/\D/g, '');
-    
-    // Handle numbers starting with country code 20
-    if (digitsOnly.startsWith('20') && digitsOnly.length === 12) {
-        return digitsOnly.substring(2); // Return 10 digits
+    const trimmed = phone.trim().replace(/\s/g, '');
+    if (trimmed.startsWith('0') && trimmed.length === 11) {
+        return trimmed.substring(1); // Return 10 digits
     }
-    // Handle numbers starting with 0
-    if (digitsOnly.startsWith('0') && digitsOnly.length === 11) {
-        return digitsOnly.substring(1); // Return 10 digits
+    if (trimmed.length === 10 && !trimmed.startsWith('0')) {
+        return trimmed; // Already 10 digits
     }
-    // Handle numbers that are already 10 digits
-    if (digitsOnly.length === 10) {
-        return digitsOnly;
-    }
-    // Return empty for invalid formats
-    return '';
+    return ''; // Invalid format
 };
-
 
 const deriveTrackFromGrade = (gradeId: number): 'Scientific' | 'Literary' | undefined => {
     switch (gradeId) {
@@ -168,8 +158,8 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onBack }) => {
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) return setFormError('الرجاء إدخال بريد إلكتروني صالح.');
         if (formData.password.length < 6) return setFormError('يجب أن تتكون كلمة المرور من 6 أحرف على الأقل.');
         if (formData.password !== formData.confirmPassword) return setFormError('كلمتا المرور غير متطابقتين.');
-        if (normalizePhoneNumber(formData.phone).length !== 10) return setFormError('الرجاء إدخال رقم هاتف مصري صحيح.');
-        if (normalizePhoneNumber(formData.guardianPhone).length !== 10) return setFormError('الرجاء إدخال رقم هاتف ولي أمر مصري صحيح.');
+        if (normalizePhoneNumber(formData.phone).length !== 10) return setFormError('الرجاء إدخال رقم هاتف مصري صحيح (11 رقم يبدأ بـ 0).');
+        if (normalizePhoneNumber(formData.guardianPhone).length !== 10) return setFormError('الرجاء إدخال رقم هاتف ولي أمر مصري صحيح (11 رقم يبدأ بـ 0).');
         if (normalizePhoneNumber(formData.phone) === normalizePhoneNumber(formData.guardianPhone)) {
             return setFormError('رقم هاتف الطالب يجب أن يكون مختلفًا عن رقم هاتف ولي الأمر.');
         }

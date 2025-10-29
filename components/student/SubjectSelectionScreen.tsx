@@ -73,7 +73,9 @@ interface SubjectSelectionScreenProps {
 const SubjectSelectionScreen: React.FC<SubjectSelectionScreenProps> = ({ grade, onSubjectSelect, onBack, user }) => {
     const [activeSemesterId, setActiveSemesterId] = useState<string>(grade.semesters[0]?.id || '');
     const [units, setUnits] = useState<Unit[]>([]);
+    const [lessonsMap, setLessonsMap] = useState<Record<string, Lesson[]>>({});
     const [isLoadingUnits, setIsLoadingUnits] = useState(true);
+    const [isFetchingLessonsFor, setIsFetchingLessonsFor] = useState<string | null>(null);
     const [activeSubject, setActiveSubject] = useState<string>('الكل');
     const [teachers, setTeachers] = useState<Teacher[]>([]);
     const [userProgress, setUserProgress] = useState<Record<string, boolean>>({});
@@ -107,26 +109,36 @@ const SubjectSelectionScreen: React.FC<SubjectSelectionScreenProps> = ({ grade, 
             setIsLoadingUnits(false);
             return;
         }
-        setIsLoadingUnits(true);
-        const fetchedUnits = getUnitsForSemester(grade.id, activeSemesterId);
-        setUnits(fetchedUnits);
-        setIsLoadingUnits(false);
+        const fetchUnits = async () => {
+            setIsLoadingUnits(true);
+            const fetchedUnits = await getUnitsForSemester(grade.id, activeSemesterId);
+            setUnits(fetchedUnits);
+            setLessonsMap({}); // Clear old lesson data
+            setIsLoadingUnits(false);
+        };
+        fetchUnits();
     }, [activeSemesterId, grade.id]);
 
-    const handleSelectUnit = (unit: Unit) => {
-        onSubjectSelect(unit);
+    const handleSelectUnit = async (unit: Unit) => {
+        if (isFetchingLessonsFor) return;
+
+        setIsFetchingLessonsFor(unit.id);
+        const lessons = await getLessonsForUnit(grade.id, activeSemesterId, unit.id);
+        const unitWithLessons = { ...unit, lessons };
+        setIsFetchingLessonsFor(null);
+        onSubjectSelect(unitWithLessons);
     };
 
     const teacherMap = useMemo(() => new Map(teachers.map(t => [t.id, t])), [teachers]);
 
     const calculateProgress = useCallback((unit: Unit) => {
-        const lessons = unit.lessons || [];
+        const lessons = lessonsMap[unit.id] || unit.lessons;
         const totalLessons = lessons.length;
         if (totalLessons === 0) return 0;
         
         const completedLessons = lessons.filter(lesson => userProgress[lesson.id]).length;
         return (completedLessons / totalLessons) * 100;
-    }, [userProgress]);
+    }, [userProgress, lessonsMap]);
 
     const unitsForTrack = useMemo(() => {
         return units.filter(unit => 
@@ -207,7 +219,7 @@ const SubjectSelectionScreen: React.FC<SubjectSelectionScreenProps> = ({ grade, 
                             onClick={() => handleSelectUnit(unit)} 
                             delay={index * 50}
                             progress={calculateProgress(unit)}
-                            isLoading={false}
+                            isLoading={isFetchingLessonsFor === unit.id}
                         />
                     ))}
                 </div>
