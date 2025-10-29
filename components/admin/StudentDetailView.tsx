@@ -136,6 +136,7 @@ const SessionManagementCard: React.FC<{ onClear: () => void; }> = ({ onClear }) 
 interface StudentDetailViewProps {
   user: User;
   onBack: () => void;
+  onUpdate: (updatedUser: User) => void;
 }
 
 const StatCard: React.FC<{ icon: React.FC<{className?:string}>; label: string; value: string | number; colorClass: string; }> = ({icon: Icon, label, value, colorClass}) => (
@@ -165,7 +166,7 @@ const deriveTrackFromGrade = (gradeId: number): 'Scientific' | 'Literary' | unde
 };
 
 
-const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) => {
+const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack, onUpdate }) => {
   const { addToast } = useToast();
   const [dataVersion, setDataVersion] = useState(0);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -173,11 +174,6 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
   const [editFormData, setEditFormData] = useState<Partial<User>>({});
   const [userProgress, setUserProgress] = useState<Record<string, boolean>>({});
-  const [localUser, setLocalUser] = useState(user);
-
-  useEffect(() => {
-    setLocalUser(user);
-  }, [user]);
 
   const refreshData = useCallback(() => setDataVersion(v => v + 1), []);
   
@@ -185,10 +181,10 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
   const allGradesFromCache = useMemo(() => getAllGrades(), [dataVersion]);
   
   const gradeName = useMemo(() => {
-    if (!localUser.grade) return 'غير محدد';
-    const gradeInfo = allGrades.find(g => g.id === localUser.grade);
+    if (!user.grade) return 'غير محدد';
+    const gradeInfo = allGrades.find(g => g.id === user.grade);
     return gradeInfo?.name || 'غير محدد';
-  }, [localUser.grade, allGrades]);
+  }, [user.grade, allGrades]);
 
   const gradeOptionsForSelect = useMemo(() => {
     const options: (({ value: string; label: string; }) | OptionGroup)[] = [{ value: '', label: '-- غير محدد --' }];
@@ -219,9 +215,9 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
   }, []);
 
   useEffect(() => {
-    if (!localUser) return;
+    if (!user) return;
     const fetchProgress = async () => {
-        const progressData = await getStudentProgress(localUser.id);
+        const progressData = await getStudentProgress(user.id);
         if (progressData) {
             const progressMap = progressData.reduce((acc, item) => {
                 acc[item.lesson_id] = true;
@@ -231,18 +227,18 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
         }
     };
     fetchProgress();
-  }, [localUser, dataVersion]);
+  }, [user, dataVersion]);
 
   useEffect(() => {
     const fetchData = async () => {
-        const subPromise = getSubscriptionByUserId(localUser.id);
-        const attemptsPromise = getQuizAttemptsByUserId(localUser.id);
+        const subPromise = getSubscriptionByUserId(user.id);
+        const attemptsPromise = getQuizAttemptsByUserId(user.id);
         const [subData, attemptsData] = await Promise.all([subPromise, attemptsPromise]);
         setSubscription(subData);
         setQuizAttempts(attemptsData as QuizAttempt[]);
     };
     fetchData();
-  }, [localUser.id, dataVersion]);
+  }, [user.id, dataVersion]);
   
   const lessonMap = useMemo(() => {
     const map = new Map<string, { title: string, unit: string }>();
@@ -259,17 +255,17 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
   }, [allGradesFromCache]);
 
   const { totalLessons, completedLessons, progress } = useMemo(() => {
-    const grade = localUser.grade ? getGradeById(localUser.grade) : null;
+    const grade = user.grade ? getGradeById(user.grade) : null;
     if (!grade) return { totalLessons: 0, completedLessons: 0, progress: 0 };
     const allLessons = grade.semesters.flatMap(s => s.units.flatMap(u => u.lessons));
     const total = allLessons.length;
     if (total === 0) return { totalLessons: 0, completedLessons: 0, progress: 0 };
     const completed = allLessons.filter(l => !!userProgress[l.id]).length;
     return { totalLessons: total, completedLessons: completed, progress: Math.round((completed / total) * 100) };
-  }, [localUser.grade, userProgress, allGradesFromCache]);
+  }, [user.grade, userProgress, allGradesFromCache]);
 
   const handleOpenEditModal = () => {
-    setEditFormData({ ...localUser });
+    setEditFormData({ ...user });
     setIsEditModalOpen(true);
   };
 
@@ -299,7 +295,13 @@ const handleUpdateUser = async () => {
             addToast(`فشل تحديث البيانات: ${result.error.message}`, ToastType.ERROR);
         } else {
             addToast("تم تحديث بيانات الطالب بنجاح", ToastType.SUCCESS);
-            setLocalUser(prev => ({ ...prev, ...editFormData, grade: gradeId, track: derivedTrack || null }));
+            const updatedUser: User = { 
+                ...user,
+                ...editFormData,
+                grade: gradeId,
+                track: derivedTrack || null
+            };
+            onUpdate(updatedUser);
             setIsEditModalOpen(false);
             refreshData();
         }
@@ -307,18 +309,18 @@ const handleUpdateUser = async () => {
   };
   
   const handleDeleteUser = async () => {
-      const result = await deleteUser(localUser.id);
+      const result = await deleteUser(user.id);
       if (result?.error) {
           addToast(`فشل حذف الطالب: ${result.error.message}`, ToastType.ERROR);
       } else {
-          addToast(`تم حذف الطالب ${localUser.name} بنجاح`, ToastType.SUCCESS);
+          addToast(`تم حذف الطالب ${user.name} بنجاح`, ToastType.SUCCESS);
           setIsDeleteModalOpen(false);
           onBack();
       }
   }
 
   const handleSubscriptionUpdate = async (plan: Subscription['plan'], status: 'Active' | 'Expired', endDate?: string) => {
-    const { error } = await createOrUpdateSubscription(localUser.id, plan, status, endDate);
+    const { error } = await createOrUpdateSubscription(user.id, plan, status, endDate);
     if (error) {
         addToast(`فشل تحديث الاشتراك: ${error.message}`, ToastType.ERROR);
     } else {
@@ -328,17 +330,18 @@ const handleUpdateUser = async () => {
   };
   
   const handleUpdateAllowedDevices = async (newCount: number) => {
-    const { error } = await updateUser(localUser.id, { allowedDevices: newCount });
+    const { error } = await updateUser(user.id, { allowedDevices: newCount });
     if (error) {
         addToast(`فشل تحديث عدد الأجهزة: ${error.message}`, ToastType.ERROR);
     } else {
         addToast("تم تحديث عدد الأجهزة المسموح به.", ToastType.SUCCESS);
-        setLocalUser(prev => ({ ...prev, allowedDevices: newCount }));
+        const updatedUser = { ...user, allowedDevices: newCount };
+        onUpdate(updatedUser);
     }
   };
 
   const handleClearDevices = async () => {
-    const { error } = await clearUserDevices(localUser.id);
+    const { error } = await clearUserDevices(user.id);
     if (error) {
         addToast(`فشل مسح الجلسات: ${error.message}`, ToastType.ERROR);
     } else {
@@ -347,7 +350,7 @@ const handleUpdateUser = async () => {
     }
   };
 
-  if (!localUser) return <div>لا يمكن تحميل بيانات الطالب.</div>;
+  if (!user) return <div>لا يمكن تحميل بيانات الطالب.</div>;
   
   return (
     <div className="fade-in">
@@ -361,13 +364,13 @@ const handleUpdateUser = async () => {
         <div className="lg:col-span-1 space-y-6 lg:sticky lg:top-6">
             <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)]">
                 <div className="flex flex-col items-center text-center">
-                    <div className="h-24 w-24 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-4xl mb-4 shadow-lg">{localUser.name.charAt(0)}</div>
-                    <h1 className="text-2xl font-bold text-[var(--text-primary)]">{localUser.name}</h1>
+                    <div className="h-24 w-24 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-4xl mb-4 shadow-lg">{user.name.charAt(0)}</div>
+                    <h1 className="text-2xl font-bold text-[var(--text-primary)]">{user.name}</h1>
                     <p className="text-[var(--text-secondary)]">{gradeName}</p>
                 </div>
                 <div className="mt-6 pt-6 border-t border-[var(--border-primary)] space-y-2 text-sm">
-                    <p className="flex justify-between"><strong>الهاتف:</strong> <span className="text-[var(--text-secondary)]">{localUser.phone}</span></p>
-                    <p className="flex justify-between"><strong>هاتف ولي الأمر:</strong> <span className="text-[var(--text-secondary)]">{localUser.guardianPhone}</span></p>
+                    <p className="flex justify-between"><strong>الهاتف:</strong> <span className="text-[var(--text-secondary)]">{user.phone}</span></p>
+                    <p className="flex justify-between"><strong>هاتف ولي الأمر:</strong> <span className="text-[var(--text-secondary)]">{user.guardianPhone}</span></p>
                 </div>
                  <div className="mt-6 flex gap-2">
                     <button onClick={handleOpenEditModal} className="flex-1 flex items-center justify-center py-2.5 text-sm font-semibold text-white bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors"><PencilIcon className="w-4 h-4 ml-2"/> تعديل</button>
@@ -385,7 +388,7 @@ const handleUpdateUser = async () => {
                     </button>
                 </div>
             </div>
-            <DeviceManagementCard allowedDevices={localUser.allowedDevices ?? 1} onUpdate={handleUpdateAllowedDevices} />
+            <DeviceManagementCard allowedDevices={user.allowedDevices ?? 1} onUpdate={handleUpdateAllowedDevices} />
             <SessionManagementCard onClear={handleClearDevices} />
         </div>
 
@@ -455,7 +458,7 @@ const handleUpdateUser = async () => {
             </div>
        </Modal>
         <Modal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} title="تأكيد حذف الطالب">
-            <p className="text-[var(--text-secondary)] mb-6">هل أنت متأكد من رغبتك في حذف الطالب <span className="font-bold text-[var(--text-primary)]">{localUser.name}</span>؟ سيتم حذف جميع بياناته واشتراكاته بشكل دائم.</p>
+            <p className="text-[var(--text-secondary)] mb-6">هل أنت متأكد من رغبتك في حذف الطالب <span className="font-bold text-[var(--text-primary)]">{user.name}</span>؟ سيتم حذف جميع بياناته واشتراكاته بشكل دائم.</p>
             <div className="flex justify-end space-x-3 space-x-reverse">
                 <button onClick={() => setIsDeleteModalOpen(false)} className="px-4 py-2 rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] transition-colors">إلغاء</button>
                 <button onClick={handleDeleteUser} className="px-4 py-2 rounded-md bg-red-600 hover:bg-red-700 transition-colors text-white">نعم، قم بالحذف</button>

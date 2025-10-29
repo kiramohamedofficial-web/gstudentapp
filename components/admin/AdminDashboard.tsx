@@ -322,11 +322,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
     setActiveView(view);
   }, []);
 
+  const handleStudentUpdate = useCallback((updatedStudent: User) => {
+    setSelectedStudent(updatedStudent);
+  }, []);
+
+
   if (!user) return null;
 
   const renderContent = () => {
     if (selectedStudent) {
-      return <StudentDetailView user={selectedStudent} onBack={handleBackToStudents} />;
+      return <StudentDetailView user={selectedStudent} onBack={handleBackToStudents} onUpdate={handleStudentUpdate} />;
     }
     
     const suspenseLoader = <div className="flex justify-center items-center h-64"><Loader /></div>;
