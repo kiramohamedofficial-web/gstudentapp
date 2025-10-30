@@ -1,4 +1,6 @@
 
+
+
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Teacher, ToastType, Grade, User } from '../../types';
 import { getAllTeachers, createTeacher, updateTeacher, deleteTeacher, getAllGrades, getAllUsers, supabase } from '../../services/storageService';
@@ -21,7 +23,7 @@ interface TeacherModalSaveData {
     imageUrl: string;
     teachingLevels?: ('Middle' | 'Secondary')[];
     teachingGrades?: number[];
-    email: string; // From phone
+    email: string;
     phone: string;
     password?: string;
     id?: string; // for editing
@@ -52,7 +54,7 @@ const TeacherModal: React.FC<{
                     name: teacher.name || '',
                     subject: teacher.subject || '',
                     imageUrl: teacher.imageUrl || '',
-                    phone: teacherUser?.phone?.replace('+20', '') || '',
+                    phone: teacherUser?.phone?.replace('+2', '') || '',
                     password: '' // Don't pre-fill password
                 });
                 setSelectedLevels(teacher.teachingLevels || []);
@@ -108,7 +110,7 @@ const TeacherModal: React.FC<{
         const saveData: TeacherModalSaveData = { 
             id: teacher?.id,
             name: formData.name,
-            email: `${formData.phone}@gstudent.app`, // Use .app domain
+            email: `${formData.phone}@gstudent.com`,
             subject: formData.subject,
             imageUrl: formData.imageUrl,
             phone: formData.phone,
@@ -126,19 +128,19 @@ const TeacherModal: React.FC<{
                 <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 -mr-4 pl-1">
                     <div>
                         <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">اسم المدرس</label>
-                        <input name="name" value={formData.name} onChange={handleChange} required className="w-full p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)]" />
+                        <input name="name" value={formData.name} onChange={handleChange} required className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)]" />
                     </div>
                      <div>
                         <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">رقم هاتف المدرس (للدخول)</label>
-                        <input name="phone" value={formData.phone} onChange={handleChange} required className="w-full p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-left" placeholder="01xxxxxxxxx" maxLength={11}/>
+                        <input name="phone" value={formData.phone} onChange={handleChange} required className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-left" placeholder="01xxxxxxxxx" maxLength={11}/>
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">كلمة المرور</label>
-                        <input name="password" type="password" value={formData.password} onChange={handleChange} required={!teacher} className="w-full p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)]" placeholder={teacher ? "اتركها فارغة لعدم التغيير" : "كلمة مرور قوية"} />
+                        <input name="password" type="password" value={formData.password} onChange={handleChange} required={!teacher} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)]" placeholder={teacher ? "اتركها فارغة لعدم التغيير" : "كلمة مرور قوية"} />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">المادة الأساسية</label>
-                        <input name="subject" value={formData.subject} onChange={handleChange} required className="w-full p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)]" />
+                        <input name="subject" value={formData.subject} onChange={handleChange} required className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)]" />
                     </div>
                     <ImageUpload
                         label="صورة المدرس"
@@ -179,7 +181,7 @@ const TeacherModal: React.FC<{
                 {error && <p className="text-red-500 text-sm">{error}</p>}
 
                 <div className="flex justify-end pt-4">
-                    <button type="submit" className="px-6 py-2.5 font-semibold text-white bg-purple-600 rounded-lg hover:bg-purple-700">حفظ</button>
+                    <button type="submit" className="px-5 py-2 font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700">حفظ</button>
                 </div>
             </form>
         </Modal>
@@ -247,21 +249,20 @@ const TeacherManagementView: React.FC = () => {
         setIsLoading(true);
         try {
             if (data.id) { // Editing
-                const { id, password, ...updates } = data;
-                
+                const { id, ...updates } = data;
                 const { success, error } = await updateTeacher(id, updates);
                 if (!success) throw error;
-
-                // Handle password update separately if provided
-                if (password && password.trim()) {
-                     const { data: profileData } = await supabase.from('profiles').select('id').eq('teacher_id', id).single();
+    
+                if (updates.password && updates.password.trim()) {
+                     const { data: profileData, error: profileError } = await supabase.from('profiles').select('id').eq('teacher_id', id).single();
+                     if (profileError) throw new Error(`Could not find user for teacher: ${profileError.message}`);
                      if (profileData) {
-                         const { error: passwordError } = await supabase.auth.admin.updateUserById(profileData.id, { password: password });
+                         const { error: passwordError } = await supabase.auth.admin.updateUserById(profileData.id, { password: updates.password });
                          if (passwordError) throw new Error(`Failed to update password: ${passwordError.message}`);
                      }
                 }
+    
                 addToast('تم تحديث بيانات المدرس بنجاح.', ToastType.SUCCESS);
-
             } else { // Adding
                 const result = await createTeacher({
                     email: data.email,

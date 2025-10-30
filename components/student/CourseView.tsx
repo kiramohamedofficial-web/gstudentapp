@@ -7,10 +7,10 @@ import { BookOpenIcon, PencilIcon, CheckCircleIcon, VideoCameraIcon, DocumentTex
 
 interface GroupedLesson {
     baseTitle: string;
-    explanation?: Lesson;
-    homework?: Lesson;
-    exam?: Lesson;
-    summary?: Lesson;
+    explanations: Lesson[];
+    homeworks: Lesson[];
+    exams: Lesson[];
+    summaries: Lesson[];
     isCompleted: boolean;
     progress: number;
     completedCount: number;
@@ -68,14 +68,14 @@ const CircularProgress: React.FC<{ progress: number }> = ({ progress }) => {
 
 
 const LessonPartCard: React.FC<{ lesson: Lesson; onSelect: (lesson: Lesson) => void; isCompleted: boolean; }> = ({ lesson, onSelect, isCompleted }) => {
-    const typeInfo: Record<LessonType, { icon: React.FC<{className?: string}>; label: string; action: string }> = {
-        [LessonType.EXPLANATION]: { icon: VideoCameraIcon, label: 'شرح الدرس', action: 'مشاهدة' },
-        [LessonType.HOMEWORK]: { icon: PencilIcon, label: 'الواجب', action: 'بدء' },
-        [LessonType.EXAM]: { icon: BookOpenIcon, label: 'الامتحان', action: 'بدء' },
-        [LessonType.SUMMARY]: { icon: DocumentTextIcon, label: 'الملخص', action: 'قراءة' },
+    const typeInfo: Record<LessonType, { icon: React.FC<{className?: string}>; action: string }> = {
+        [LessonType.EXPLANATION]: { icon: VideoCameraIcon, action: 'مشاهدة' },
+        [LessonType.HOMEWORK]: { icon: PencilIcon, action: 'بدء' },
+        [LessonType.EXAM]: { icon: BookOpenIcon, action: 'بدء' },
+        [LessonType.SUMMARY]: { icon: DocumentTextIcon, action: 'قراءة' },
     };
     
-    const { icon: Icon, label, action } = typeInfo[lesson.type];
+    const { icon: Icon, action } = typeInfo[lesson.type];
 
     return (
         <button 
@@ -86,8 +86,7 @@ const LessonPartCard: React.FC<{ lesson: Lesson; onSelect: (lesson: Lesson) => v
                 <Icon className="w-6 h-6" />
             </div>
             <div className="flex-grow">
-                <p className="font-semibold text-md text-[var(--text-primary)]">{label}</p>
-                <p className="text-sm text-[var(--text-secondary)]">{lesson.title}</p>
+                <p className="font-semibold text-md text-[var(--text-primary)]">{lesson.title}</p>
             </div>
             {isCompleted ? (
                 <div className="flex items-center space-x-1 space-x-reverse text-green-400 font-semibold">
@@ -138,12 +137,12 @@ const LessonAccordionItem: React.FC<{
             </button>
             
             {/* Content Body */}
-            <div className={`transition-all duration-500 ease-in-out overflow-hidden ${isOpen ? 'max-h-96' : 'max-h-0'}`}>
+            <div className={`transition-all duration-500 ease-in-out overflow-hidden ${isOpen ? 'max-h-[50rem]' : 'max-h-0'}`}>
                 <div className="p-4 border-t border-[var(--border-primary)] space-y-3">
-                    {groupedLesson.explanation && <LessonPartCard lesson={groupedLesson.explanation} onSelect={onSelect} isCompleted={!!userProgress[groupedLesson.explanation.id]} />}
-                    {groupedLesson.homework && <LessonPartCard lesson={groupedLesson.homework} onSelect={onSelect} isCompleted={!!userProgress[groupedLesson.homework.id]} />}
-                    {groupedLesson.exam && <LessonPartCard lesson={groupedLesson.exam} onSelect={onSelect} isCompleted={!!userProgress[groupedLesson.exam.id]} />}
-                    {groupedLesson.summary && <LessonPartCard lesson={groupedLesson.summary} onSelect={onSelect} isCompleted={!!userProgress[groupedLesson.summary.id]} />}
+                    {groupedLesson.explanations.map(lesson => <LessonPartCard key={lesson.id} lesson={lesson} onSelect={onSelect} isCompleted={!!userProgress[lesson.id]} />)}
+                    {groupedLesson.homeworks.map(lesson => <LessonPartCard key={lesson.id} lesson={lesson} onSelect={onSelect} isCompleted={!!userProgress[lesson.id]} />)}
+                    {groupedLesson.exams.map(lesson => <LessonPartCard key={lesson.id} lesson={lesson} onSelect={onSelect} isCompleted={!!userProgress[lesson.id]} />)}
+                    {groupedLesson.summaries.map(lesson => <LessonPartCard key={lesson.id} lesson={lesson} onSelect={onSelect} isCompleted={!!userProgress[lesson.id]} />)}
                 </div>
             </div>
         </div>
@@ -178,28 +177,56 @@ const CourseView: React.FC<CourseViewProps> = ({ grade, unit, user, onBack, onNa
   }, [initialLesson]);
 
   const groupedLessons = useMemo((): GroupedLesson[] => {
-    const lessonGroups: Record<string, Partial<Record<LessonType, Lesson>>> = {};
+    const lessonGroups: Record<string, {
+        explanations: Lesson[],
+        homeworks: Lesson[],
+        exams: Lesson[],
+        summaries: Lesson[]
+    }> = {};
 
     unit.lessons.forEach(lesson => {
-        const baseTitle = lesson.title.replace(/^(شرح|واجب|امتحان|ملخص)\s/, '').trim();
-        
+        const titleWithoutPrefix = lesson.title.replace(/^(شرح|واجب|امتحان|ملخص)\s/, '').trim();
+        const baseTitle = titleWithoutPrefix.split(/[:\-(]/)[0].trim();
+
         if (!lessonGroups[baseTitle]) {
-            lessonGroups[baseTitle] = {};
+            lessonGroups[baseTitle] = { explanations: [], homeworks: [], exams: [], summaries: [] };
         }
-        lessonGroups[baseTitle][lesson.type] = lesson;
+        
+        switch (lesson.type) {
+            case LessonType.EXPLANATION:
+                lessonGroups[baseTitle].explanations.push(lesson);
+                break;
+            case LessonType.HOMEWORK:
+                lessonGroups[baseTitle].homeworks.push(lesson);
+                break;
+            case LessonType.EXAM:
+                lessonGroups[baseTitle].exams.push(lesson);
+                break;
+            case LessonType.SUMMARY:
+                lessonGroups[baseTitle].summaries.push(lesson);
+                break;
+        }
     });
 
     return Object.entries(lessonGroups).map(([baseTitle, parts]) => {
-        const lessonParts = Object.values(parts).filter(p => p) as Lesson[];
+        const lessonParts = [
+            ...parts.explanations,
+            ...parts.homeworks,
+            ...parts.exams,
+            ...parts.summaries
+        ];
+        // Sort explanations to keep order consistent if admin adds them out of order
+        parts.explanations.sort((a, b) => a.title.localeCompare(b.title));
+        
         const completedCount = lessonParts.filter(p => !!userProgress[p.id]).length;
         const totalParts = lessonParts.length;
         
         return {
             baseTitle,
-            explanation: parts[LessonType.EXPLANATION],
-            homework: parts[LessonType.HOMEWORK],
-            exam: parts[LessonType.EXAM],
-            summary: parts[LessonType.SUMMARY],
+            explanations: parts.explanations,
+            homeworks: parts.homeworks,
+            exams: parts.exams,
+            summaries: parts.summaries,
             isCompleted: totalParts > 0 && completedCount === totalParts,
             progress: totalParts > 0 ? (completedCount / totalParts) * 100 : 0,
             completedCount,
@@ -209,11 +236,14 @@ const CourseView: React.FC<CourseViewProps> = ({ grade, unit, user, onBack, onNa
   }, [unit.lessons, userProgress]);
   
   const overallProgress = useMemo(() => {
-    const allLessons = unit.lessons;
+    const allUnitsForTrack = grade.semesters.flatMap(s => s.units.filter(u =>
+        !u.track || u.track === 'All' || u.track === user.track
+    ));
+    const allLessons = allUnitsForTrack.flatMap(u => u.lessons);
     if (allLessons.length === 0) return 0;
     const completedCount = allLessons.filter(lesson => userProgress[lesson.id]).length;
     return Math.round((completedCount / allLessons.length) * 100);
-  }, [unit.lessons, userProgress]);
+  }, [grade, user.track, userProgress]);
 
 
   const handleLessonComplete = async (lessonId: string) => {
@@ -250,16 +280,16 @@ const CourseView: React.FC<CourseViewProps> = ({ grade, unit, user, onBack, onNa
        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
           <div className="w-full md:w-auto md:order-1 order-2">
               <div className="bg-[rgba(var(--bg-secondary-rgb),0.5)] border border-[var(--border-primary)] rounded-2xl p-6 text-center shadow-lg backdrop-blur-sm w-full md:w-48">
-                  <p className="text-md text-[var(--text-secondary)] mb-2">إنجاز المادة</p>
-                  <p className="text-5xl font-black gradient-text">{overallProgress}%</p>
+                  <p className="text-md text-[var(--text-secondary)] mb-2">معدل الإنجاز الكلي</p>
+                  <p className="text-5xl font-black text-gradient-purple-blue">{overallProgress}%</p>
               </div>
           </div>
           <div className="flex-1 text-right md:order-2 order-1">
               <h1 className="text-4xl md:text-5xl font-black text-[var(--text-primary)] leading-tight">
-                  محتوى مادة <span className="gradient-text">{unit.title}</span> 
+                  الدروس <span className="text-gradient-purple">والمحتوى</span> <span className="text-gradient-blue">التعليمي</span>
               </h1>
               <p className="text-md text-[var(--text-secondary)] mt-2">
-                  {grade.name}
+                  {grade.name} - {unit.title}
               </p>
           </div>
       </div>

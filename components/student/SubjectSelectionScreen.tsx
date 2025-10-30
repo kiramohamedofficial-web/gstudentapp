@@ -1,5 +1,3 @@
-
-
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Grade, Unit, User, Teacher, Lesson } from '../../types';
 import { getStudentProgress, getAllTeachers, getUnitsForSemester, getLessonsForUnit } from '../../services/storageService';
@@ -17,12 +15,11 @@ const ProgressBar: React.FC<{ progress: number }> = ({ progress }) => (
     </div>
 );
 
-const TeacherSubjectCard: React.FC<{ unit: Unit; teacher?: Teacher; onClick: () => void; delay: number; progress: number; isLoading: boolean }> = ({ unit, teacher, onClick, delay, progress, isLoading }) => {
+const TeacherSubjectCard: React.FC<{ unit: Unit; teacher?: Teacher; onClick: () => void; delay: number; progress: number; }> = ({ unit, teacher, onClick, delay, progress }) => {
     return (
         <button
             onClick={onClick}
-            disabled={isLoading}
-            className="bg-[var(--bg-secondary)] rounded-2xl shadow-lg border border-[var(--border-primary)] p-4 flex items-center space-x-4 space-x-reverse transition-all duration-300 transform hover:-translate-y-1.5 hover:shadow-cyan-500/10 hover:border-cyan-500/50 cursor-pointer fade-in disabled:cursor-wait"
+            className="bg-[var(--bg-secondary)] rounded-2xl shadow-lg border border-[var(--border-primary)] p-4 flex items-center space-x-4 space-x-reverse transition-all duration-300 transform hover:-translate-y-1.5 hover:shadow-cyan-500/10 hover:border-cyan-500/50 cursor-pointer fade-in"
             style={{ animationDelay: `${delay}ms` }}
         >
             <img 
@@ -41,7 +38,7 @@ const TeacherSubjectCard: React.FC<{ unit: Unit; teacher?: Teacher; onClick: () 
                 </div>
             </div>
             
-            {isLoading ? <Loader /> : <ArrowLeftIcon className="w-6 h-6 text-[var(--text-secondary)]" />}
+            <ArrowLeftIcon className="w-6 h-6 text-[var(--text-secondary)]" />
         </button>
     );
 };
@@ -75,7 +72,6 @@ const SubjectSelectionScreen: React.FC<SubjectSelectionScreenProps> = ({ grade, 
     const [units, setUnits] = useState<Unit[]>([]);
     const [lessonsMap, setLessonsMap] = useState<Record<string, Lesson[]>>({});
     const [isLoadingUnits, setIsLoadingUnits] = useState(true);
-    const [isFetchingLessonsFor, setIsFetchingLessonsFor] = useState<string | null>(null);
     const [activeSubject, setActiveSubject] = useState<string>('الكل');
     const [teachers, setTeachers] = useState<Teacher[]>([]);
     const [userProgress, setUserProgress] = useState<Record<string, boolean>>({});
@@ -109,30 +105,38 @@ const SubjectSelectionScreen: React.FC<SubjectSelectionScreenProps> = ({ grade, 
             setIsLoadingUnits(false);
             return;
         }
-        const fetchUnits = async () => {
+        const fetchUnitsAndLessons = async () => {
             setIsLoadingUnits(true);
             const fetchedUnits = await getUnitsForSemester(grade.id, activeSemesterId);
+            
+            // Now, fetch lessons for all these units in parallel to populate progress bars
+            const lessonPromises = fetchedUnits.map(unit => 
+                getLessonsForUnit(grade.id, activeSemesterId, unit.id)
+            );
+            const lessonsArrays = await Promise.all(lessonPromises);
+
+            const newLessonsMap: Record<string, Lesson[]> = {};
+            fetchedUnits.forEach((unit, index) => {
+                newLessonsMap[unit.id] = lessonsArrays[index];
+            });
+
+            setLessonsMap(newLessonsMap);
             setUnits(fetchedUnits);
-            setLessonsMap({}); // Clear old lesson data
             setIsLoadingUnits(false);
         };
-        fetchUnits();
+        fetchUnitsAndLessons();
     }, [activeSemesterId, grade.id]);
 
-    const handleSelectUnit = async (unit: Unit) => {
-        if (isFetchingLessonsFor) return;
-
-        setIsFetchingLessonsFor(unit.id);
-        const lessons = await getLessonsForUnit(grade.id, activeSemesterId, unit.id);
+    const handleSelectUnit = (unit: Unit) => {
+        const lessons = lessonsMap[unit.id] || [];
         const unitWithLessons = { ...unit, lessons };
-        setIsFetchingLessonsFor(null);
         onSubjectSelect(unitWithLessons);
     };
 
     const teacherMap = useMemo(() => new Map(teachers.map(t => [t.id, t])), [teachers]);
 
     const calculateProgress = useCallback((unit: Unit) => {
-        const lessons = lessonsMap[unit.id] || unit.lessons;
+        const lessons = lessonsMap[unit.id] || [];
         const totalLessons = lessons.length;
         if (totalLessons === 0) return 0;
         
@@ -219,7 +223,6 @@ const SubjectSelectionScreen: React.FC<SubjectSelectionScreenProps> = ({ grade, 
                             onClick={() => handleSelectUnit(unit)} 
                             delay={index * 50}
                             progress={calculateProgress(unit)}
-                            isLoading={isFetchingLessonsFor === unit.id}
                         />
                     ))}
                 </div>

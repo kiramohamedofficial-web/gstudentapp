@@ -22,7 +22,7 @@ const ConfirmationModal: React.FC<{ isOpen: boolean; onClose: () => void; onConf
 const FormInput: React.FC<{label: string, name: string, type?: string, value: string | number, onChange: (e: React.ChangeEvent<HTMLInputElement>) => void}> = ({label, name, type="text", value, onChange}) => (
      <div>
         <label htmlFor={name} className="block text-sm font-medium text-[var(--text-secondary)] mb-1">{label}</label>
-        <input name={name} id={name} type={type} value={value} onChange={onChange} required className="w-full p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] focus:ring-purple-500 focus:border-purple-500" />
+        <input name={name} id={name} type={type} value={value} onChange={onChange} required className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)] focus:ring-purple-500 focus:border-purple-500" />
     </div>
 );
 
@@ -33,26 +33,19 @@ const HomeManagementView: React.FC = () => {
     const [formData, setFormData] = useState<any>({});
     const [activeTab, setActiveTab] = useState<'courses' | 'books'>('courses');
 
-    const [courses, setCourses] = useState<Course[]>([]);
-    const [books, setBooks] = useState<Book[]>([]);
+    const courses = useMemo(() => getFeaturedCourses(), [dataVersion]);
+    const books = useMemo(() => getFeaturedBooks(), [dataVersion]);
     
     const [teachers, setTeachers] = useState<Teacher[]>([]);
-
-    const refreshData = useCallback(() => setDataVersion(v => v + 1), []);
-
     useEffect(() => {
-        const fetchData = async () => {
-            const [coursesData, booksData, teacherData] = await Promise.all([
-                getFeaturedCourses(),
-                getFeaturedBooks(),
-                getAllTeachers()
-            ]);
-            setCourses(coursesData);
-            setBooks(booksData);
+        const fetchTeachers = async () => {
+            const teacherData = await getAllTeachers();
             setTeachers(teacherData);
         };
-        fetchData();
+        fetchTeachers();
     }, [dataVersion]);
+
+    const refreshData = useCallback(() => setDataVersion(v => v + 1), []);
     
     const openModal = (type: string, data = {}) => {
         setFormData(data);
@@ -73,24 +66,24 @@ const HomeManagementView: React.FC = () => {
         setFormData((prev: any) => ({ ...prev, [name]: value }));
     };
 
-    const handleSave = async () => {
+    const handleSave = () => {
         const { type, data } = modalState;
         switch(type) {
-            case 'edit-course': await updateFeaturedCourse({ ...data, ...formData }); break;
-            case 'add-course': await addFeaturedCourse(formData); break;
-            case 'edit-book': await updateFeaturedBook({ ...data, ...formData }); break;
-            case 'add-book': await addFeaturedBook(formData); break;
+            case 'edit-course': updateFeaturedCourse({ ...data, ...formData }); break;
+            case 'add-course': addFeaturedCourse(formData); break;
+            case 'edit-book': updateFeaturedBook({ ...data, ...formData }); break;
+            case 'add-book': addFeaturedBook(formData); break;
         }
         addToast('تم حفظ التغييرات بنجاح', ToastType.SUCCESS);
         refreshData();
         closeModal();
     };
 
-    const handleDelete = async () => {
+    const handleDelete = () => {
         const { type, data } = modalState;
          switch(type) {
-            case 'delete-course': await deleteFeaturedCourse(data.id); break;
-            case 'delete-book': await deleteFeaturedBook(data.id); break;
+            case 'delete-course': deleteFeaturedCourse(data.id); break;
+            case 'delete-book': deleteFeaturedBook(data.id); break;
         }
         addToast('تم الحذف بنجاح', ToastType.SUCCESS);
         refreshData();
@@ -167,30 +160,35 @@ const HomeManagementView: React.FC = () => {
             </div>
             
             <Modal isOpen={['add-course', 'edit-course'].includes(modalState.type || '')} onClose={closeModal} title={modalState.type === 'add-course' ? 'إضافة كورس جديد' : 'تعديل كورس'}>
-                <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="space-y-6">
+                <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="space-y-4">
                     <FormInput label="العنوان" name="title" value={formData.title || ''} onChange={handleFormChange} />
-                    <FormInput label="الوصف" name="description" value={formData.description || ''} onChange={handleFormChange} />
+                    <FormInput label="العنوان الفرعي" name="subtitle" value={formData.description || ''} onChange={handleFormChange} />
                     <div>
                         <label htmlFor="teacherId" className="block text-sm font-medium text-[var(--text-secondary)] mb-1">المدرس</label>
-                        <select name="teacherId" id="teacherId" value={formData.teacherId || ''} onChange={handleFormChange} required className="w-full p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] focus:ring-purple-500 focus:border-purple-500">
+                        <select name="teacherId" id="teacherId" value={formData.teacherId || ''} onChange={handleFormChange} required className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)] focus:ring-purple-500 focus:border-purple-500">
                             <option value="">اختر المدرس</option>
                             {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                         </select>
                     </div>
                     <ImageUpload label="صورة الغلاف" value={formData.coverImage || ''} onChange={(value) => handleImageChange('coverImage', value)} />
                     <FormInput label="السعر" name="price" type="number" value={formData.price ?? 0} onChange={handleFormChange} />
-                    <div className="flex justify-end pt-4"><button type="submit" className="px-6 py-2.5 font-semibold text-white bg-purple-600 rounded-lg hover:bg-purple-700">حفظ</button></div>
+                    <div className="grid grid-cols-3 gap-4">
+                        <FormInput label="ملفات" name="fileCount" type="number" value={formData.fileCount ?? 0} onChange={handleFormChange} />
+                        <FormInput label="فيديوهات" name="videoCount" type="number" value={formData.videoCount ?? 0} onChange={handleFormChange} />
+                        <FormInput label="اختبارات" name="quizCount" type="number" value={formData.quizCount ?? 0} onChange={handleFormChange} />
+                    </div>
+                    <div className="flex justify-end pt-4"><button type="submit" className="px-5 py-2 font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700">حفظ</button></div>
                 </form>
             </Modal>
             
             <Modal isOpen={['add-book', 'edit-book'].includes(modalState.type || '')} onClose={closeModal} title={modalState.type === 'add-book' ? 'إضافة كتاب جديد' : 'تعديل كتاب'}>
-                <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="space-y-6">
+                <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="space-y-4">
                     <FormInput label="العنوان" name="title" value={formData.title || ''} onChange={handleFormChange} />
                     <FormInput label="اسم المدرس" name="teacherName" value={formData.teacherName || ''} onChange={handleFormChange} />
                     <ImageUpload label="صورة المدرس" value={formData.teacherImage || ''} onChange={(value) => handleImageChange('teacherImage', value)} />
                     <ImageUpload label="صورة الغلاف" value={formData.coverImage || ''} onChange={(value) => handleImageChange('coverImage', value)} />
                     <FormInput label="السعر" name="price" type="number" value={formData.price ?? 0} onChange={handleFormChange} />
-                    <div className="flex justify-end pt-4"><button type="submit" className="px-6 py-2.5 font-semibold text-white bg-purple-600 rounded-lg hover:bg-purple-700">حفظ</button></div>
+                    <div className="flex justify-end pt-4"><button type="submit" className="px-5 py-2 font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700">حفظ</button></div>
                 </form>
             </Modal>
 

@@ -30,7 +30,6 @@ const ContentManagementView = lazy(() => import('./ContentManagementView'));
 const DeviceManagementView = lazy(() => import('./DeviceManagementView'));
 const AccountCreationDiagnosticsView = lazy(() => import('./AccountCreationDiagnosticsView'));
 const TeacherCreationDiagnosticsView = lazy(() => import('./TeacherCreationDiagnosticsView'));
-const SupervisorManagementView = lazy(() => import('./SupervisorManagementView'));
 
 
 interface AdminDashboardProps {
@@ -38,7 +37,7 @@ interface AdminDashboardProps {
   setTheme: (theme: Theme) => void;
 }
 
-type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'courseManagement' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers' | 'subscriptionPrices' | 'deviceManagement' | 'content' | 'accountCreationDiagnostics' | 'teacherCreationDiagnostics' | 'supervisors';
+type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'courseManagement' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers' | 'subscriptionPrices' | 'deviceManagement' | 'content' | 'accountCreationDiagnostics' | 'teacherCreationDiagnostics';
 
 const StatCard: React.FC<{ title: string; value: string; icon: React.FC<{ className?: string; }>; delay: number; onClick?: () => void; }> = React.memo(({ title, value, icon: Icon, delay, onClick }) => (
     <div 
@@ -323,16 +322,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
     setActiveView(view);
   }, []);
 
-  const handleStudentUpdate = useCallback((updatedStudent: User) => {
-    setSelectedStudent(updatedStudent);
-  }, []);
-
-
   if (!user) return null;
 
   const renderContent = () => {
     if (selectedStudent) {
-      return <StudentDetailView user={selectedStudent} onBack={handleBackToStudents} onUpdate={handleStudentUpdate} />;
+      return <StudentDetailView user={selectedStudent} onBack={handleBackToStudents} />;
     }
     
     const suspenseLoader = <div className="flex justify-center items-center h-64"><Loader /></div>;
@@ -342,7 +336,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
       case 'subscriptionPrices': return <Suspense fallback={suspenseLoader}><SubscriptionPriceControlView /></Suspense>;
       case 'students': return <StudentManagementView key={studentDataVersion} onViewDetails={handleViewStudentDetails} />;
       case 'teachers': return <TeacherManagementView />;
-      case 'supervisors': return <Suspense fallback={suspenseLoader}><SupervisorManagementView /></Suspense>;
       case 'homeManagement': return <HomeManagementView />;
       case 'courseManagement': return <Suspense fallback={suspenseLoader}><CourseManagementView /></Suspense>;
       case 'content': return <Suspense fallback={suspenseLoader}><ContentManagementView /></Suspense>;

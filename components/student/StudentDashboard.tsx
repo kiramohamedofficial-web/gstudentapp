@@ -41,26 +41,11 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
   const { currentUser: user } = useSession();
   const [activeView, setActiveView] = useState<StudentView>('home');
   const [isDataSaverEnabled, setIsDataSaverEnabled] = useState(false);
-  const [loadTime, setLoadTime] = useState<number | null>(null);
 
   useEffect(() => {
-    // Measure performance after the component mounts
     performance.mark('student-dashboard-render');
-    const measure = performance.measure(
-        'student-dashboard-load-time', 
-        'app-load-start', 
-        'student-dashboard-render'
-    );
-    
-    if (measure) {
-        setLoadTime(measure.duration);
-        console.log(`Student Dashboard Load Time: ${measure.duration.toFixed(2)} ms`);
-    }
-
-    // Clean up marks to avoid memory leaks on potential remounts
     return () => {
         performance.clearMarks('student-dashboard-render');
-        performance.clearMeasures('student-dashboard-load-time');
     };
   }, []);
 
@@ -212,7 +197,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
         activeView={activeView} 
         onNavClick={handleNavClick} 
         gradeName={studentGrade?.name}
-        loadTime={loadTime}
     >
       <Suspense fallback={<SuspenseLoader />}>
         {renderContent()}

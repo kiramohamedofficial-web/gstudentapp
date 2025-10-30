@@ -34,11 +34,18 @@ const QuizTaker: React.FC<QuizTakerProps> = ({ lesson, onComplete }) => {
         if (!user) return;
         
         let score = 0;
-        let submittedAnswers: QuizAttempt['submittedAnswers'] = {};
+        let submittedAnswers: QuizAttempt['submittedAnswers'] = [];
         const passingScore = lesson.passingScore ?? 50;
         
         if (lesson.quizType === QuizType.MCQ && lesson.questions) {
-            submittedAnswers = mcqAnswers;
+            const mcqAnswersArray: (number | null)[] = Array(lesson.questions.length).fill(null);
+            for (const qIndex in mcqAnswers) {
+                if (Object.prototype.hasOwnProperty.call(mcqAnswers, qIndex)) {
+                    mcqAnswersArray[parseInt(qIndex, 10)] = mcqAnswers[qIndex];
+                }
+            }
+            submittedAnswers = mcqAnswersArray;
+
             const correctCount = lesson.questions.reduce((count, question, index) => {
                 return count + (question.correctAnswerIndex === mcqAnswers[index] ? 1 : 0);
             }, 0);
@@ -47,11 +54,14 @@ const QuizTaker: React.FC<QuizTakerProps> = ({ lesson, onComplete }) => {
         } else { // Image-based quiz
              submittedAnswers = imageAnswers;
              const correctAnswers = lesson.correctAnswers || [];
-             if (correctAnswers.length === 0) return;
-             const correctCount = imageAnswers.filter(ans => 
-                 correctAnswers.some(correctAns => correctAns.trim().toLowerCase() === ans.trim().toLowerCase())
-             ).length;
-             score = Math.round((correctCount / correctAnswers.length) * 100);
+             if (correctAnswers.length > 0) {
+                 const correctCount = imageAnswers.filter(ans => 
+                     correctAnswers.some(correctAns => correctAns.trim().toLowerCase() === ans.trim().toLowerCase())
+                 ).length;
+                 score = Math.round((correctCount / correctAnswers.length) * 100);
+             } else {
+                 score = imageAnswers.length > 0 ? 0 : 100; // If no correct answers, only empty submission is correct.
+             }
         }
 
         const timeTaken = startTime ? Math.round((Date.now() - startTime) / 1000) : 0;
@@ -145,7 +155,7 @@ const QuizTaker: React.FC<QuizTakerProps> = ({ lesson, onComplete }) => {
     
     // Result Screen
     if (view === 'result' && currentAttempt) {
-        const { score, isPass, submittedAnswers = {}, timeTaken } = currentAttempt;
+        const { score, isPass, submittedAnswers = [], timeTaken } = currentAttempt;
         return (
              <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-md border border-[var(--border-primary)]">
                 <div className="text-center mb-6 pb-6 border-b border-[var(--border-primary)]">
@@ -160,7 +170,7 @@ const QuizTaker: React.FC<QuizTakerProps> = ({ lesson, onComplete }) => {
                 {isMcq && lesson.questions && (
                     <div className="space-y-6">
                         {lesson.questions.map((q, qIndex) => {
-                            const studentAnswerIndex = (submittedAnswers as { [key: number]: number })[qIndex];
+                            const studentAnswerIndex = (submittedAnswers as (number | null)[])[qIndex];
                             const isCorrect = q.correctAnswerIndex === studentAnswerIndex;
                             return (
                                 <div key={qIndex} className="p-4 bg-[var(--bg-tertiary)] rounded-lg">

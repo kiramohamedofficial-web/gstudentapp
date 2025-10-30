@@ -1,3 +1,5 @@
+
+
 import { createClient, Session, User as SupabaseUser } from '@supabase/supabase-js';
 import {
   User, Role, Subscription, Grade, Teacher, Lesson, Unit, SubscriptionRequest,
@@ -29,13 +31,19 @@ export function getOrCreateDeviceId(): string {
 // =================================================================
 // FILE STORAGE
 // =================================================================
-const ASSET_BUCKET = 'assets';
+// FIX: The "Bucket not found" error indicates a mismatch. Changed bucket name to 'public', a common Supabase convention for public assets.
+// The filePath no longer includes a 'public/' prefix as the entire bucket is assumed to be public.
+// Please ensure a public bucket named 'public' exists in your Supabase storage.
+const ASSET_BUCKET = 'public';
 
 export async function uploadImage(file: File): Promise<string | null> {
-    const filePath = `public/${Date.now()}-${file.name}`;
+    const filePath = `${Date.now()}-${file.name}`;
     const { data, error } = await supabase.storage.from(ASSET_BUCKET).upload(filePath, file);
     if (error) {
         console.error('Error uploading image:', error.message);
+        if (error.message.toLowerCase().includes('bucket not found')) {
+            console.error(`Hint: Make sure you have a public Supabase storage bucket named '${ASSET_BUCKET}'.`);
+        }
         return null;
     }
     const { data: { publicUrl } } = supabase.storage.from(ASSET_BUCKET).getPublicUrl(data.path);
@@ -72,7 +80,7 @@ function determineTrack(gradeId: number | null): { track: Track } {
     return { track: 'All' };
 }
 
-export async function signUp(userData: Omit<User, 'id' | 'role' | 'subscriptionId' | 'allowedDevices'> & { email: string, password?: string }) {
+export async function signUp(userData: Omit<User, 'id' | 'role' | 'subscriptionId'> & { email: string, password?: string }) {
     const { email, password, name, phone, guardianPhone, grade } = userData;
 
     if (!password) {
@@ -88,7 +96,6 @@ export async function signUp(userData: Omit<User, 'id' | 'role' | 'subscriptionI
         grade_id: grade,
         role: 'student',
         track: track,
-        allowed_devices: 1,
     };
 
     const { data, error } = await supabase.auth.signUp({
@@ -123,12 +130,11 @@ export async function signIn(identifier: string, password: string) {
     if (signInError) return { data: null, error: { message: 'بيانات الدخول غير صحيحة.' } };
     if (!signInData.user) return { data: null, error: { message: 'لم يتم العثور على المستخدم بعد تسجيل الدخول.' } };
 
-    const { data: profile } = await supabase.from('profiles').select('role, allowed_devices').eq('id', signInData.user.id).single();
-    if (profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'supervisor') {
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', signInData.user.id).single();
+    if (profile?.role === 'admin' || profile?.role === 'teacher') {
         return { data: signInData, error: null };
     }
 
-    const allowedDevices = profile?.allowed_devices ?? 1;
     const userId = signInData.user.id;
     const deviceId = getOrCreateDeviceId();
     const deviceInfo = { id: deviceId };
@@ -144,11 +150,11 @@ export async function signIn(identifier: string, password: string) {
         return { data: signInData, error: null }; // Fail open if check fails
     }
 
-    if (activeSessions && activeSessions.length >= allowedDevices) {
+    if (activeSessions && activeSessions.length > 0) {
         const isSameDevice = activeSessions.some(session => session.device_info?.id === deviceId);
         if (!isSameDevice) {
             await supabase.auth.signOut();
-            return { data: null, error: { message: `لقد وصلت للحد الأقصى لعدد الأجهزة (${allowedDevices}). يرجى تسجيل الخروج من جهاز آخر أولاً.` } };
+            return { data: null, error: { message: "تم تسجيل دخولك بالفعل من جهاز آخر. يرجى تسجيل الخروج أولاً." } };
         }
         // Same device, just let them in.
         return { data: signInData, error: null };
@@ -212,7 +218,7 @@ export const getSession = async () => { const { data: { session } } = await supa
 export const onAuthStateChange = (callback: (event: string, session: Session | null) => void) => supabase.auth.onAuthStateChange((event, session) => callback(event, session));
 
 export const getProfile = async (userId: string): Promise<User | null> => {
-    let { data: profileData, error } = await supabase.from('profiles').select('id, name, phone, guardian_phone, grade_id, track, role, teacher_id, allowed_devices').eq('id', userId).single();
+    let { data: profileData, error } = await supabase.from('profiles').select('id, name, phone, guardian_phone, grade_id, track, role, teacher_id').eq('id', userId).single();
 
     if (error) {
         if (error.code !== 'PGRST116') console.error("Error fetching profile:", error.message);
@@ -225,13 +231,12 @@ export const getProfile = async (userId: string): Promise<User | null> => {
     return {
         id: profileData.id, email: authUser?.email || '', name: profileData.name, phone: profileData.phone,
         guardianPhone: profileData.guardian_phone, grade: profileData.grade_id, track: profileData.track,
-        role: profileData.role as Role, teacherId: profileData.teacher_id,
-        allowedDevices: profileData.allowed_devices ?? 1,
+        role: profileData.role as Role, teacherId: profileData.teacher_id
     };
 };
 
 export const getUserByTeacherId = async (teacherId: string): Promise<User | null> => {
-    const { data: profileData, error } = await supabase.from('profiles').select('id, name, phone, guardian_phone, grade_id, track, role, teacher_id, allowed_devices').eq('teacher_id', teacherId).single();
+    const { data: profileData, error } = await supabase.from('profiles').select('id, name, phone, guardian_phone, grade_id, track, role, teacher_id').eq('teacher_id', teacherId).single();
     if (error) {
         if (error.code !== 'PGRST116') console.error("Error fetching profile by teacherId:", error.message);
         return null;
@@ -239,8 +244,7 @@ export const getUserByTeacherId = async (teacherId: string): Promise<User | null
     return {
         id: profileData.id, email: '', name: profileData.name, phone: profileData.phone,
         guardianPhone: profileData.guardian_phone, grade: profileData.grade_id, track: profileData.track,
-        role: profileData.role as Role, teacherId: profileData.teacher_id,
-        allowedDevices: profileData.allowed_devices ?? 1,
+        role: profileData.role as Role, teacherId: profileData.teacher_id
     };
 };
 
@@ -260,7 +264,7 @@ export const updateUserPassword = async (password: string) => {
 
 
 // =================================================================
-// TEACHER & SUPERVISOR MANAGEMENT
+// TEACHER MANAGEMENT
 // =================================================================
 interface CreateTeacherParams { id?: string, email: string; password?: string; name: string; subject: string; phone: string; teaching_grades: number[]; teaching_levels: string[]; image_url?: string; }
 
@@ -286,25 +290,6 @@ export async function createTeacher(params: CreateTeacherParams) {
 
   const errorMessage = data?.error || 'An unknown error occurred inside the database function.';
   return { success: false, error: { message: errorMessage }, data: null };
-}
-
-export async function createSupervisor(params: { email: string; password?: string; name: string; supervised_teacher_id: string; }) {
-    const { data, error } = await supabase.rpc('create_supervisor_account', {
-        supervisor_name: params.name,
-        supervisor_email: params.email,
-        supervisor_password: params.password,
-        supervised_teacher_id: params.supervised_teacher_id,
-    });
-    return { data, error };
-}
-
-export async function updateSupervisor(userId: string, updates: { name: string; supervised_teacher_id: string; }) {
-    const { error } = await supabase.rpc('update_supervisor_details', {
-        p_user_id: userId,
-        p_name: updates.name,
-        p_supervised_teacher_id: updates.supervised_teacher_id
-    });
-    return { error };
 }
 
 export async function getAllTeachers(): Promise<Teacher[]> {
@@ -355,40 +340,22 @@ export async function deleteTeacher(teacherId: string) {
 }
 
 export async function updateTeacher(teacherId: string, updates: any) {
-    const { data, error } = await supabase.from('teachers').update({
-        name: updates.name,
-        subject: updates.subject,
-        teaching_grades: updates.teachingGrades,
-        teaching_levels: updates.teachingLevels,
-        image_url: updates.imageUrl
-    }).eq('id', teacherId).select().single();
-    if (error) return { success: false, error };
+  const { data, error } = await supabase.from('teachers').update({
+    name: updates.name, subject: updates.subject, teaching_grades: updates.teachingGrades,
+    teaching_levels: updates.teachingLevels, image_url: updates.imageUrl
+  }).eq('id', teacherId).select().single();
+  if (error) return { success: false, error };
 
-    if (updates.name || updates.phone) {
-        const { data: profileData } = await supabase.from('profiles').select('id').eq('teacher_id', teacherId).single();
-        if (profileData) {
-            const profilePayload: Record<string, any> = {};
-            if (updates.name) profilePayload.name = updates.name;
-            if (updates.phone) {
-                // Assuming phone is 11 digits like 010...
-                // The `profiles.phone` should be in international format e.g., +2010...
-                profilePayload.phone = `+20${updates.phone.substring(1)}`;
-            }
-            const { error: profileUpdateError } = await supabase.from('profiles').update(profilePayload).eq('id', profileData.id);
-            if (profileUpdateError) return { success: false, error: profileUpdateError };
-
-            // Also update auth user email if phone changed to maintain consistency
-            if (updates.phone) {
-                const newEmail = `${updates.phone}@gstudent.app`;
-                const { error: authUpdateError } = await supabase.auth.admin.updateUserById(profileData.id, { email: newEmail });
-                if (authUpdateError) {
-                    console.warn(`Failed to update auth user email for teacher ${teacherId}: ${authUpdateError.message}`);
-                    // Don't fail the whole operation, but log it. The main profile phone is updated.
-                }
-            }
-        }
+  if (updates.name || updates.phone) {
+    const { data: profileData } = await supabase.from('profiles').select('id').eq('teacher_id', teacherId).single();
+    if (profileData) {
+      const profilePayload: Record<string, any> = {};
+      if (updates.name) profilePayload.name = updates.name;
+      if (updates.phone) profilePayload.phone = `+2${updates.phone}`;
+      await supabase.from('profiles').update(profilePayload).eq('id', profileData.id);
     }
-    return { success: true, data };
+  }
+  return { success: true, data };
 }
 
 // =================================================================
@@ -802,7 +769,7 @@ export const addQuizAttempt = async (attemptData: Omit<QuizAttempt, 'id'>): Prom
 export const getQuizAttemptsByUserId = async (userId: string): Promise<QuizAttempt[]> => {
     return getStudentQuizAttempts(userId);
 }
-export const getLatestQuizAttemptForLesson = async (userId: string, lessonId: string): Promise<QuizAttempt | undefined> => {
+export const getLatestQuizAttemptForLesson = async (userId: string, lessonId: string): Promise<QuizAttempt | null> => {
     const { data, error } = await supabase
         .from('quiz_attempts')
         .select('*')
@@ -814,9 +781,9 @@ export const getLatestQuizAttemptForLesson = async (userId: string, lessonId: st
 
     if (error) {
         console.warn('Could not fetch latest quiz attempt. This might be a network issue. Original error:', error.message);
-        return undefined;
+        return null;
     }
-    if (!data) return undefined;
+    if (!data) return null;
     
     return {
         id: data.id,
@@ -874,12 +841,11 @@ export const updateSubscriptionRequest = async (updatedRequest: SubscriptionRequ
     await supabase.from('subscription_requests').update({ status: updates.status }).eq('id', id);
 };
 export const getAllUsers = async (): Promise<User[]> => { 
-    const { data, error } = await supabase.from('profiles').select('id, name, phone, guardian_phone, grade_id, track, role, teacher_id, allowed_devices');
+    const { data, error } = await supabase.from('profiles').select('id, name, phone, guardian_phone, grade_id, track, role, teacher_id');
     if (error) { console.warn("Could not fetch all profiles. This may be a network issue. The app will proceed with an empty list. Original error:", error.message); return []; } 
     return (data || []).map((p: any) => ({ 
         id: p.id, name: p.name, email: '', phone: p.phone, guardianPhone: p.guardian_phone, 
         grade: p.grade_id, track: p.track, role: p.role as Role, teacherId: p.teacher_id,
-        allowedDevices: p.allowed_devices ?? 1,
     })); 
 };
 export const getTeacherById = async (id: string): Promise<Teacher | null> => { const teachers = await getAllTeachers(); return teachers.find(t => t.id === id) || null; };
@@ -948,6 +914,7 @@ export const getPlatformSettings = async (): Promise<PlatformSettings> => {
     const mergedSettings: PlatformSettings = {
         ...defaultSettings,
         ...fetchedSettings,
+        features: Array.isArray(fetchedSettings.features) ? fetchedSettings.features : defaultSettings.features,
         subscriptionPrices: {
             ...defaultSettings.subscriptionPrices,
             ...(fetchedSettings.subscriptionPrices || {}),
@@ -978,7 +945,7 @@ export const updatePlatformSettings = async (newSettings: PlatformSettings): Pro
         teacher_image_url: newSettings.teacherImageUrl,
         features_title: newSettings.featuresTitle,
         features_subtitle: newSettings.featuresSubtitle,
-        features: newSettings.features,
+        features: Array.isArray(newSettings.features) ? newSettings.features : [],
         footer_description: newSettings.footerDescription,
         contact_phone: newSettings.contactPhone,
         contact_facebook_url: newSettings.contactFacebookUrl,
@@ -1059,12 +1026,12 @@ export const deleteCourse = async (courseId: string) => {
 };
 
 export const checkCoursePurchase = async (userId: string, courseId: string): Promise<boolean> => {
-    const { count, error } = await supabase.from('user_courses').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('course_id', courseId);
+    const { data, error } = await supabase.from('user_courses').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('course_id', courseId);
     if(error) {
         console.warn("Could not check course purchase. This may be a network issue. Original error:", error.message);
         return false;
     }
-    return (count || 0) > 0;
+    return (data?.count || 0) > 0;
 };
 
 export const purchaseCourse = async (userId: string, courseId: string) => {
@@ -1230,36 +1197,12 @@ export const updateUser = async (userId: string, updates: Partial<User>) => {
     if (updates.guardianPhone) payload.guardian_phone = updates.guardianPhone;
     if (updates.grade !== undefined) payload.grade_id = updates.grade;
     if (updates.track !== undefined) payload.track = updates.track;
-    if (updates.allowedDevices !== undefined) payload.allowed_devices = updates.allowedDevices;
     if (Object.keys(payload).length === 0) return { error: null };
     const { error } = await supabase.from('profiles').update(payload).eq('id', userId);
     return { error };
 };
 export const clearUserDevices = async (userId: string) => {
     const { error } = await supabase.from('user_sessions').delete().eq('user_id', userId);
-    return { error };
-};
-export const clearAllStudentDevices = async () => {
-    const { data: studentProfiles, error: profileError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('role', 'student');
-
-    if (profileError) {
-        console.error("Failed to fetch student IDs for session clearing:", profileError.message);
-        return { error: profileError };
-    }
-
-    const studentIds = studentProfiles.map(p => p.id);
-    if (studentIds.length === 0) {
-        return { error: null }; // No students to log out
-    }
-
-    const { error } = await supabase
-        .from('user_sessions')
-        .delete()
-        .in('user_id', studentIds);
-
     return { error };
 };
 export const deleteUser = async (id: string) => { const { error } = await supabase.auth.admin.deleteUser(id); return { error }; };
@@ -1273,12 +1216,12 @@ export const addStudentQuestion = async (userId: string, userName: string, quest
 export const getStudentQuestionsByUserId = async (userId: string): Promise<StudentQuestion[]> => {
     const { data, error } = await supabase.from('student_questions').select('*').eq('user_id', userId).order('created_at', { ascending: false });
     if (error) { console.warn('Could not fetch questions. This may be a network issue. Original error:', error.message); return []; }
-    return (data || []) as StudentQuestion[];
+    return (data || []).map(q => ({ ...q, questionText: q.question_text, answerText: q.answer_text, userName: q.user_name, userId: q.user_id }));
 };
 export const getAllStudentQuestions = async (): Promise<StudentQuestion[]> => {
     const { data, error } = await supabase.from('student_questions').select('*').order('created_at', { ascending: false });
     if (error) { console.warn('Could not fetch all questions. This may be a network issue. Original error:', error.message); return []; }
-    return (data || []) as StudentQuestion[];
+    return (data || []).map(q => ({ id: q.id, userId: q.user_id, userName: q.user_name, questionText: q.question_text, answerText: q.answer_text, status: q.status, createdAt: q.created_at }));
 };
 export const answerStudentQuestion = async (questionId: string, answerText: string): Promise<void> => {
     await supabase.from('student_questions').update({ answer_text: answerText, status: 'Answered' }).eq('id', questionId);

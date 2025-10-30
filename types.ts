@@ -9,7 +9,7 @@ export enum Role {
 
 export type StudentView = 'home' | 'grades' | 'subscription' | 'profile' | 'teachers' | 'courses' | 'singleSubjectSubscription' | 'comprehensiveSubscription' | 'results' | 'smartPlan' | 'chatbot' | 'askTheProf' | 'adhkar' | 'cartoonMovies' | 'teacherProfile' | 'courseDetail';
 export type TeacherView = 'dashboard' | 'content' | 'subscriptions' | 'profile' | 'questionBank';
-export type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'courseManagement' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers' | 'subscriptionPrices' | 'deviceManagement' | 'content' | 'accountCreationDiagnostics' | 'teacherCreationDiagnostics' | 'supervisors';
+export type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'courseManagement' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers' | 'subscriptionPrices' | 'deviceManagement' | 'content' | 'accountCreationDiagnostics' | 'teacherCreationDiagnostics';
 
 
 export interface User {
@@ -21,9 +21,8 @@ export interface User {
   grade: number | null;
   track?: 'Scientific' | 'Literary' | 'All' | null; // For 2nd & 3rd year secondary students
   role: Role;
-  allowedDevices: number;
   subscriptionId?: string;
-  teacherId?: string; // Links user to a teacher profile OR supervisor to a supervised teacher
+  teacherId?: string; // Links user to a teacher profile
 }
 
 export interface Subscription {
@@ -52,6 +51,7 @@ export interface QuizQuestion {
   questionText: string;
   options: string[];
   correctAnswerIndex: number;
+  imageUrl?: string;
 }
 
 export interface Lesson {
@@ -192,7 +192,7 @@ export interface QuizAttempt {
   lessonId: string;
   submittedAt: string;
   score: number; // Percentage score
-  submittedAnswers?: string[] | { [key: number]: number }; // For image-based quizzes or MCQ answers
+  submittedAnswers?: string[] | (number | null)[]; // For image-based quizzes (string array) or MCQ (number array)
   timeTaken: number; // in seconds
   isPass: boolean;
 }
