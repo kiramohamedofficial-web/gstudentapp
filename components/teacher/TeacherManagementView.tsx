@@ -40,8 +40,10 @@ const TeacherModal: React.FC<{
     
     // FIX: Replaced useMemo with useEffect to correctly handle the asynchronous `getAllGrades` function call.
     useEffect(() => {
-        getAllGrades().then(grades => setAllGrades(grades));
-    }, []);
+        if (isOpen) {
+            getAllGrades().then(grades => setAllGrades(grades));
+        }
+    }, [isOpen]);
 
     const middleSchoolGrades = useMemo(() => allGrades.filter(g => g.level === 'Middle').sort((a,b) => a.id - b.id), [allGrades]);
     const secondarySchoolGrades = useMemo(() => allGrades.filter(g => g.level === 'Secondary').sort((a,b) => a.id - b.id), [allGrades]);

@@ -38,9 +38,16 @@ const TeacherModal: React.FC<{
     const [error, setError] = useState('');
     const [allGrades, setAllGrades] = useState<Grade[]>([]);
     
+    // FIX: Replaced .then() with async/await and updated comment.
     useEffect(() => {
-        getAllGrades().then(grades => setAllGrades(grades));
-    }, []);
+        const fetchGrades = async () => {
+            if (isOpen) {
+                const grades = await getAllGrades();
+                setAllGrades(grades);
+            }
+        };
+        fetchGrades();
+    }, [isOpen]);
 
     const middleSchoolGrades = useMemo(() => allGrades.filter(g => g.level === 'Middle').sort((a,b) => a.id - b.id), [allGrades]);
     const secondarySchoolGrades = useMemo(() => allGrades.filter(g => g.level === 'Secondary').sort((a,b) => a.id - b.id), [allGrades]);

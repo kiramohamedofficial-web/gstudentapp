@@ -36,6 +36,29 @@ interface SessionContextType {
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
+const mapGradeData = (grade: any): Grade | undefined => {
+    if (!grade) return undefined;
+    return {
+        ...grade,
+        semesters: (grade.semesters || []).map((semester: any) => ({
+            ...semester,
+            units: (semester.units || []).map((unit: any) => ({
+                ...unit,
+                teacherId: unit.teacher_id, // Map snake_case to camelCase
+                lessons: (unit.lessons || []).map((lesson: any) => ({
+                    ...lesson,
+                    quizType: lesson.quiz_type,
+                    correctAnswers: lesson.correct_answers,
+                    timeLimit: lesson.time_limit,
+                    passingScore: lesson.passing_score,
+                    dueDate: lesson.due_date,
+                }))
+            }))
+        }))
+    };
+};
+
+
 export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [authError, setAuthError] = useState<string>('');
@@ -65,13 +88,14 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 }
 
                 if (profile) {
+                    const mappedGradeData = mapGradeData(profile.grades);
                     const mergedUser: User = {
                         ...(profile as any),
                         id: session.user.id,
                         email: session.user.email || profile.email,
                         grade: profile.grade_id,
                         guardianPhone: profile.guardian_phone,
-                        gradeData: profile.grades as Grade,
+                        gradeData: mappedGradeData as Grade,
                     };
                     setCurrentUser(mergedUser);
                 } else {

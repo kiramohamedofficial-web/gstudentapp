@@ -189,7 +189,33 @@ export async function getUsersByRole(role: Role) { return supabase.from('profile
 export async function getSupervisors() { return getUsersByRole(Role.SUPERVISOR); }
 
 // --- 4️⃣ Grades & Levels ---
-export async function getAllGrades(): Promise<Grade[]> { const { data, error } = await supabase.from('grades').select('*, semesters(*, units(*, lessons(*)))').order('id'); if (error) console.error(error); return (data as Grade[]) || []; }
+export async function getAllGrades(): Promise<Grade[]> {
+    const { data, error } = await supabase.from('grades').select('*, semesters(*, units(*, lessons(*)))').order('id');
+    if (error) {
+        console.error('Error fetching all grades:', error);
+        return [];
+    }
+    if (!data) return [];
+
+    return data.map((grade: any) => ({
+        ...grade,
+        semesters: (grade.semesters || []).map((semester: any) => ({
+            ...semester,
+            units: (semester.units || []).map((unit: any) => ({
+                ...unit,
+                teacherId: unit.teacher_id, // Map snake_case to camelCase
+                lessons: (unit.lessons || []).map((lesson: any) => ({
+                    ...lesson,
+                    quizType: lesson.quiz_type,
+                    correctAnswers: lesson.correct_answers,
+                    timeLimit: lesson.time_limit,
+                    passingScore: lesson.passing_score,
+                    dueDate: lesson.due_date,
+                }))
+            }))
+        }))
+    })) as Grade[];
+}
 export async function getGradeById(gradeId: number) { return supabase.from('grades').select('*').eq('id', gradeId).single(); }
 export async function getGradesByLevel(level: 'Middle' | 'Secondary') { return supabase.from('grades').select('*').eq('level', level).order('id'); }
 
@@ -204,7 +230,22 @@ export async function getLessonsByGrade(gradeId: number) { return supabase.from(
 export async function getLessonsBySubject(subjectId: string) { return supabase.from('lessons').select('*').eq('unit_id', subjectId).order('id'); }
 export async function getLessonsByTeacher(teacherId: string) { return supabase.from('lessons').select('*, units!inner(teacher_id)').eq('units.teacher_id', teacherId).order('created_at', { ascending: false }); }
 export async function getLessonWithDetails(lessonId: string) { return supabase.from('lessons').select('*, units(*, semesters(*, grades(*)), teachers(*))').eq('id', lessonId).single(); }
-export async function getLessonsByUnit(unitId: string): Promise<Lesson[]> { const { data, error } = await supabase.from('lessons').select('*').eq('unit_id', unitId).order('id'); if (error) console.error(error); return (data as Lesson[]) || []; }
+export async function getLessonsByUnit(unitId: string): Promise<Lesson[]> {
+    const { data, error } = await supabase.from('lessons').select('*').eq('unit_id', unitId).order('id');
+    if (error) {
+        console.error('Error fetching lessons by unit:', error);
+        return [];
+    }
+    if (!data) return [];
+    return data.map((lesson: any) => ({
+        ...lesson,
+        quizType: lesson.quiz_type,
+        correctAnswers: lesson.correct_answers,
+        timeLimit: lesson.time_limit,
+        passingScore: lesson.passing_score,
+        dueDate: lesson.due_date,
+    })) as Lesson[];
+}
 
 // --- 7️⃣ Units ---
 export async function getAllUnits() { return supabase.from('units').select('*').order('id'); }
@@ -483,7 +524,11 @@ export const getGradesForSelection = (): {id: number, name: string, level: 'Midd
 export const getUnitsForSemester = async (gradeId: number, semesterId: string): Promise<Unit[]> => {
     const { data, error } = await supabase.from('units').select('*').eq('semester_id', semesterId).order('id', { ascending: true });
     if (error) { console.error(error); return []; }
-    return data as Unit[];
+    if (!data) return [];
+    return data.map((unit: any) => ({
+        ...unit,
+        teacherId: unit.teacher_id,
+    })) as Unit[];
 };
 
 // Kept synchronous version for components that rely on it
@@ -714,11 +759,26 @@ export const deleteFeaturedBook = async (id: string) => supabase.from('featured_
 export const addFeaturedCourse = async (course: any) => supabase.from('featured_courses').insert(course);
 export const updateFeaturedCourse = async (course: any) => supabase.from('featured_courses').update(course).eq('id', course.id);
 export const deleteFeaturedCourse = async (id: string) => supabase.from('featured_courses').delete().eq('id', id);
-export const addUnitToSemester = async (gradeId: number, semesterId: string, unitData: Omit<Unit, 'id'|'lessons'>) => supabase.from('units').insert({ ...unitData, semester_id: semesterId }).select().single();
+export const addUnitToSemester = async (gradeId: number, semesterId: string, unitData: Omit<Unit, 'id'|'lessons'>) => {
+    const payload = { ...unitData, semester_id: semesterId };
+    if (payload.teacherId) {
+        (payload as any).teacher_id = payload.teacherId;
+        delete (payload as any).teacherId;
+    }
+    return supabase.from('units').insert(payload).select().single();
+};
 export const addLessonToUnit = async (gradeId: number, semesterId: string, unitId: string, lessonData: Omit<Lesson, 'id'>) => supabase.from('lessons').insert({ ...lessonData, unit_id: unitId }).select().single();
 export const updateLesson = async (gradeId: number, semesterId: string, unitId: string, updatedLesson: Lesson) => supabase.from('lessons').update(updatedLesson).eq('id', updatedLesson.id);
 export const deleteLesson = async (gradeId: number, semesterId: string, unitId: string, lessonId: string) => supabase.from('lessons').delete().eq('id', lessonId);
-export const updateUnit = async (gradeId: number, semesterId: string, updatedUnit: Partial<Unit> & { id: string }) => supabase.from('units').update(updatedUnit).eq('id', updatedUnit.id);
+export const updateUnit = async (gradeId: number, semesterId: string, updatedUnit: Partial<Unit> & { id: string }) => {
+    const payload = { ...updatedUnit };
+    if (payload.teacherId) {
+        (payload as any).teacher_id = payload.teacherId;
+        delete payload.teacherId;
+    }
+    delete (payload as any).lessons;
+    return supabase.from('units').update(payload).eq('id', updatedUnit.id);
+};
 export const deleteUnit = async (gradeId: number, semesterId: string, unitId: string) => supabase.from('units').delete().eq('id', unitId);
 // The functions below were in the original file but are now superseded by the guide's functions.
 // They are kept here commented out for reference but can be removed.
