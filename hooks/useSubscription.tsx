@@ -10,6 +10,8 @@ interface SubscriptionContextType {
     isLoading: boolean;
     refetchSubscription: () => void;
     notifications: AppNotification[];
+    activeSubscriptions: Subscription[];
+    isComprehensive: boolean;
 }
 
 const SubscriptionContext = createContext<SubscriptionContextType | undefined>(undefined);
@@ -24,8 +26,18 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
         if (currentUser) {
             setIsLoading(true);
             try {
-                const subs = await getSubscriptionsByUserId(currentUser.id);
-                setSubscriptions(subs);
+                const subsData = await getSubscriptionsByUserId(currentUser.id);
+                // FIX: Map snake_case fields from DB to camelCase fields in the frontend type.
+                const mappedSubs = subsData.map((sub: any) => ({
+                    id: sub.id,
+                    userId: sub.user_id,
+                    plan: sub.plan,
+                    startDate: sub.start_date,
+                    endDate: sub.end_date,
+                    status: sub.status,
+                    teacherId: sub.teacher_id,
+                }));
+                setSubscriptions(mappedSubs);
             } catch (error) {
                 console.error("Failed to fetch subscriptions:", error);
                 setSubscriptions([]); // Reset to empty on error to ensure a consistent state
@@ -53,13 +65,13 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
                     const diffTime = endDate.getTime() - now.getTime();
                     const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-                    if (daysRemaining <= 7 && daysRemaining >= 0) {
+                    if (daysRemaining <= 5 && daysRemaining >= 0) {
                         let remainingText: string;
                         if (daysRemaining === 0) {
                             remainingText = 'اشتراكك ينتهي اليوم! جدده الآن للاستمرار في الوصول للمحتوى.';
                         } else {
                             const dayWord = daysRemaining === 1 ? 'يوم واحد' : daysRemaining === 2 ? 'يومان' : `${daysRemaining} أيام`;
-                            remainingText = `اشتراكك على وشك الانتهاء! متبقي ${dayWord}. جدد الآن لتجنب انقطاع الخدمة.`;
+                            remainingText = `⚠️ تنبيه: اشتراكك الحالي سينتهي بعد ${dayWord}. لا تنسَ التجديد لضمان استمرار الوصول إلى محتواك!`;
                         }
                         
                         newNotifications.push({
@@ -78,15 +90,22 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
         }
     }, [subscriptions]);
     
+    const activeSubscriptions = useMemo(() => {
+        return subscriptions.filter(s => s.status === 'Active' && new Date(s.endDate) >= new Date());
+    }, [subscriptions]);
+
+    const isComprehensive = useMemo(() => {
+        return activeSubscriptions.some(s => !s.teacherId);
+    }, [activeSubscriptions]);
+    
     // Determine the primary subscription for display purposes
     const primarySubscription = useMemo(() => {
         if (subscriptions.length === 0) return null;
-        const activeSubs = subscriptions.filter(s => s.status === 'Active' && new Date(s.endDate) >= new Date());
-        if (activeSubs.length === 0) return subscriptions[0]; // return the most recent (expired) one
+        if (activeSubscriptions.length === 0) return subscriptions[0]; // return the most recent (expired) one
         // Prioritize comprehensive subscription
-        const comprehensive = activeSubs.find(s => !s.teacherId);
-        return comprehensive || activeSubs[0];
-    }, [subscriptions]);
+        const comprehensive = activeSubscriptions.find(s => !s.teacherId);
+        return comprehensive || activeSubscriptions[0];
+    }, [subscriptions, activeSubscriptions]);
     
     const value = {
         subscriptions,
@@ -94,6 +113,8 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
         isLoading,
         refetchSubscription: fetchSubscription,
         notifications,
+        activeSubscriptions,
+        isComprehensive,
     };
 
     return <SubscriptionContext.Provider value={value}>{children}</SubscriptionContext.Provider>;

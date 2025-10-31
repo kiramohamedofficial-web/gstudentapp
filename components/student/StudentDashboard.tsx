@@ -1,10 +1,10 @@
 import React, { useState, useMemo, useEffect, lazy, Suspense, useCallback } from 'react';
-import { Unit, Lesson, StudentView, Theme, Teacher, Course } from '../../types';
-import { getGradeById } from '../../services/storageService';
+import { Unit, Lesson, StudentView, Theme, Teacher, Course, ToastType } from '../../types';
 import StudentLayout from '../layout/StudentLayout';
 import { SparklesIcon } from '../common/Icons';
 import { useSession } from '../../hooks/useSession';
 import Loader from '../common/Loader';
+import { useToast } from '../../useToast';
 
 // Lazy load all view components for performance optimization
 const CourseView = lazy(() => import('./CourseView'));
@@ -19,7 +19,6 @@ const SingleSubjectSubscription = lazy(() => import('./SingleSubjectSubscription
 const ComprehensiveSubscription = lazy(() => import('./ComprehensiveSubscription'));
 const ResultsView = lazy(() => import('./ResultsView'));
 const ChatbotView = lazy(() => import('./ChatbotView'));
-const AskTheProfView = lazy(() => import('./AskTheProfView'));
 const AdhkarView = lazy(() => import('./AdhkarView'));
 const CartoonMoviesView = lazy(() => import('./CartoonMoviesView'));
 const CourseDetailView = lazy(() => import('./CourseDetailView'));
@@ -41,13 +40,18 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
   const { currentUser: user } = useSession();
   const [activeView, setActiveView] = useState<StudentView>('home');
   const [isDataSaverEnabled, setIsDataSaverEnabled] = useState(false);
+  const { addToast } = useToast();
 
   useEffect(() => {
     performance.mark('student-dashboard-render');
+     if (user && user.grade === null && activeView !== 'profile') {
+        setActiveView('profile');
+        addToast("الرجاء إكمال بياناتك وتحديد الصف الدراسي للوصول للمنهج.", ToastType.INFO);
+    }
     return () => {
         performance.clearMarks('student-dashboard-render');
     };
-  }, []);
+  }, [user, activeView, addToast]);
 
   useEffect(() => {
     const savedDataSaver = localStorage.getItem('dataSaverEnabled');
@@ -59,22 +63,32 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
     setIsDataSaverEnabled(enabled);
   };
   
-  const studentGrade = useMemo(() => user ? getGradeById(user.grade) : null, [user]);
+  const studentGrade = useMemo(() => user?.gradeData ?? null, [user]);
   const [selectedUnit, setSelectedUnit] = useState<Unit | null>(null);
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [initialLesson, setInitialLesson] = useState<Lesson | null>(null);
 
   const handleNavClick = useCallback((view: StudentView) => {
+    if (user && user.grade === null && view === 'grades') {
+        addToast("يجب تحديد صفك الدراسي أولاً من ملفك الشخصي.", ToastType.ERROR);
+        setActiveView('profile');
+        return;
+    }
     setSelectedUnit(null);
     setInitialLesson(null);
     setSelectedTeacher(null);
     setSelectedCourse(null);
     setActiveView(view);
-  }, []);
+  }, [user, addToast]);
   
   const handleHomeNavigation = useCallback((view: StudentView, data?: { unit?: Unit; lesson?: Lesson; teacher?: Teacher; course?: Course; }) => {
       if (view === 'grades' && data?.unit) {
+          if (user && user.grade === null) {
+              addToast("يجب تحديد صفك الدراسي أولاً من ملفك الشخصي.", ToastType.ERROR);
+              setActiveView('profile');
+              return;
+          }
           setSelectedUnit(data.unit);
           setInitialLesson(data.lesson);
           setActiveView('grades');
@@ -87,7 +101,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
       } else {
           setActiveView(view);
       }
-  }, []);
+  }, [user, addToast]);
 
   const handleSubjectSelect = (unit: Unit) => {
     setSelectedUnit(unit);
@@ -106,11 +120,11 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
   }
 
   const renderContent = () => {
-    if (activeView === 'grades' && !studentGrade) {
+    if (activeView === 'grades' && !studentGrade && user?.grade) {
         return (
             <div className="text-center p-12 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-primary)]">
                 <p className="text-xl font-bold text-red-500">خطأ في عرض المنهج</p>
-                <p className="text-[var(--text-secondary)] mt-2">لا يمكن العثور على بيانات الصف الدراسي الخاص بك. يرجى التواصل مع الدعم الفني.</p>
+                <p className="text-[var(--text-secondary)] mt-2">لا يمكن العثور على بيانات الصف الدراسي الخاص بك. يرجى تحديثها من <button onClick={() => setActiveView('profile')} className="font-bold text-[var(--accent-primary)] underline">ملفك الشخصي</button>.</p>
             </div>
         );
     }
@@ -126,7 +140,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
             user={user}
             grade={studentGrade!} 
             onSubjectSelect={handleSubjectSelect} 
-            onBack={() => setActiveView('home')} 
         />;
       case 'teacherProfile':
         return selectedTeacher ? (
@@ -159,8 +172,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
         return <CartoonMoviesView onBack={() => setActiveView('home')} />;
       case 'chatbot':
         return <ChatbotView onNavigate={setActiveView} />;
-      case 'askTheProf':
-        return <AskTheProfView />;
       case 'adhkar':
         return <AdhkarView />;
       case 'courses':

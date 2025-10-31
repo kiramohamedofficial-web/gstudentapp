@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Grade, Unit, Lesson, LessonType, ToastType, User, StudentView } from '../../types';
-import { getStudentProgress, markLessonComplete } from '../../services/storageService';
+import { getStudentProgress, markLessonComplete, getLessonsByUnit } from '../../services/storageService';
 import { useToast } from '../../useToast';
 import LessonView from './LessonView';
 import { BookOpenIcon, PencilIcon, CheckCircleIcon, VideoCameraIcon, DocumentTextIcon, ArrowRightIcon, ChevronDownIcon, PlaySolidIcon } from '../common/Icons';
+import Loader from '../common/Loader';
 
 interface GroupedLesson {
     baseTitle: string;
@@ -75,7 +76,7 @@ const LessonPartCard: React.FC<{ lesson: Lesson; onSelect: (lesson: Lesson) => v
         [LessonType.SUMMARY]: { icon: DocumentTextIcon, action: 'قراءة' },
     };
     
-    const { icon: Icon, action } = typeInfo[lesson.type];
+    const { icon: Icon, action } = typeInfo[lesson.type] || typeInfo[LessonType.EXPLANATION];
 
     return (
         <button 
@@ -155,9 +156,13 @@ const CourseView: React.FC<CourseViewProps> = ({ grade, unit, user, onBack, onNa
   const [userProgress, setUserProgress] = useState<Record<string, boolean>>({});
   const [openAccordion, setOpenAccordion] = useState<string | null>(null);
   const { addToast } = useToast();
+  
+  const [lessonsForUnit, setLessonsForUnit] = useState<Lesson[]>(unit.lessons || []);
+  const [isLoadingLessons, setIsLoadingLessons] = useState(false);
 
     useEffect(() => {
-        const fetchProgress = async () => {
+        const fetchProgressAndLessons = async () => {
+            setIsLoadingLessons(true);
             const progressData = await getStudentProgress(user.id);
             if (progressData) {
                 const progressMap = progressData.reduce((acc, item) => {
@@ -166,9 +171,17 @@ const CourseView: React.FC<CourseViewProps> = ({ grade, unit, user, onBack, onNa
                 }, {} as Record<string, boolean>);
                 setUserProgress(progressMap);
             }
+
+            if (!unit.lessons || unit.lessons.length === 0) {
+                const fetchedLessons = await getLessonsByUnit(unit.id);
+                setLessonsForUnit(fetchedLessons);
+            } else {
+                setLessonsForUnit(unit.lessons);
+            }
+            setIsLoadingLessons(false);
         };
-        fetchProgress();
-    }, [user.id]);
+        fetchProgressAndLessons();
+    }, [user.id, unit]);
 
   useEffect(() => {
     if (initialLesson) {
@@ -184,9 +197,13 @@ const CourseView: React.FC<CourseViewProps> = ({ grade, unit, user, onBack, onNa
         summaries: Lesson[]
     }> = {};
 
-    unit.lessons.forEach(lesson => {
-        const titleWithoutPrefix = lesson.title.replace(/^(شرح|واجب|امتحان|ملخص)\s/, '').trim();
-        const baseTitle = titleWithoutPrefix.split(/[:\-(]/)[0].trim();
+    (lessonsForUnit || []).forEach(lesson => {
+        const titleWithoutPrefix = lesson.title.replace(/^(شرح|واجب|امتحان|ملخص)\s/i, '').trim();
+        const baseTitle = titleWithoutPrefix
+            .replace(/\s*-\s*$/,'')
+            .replace(/\s*(homework|exam|quiz|واجب|امتحان)\s*$/i, '')
+            .split(/[:\-(]/)[0]
+            .trim();
 
         if (!lessonGroups[baseTitle]) {
             lessonGroups[baseTitle] = { explanations: [], homeworks: [], exams: [], summaries: [] };
@@ -208,15 +225,20 @@ const CourseView: React.FC<CourseViewProps> = ({ grade, unit, user, onBack, onNa
         }
     });
 
-    return Object.entries(lessonGroups).map(([baseTitle, parts]) => {
+    const unsortedGroupedLessons = Object.entries(lessonGroups).map(([baseTitle, parts]) => {
+        const sorter = (a: Lesson, b: Lesson) => a.title.localeCompare(b.title, 'ar-EG', { numeric: true });
+        
+        parts.explanations.sort(sorter);
+        parts.homeworks.sort(sorter);
+        parts.exams.sort(sorter);
+        parts.summaries.sort(sorter);
+        
         const lessonParts = [
             ...parts.explanations,
             ...parts.homeworks,
             ...parts.exams,
             ...parts.summaries
         ];
-        // Sort explanations to keep order consistent if admin adds them out of order
-        parts.explanations.sort((a, b) => a.title.localeCompare(b.title));
         
         const completedCount = lessonParts.filter(p => !!userProgress[p.id]).length;
         const totalParts = lessonParts.length;
@@ -233,13 +255,26 @@ const CourseView: React.FC<CourseViewProps> = ({ grade, unit, user, onBack, onNa
             totalParts,
         };
     });
-  }, [unit.lessons, userProgress]);
+    
+    // Sort the final array of grouped lessons to ensure correct order
+    return unsortedGroupedLessons.sort((a, b) => {
+        const numA = parseInt(a.baseTitle.match(/\d+/)?.[0] || '0');
+        const numB = parseInt(b.baseTitle.match(/\d+/)?.[0] || '0');
+        if (numA > 0 && numB > 0 && numA !== numB) {
+            return numA - numB;
+        }
+        return a.baseTitle.localeCompare(b.baseTitle, 'ar-EG');
+    });
+
+  }, [lessonsForUnit, userProgress]);
   
   const overallProgress = useMemo(() => {
-    const allUnitsForTrack = grade.semesters.flatMap(s => s.units.filter(u =>
-        !u.track || u.track === 'All' || u.track === user.track
-    ));
-    const allLessons = allUnitsForTrack.flatMap(u => u.lessons);
+    const allUnitsForTrack = (grade.semesters || []).flatMap(s => (s.units || []).filter(unit => {
+        if (!unit.track || unit.track === 'All') return true;
+        if (user.track === 'Scientific' && (unit.track === 'Scientific' || unit.track === 'Science' || unit.track === 'Math')) return true;
+        return unit.track === user.track;
+    }));
+    const allLessons = allUnitsForTrack.flatMap(u => (u.lessons || []));
     if (allLessons.length === 0) return 0;
     const completedCount = allLessons.filter(lesson => userProgress[lesson.id]).length;
     return Math.round((completedCount / allLessons.length) * 100);
@@ -281,12 +316,12 @@ const CourseView: React.FC<CourseViewProps> = ({ grade, unit, user, onBack, onNa
           <div className="w-full md:w-auto md:order-1 order-2">
               <div className="bg-[rgba(var(--bg-secondary-rgb),0.5)] border border-[var(--border-primary)] rounded-2xl p-6 text-center shadow-lg backdrop-blur-sm w-full md:w-48">
                   <p className="text-md text-[var(--text-secondary)] mb-2">معدل الإنجاز الكلي</p>
-                  <p className="text-5xl font-black text-gradient-purple-blue">{overallProgress}%</p>
+                  <p className="text-5xl font-black text-[var(--text-primary)]">{overallProgress}%</p>
               </div>
           </div>
           <div className="flex-1 text-right md:order-2 order-1">
               <h1 className="text-4xl md:text-5xl font-black text-[var(--text-primary)] leading-tight">
-                  الدروس <span className="text-gradient-purple">والمحتوى</span> <span className="text-gradient-blue">التعليمي</span>
+                  الدروس والمحتوى التعليمي
               </h1>
               <p className="text-md text-[var(--text-secondary)] mt-2">
                   {grade.name} - {unit.title}
@@ -294,7 +329,9 @@ const CourseView: React.FC<CourseViewProps> = ({ grade, unit, user, onBack, onNa
           </div>
       </div>
       
-      {groupedLessons.length > 0 ? (
+      {isLoadingLessons ? (
+          <div className="flex justify-center items-center h-64"><Loader /></div>
+      ) : groupedLessons.length > 0 ? (
         <div className="space-y-4">
           {groupedLessons.map((groupedLesson, index) => (
             <LessonAccordionItem

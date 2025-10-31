@@ -1,16 +1,27 @@
 import React from 'react';
 
-// Mock data for the last 6 months
-const chartData = [
-  { month: 'فبراير', revenue: 1200 },
-  { month: 'مارس', revenue: 1800 },
-  { month: 'أبريل', revenue: 1500 },
-  { month: 'مايو', revenue: 2200 },
-  { month: 'يونيو', revenue: 2500 },
-  { month: 'يوليو', revenue: 3100 },
-];
+interface ChartDataPoint {
+  month: string;
+  revenue: number;
+}
 
-const RevenueChart: React.FC = () => {
+interface RevenueChartProps {
+  data: ChartDataPoint[];
+}
+
+
+const RevenueChart: React.FC<RevenueChartProps> = ({ data: chartData }) => {
+  if (!chartData || chartData.length === 0) {
+    return (
+      <div className="w-full h-64 flex items-center justify-center text-center text-[var(--text-secondary)]">
+        <div className="text-center">
+          <p>لا توجد بيانات إيرادات لعرضها.</p>
+          <p className="text-xs">سيظهر الرسم البياني هنا عند وجود اشتراكات.</p>
+        </div>
+      </div>
+    );
+  }
+
   const chartWidth = 500;
   const chartHeight = 200;
   const paddingY = 30;

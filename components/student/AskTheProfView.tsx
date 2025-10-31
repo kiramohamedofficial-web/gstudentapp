@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { User, StudentQuestion, ToastType } from '../../types';
-import { getStudentQuestionsByUserId, addStudentQuestion } from '../../services/storageService';
+import { getStudentQuestions, addStudentQuestion } from '../../services/storageService';
 import { useToast } from '../../useToast';
 import { ClockIcon, CheckCircleIcon, ChevronDownIcon } from '../common/Icons';
 import { useSession } from '../../hooks/useSession';
@@ -49,7 +49,7 @@ const AskTheProfView: React.FC = () => {
     useEffect(() => {
         if (!user) return;
         const fetchQuestions = async () => {
-            const data = await getStudentQuestionsByUserId(user.id);
+            const data = await getStudentQuestions(user.id);
             setQuestions(data);
         };
         fetchQuestions();
@@ -64,7 +64,7 @@ const AskTheProfView: React.FC = () => {
             await addStudentQuestion(user.id, user.name, newQuestion.trim());
             addToast('تم إرسال سؤالك بنجاح!', ToastType.SUCCESS);
             setNewQuestion('');
-            const updatedQuestions = await getStudentQuestionsByUserId(user.id);
+            const updatedQuestions = await getStudentQuestions(user.id);
             setQuestions(updatedQuestions);
         } catch (error) {
             addToast('حدث خطأ أثناء إرسال سؤالك.', ToastType.ERROR);

@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { User } from '../../types';
-import { CollectionIcon, QrcodeIcon, CreditCardIcon, HomeIcon, XIcon, TemplateIcon, CogIcon, LogoutIcon, UsersIcon, UserCircleIcon, BellIcon, QuestionMarkCircleIcon, CurrencyDollarIcon, BookOpenIcon, HardDriveIcon } from '../common/Icons';
+import { CollectionIcon, QrcodeIcon, CreditCardIcon, HomeIcon, XIcon, TemplateIcon, CogIcon, LogoutIcon, UsersIcon, UserCircleIcon, BellIcon, CurrencyDollarIcon, BookOpenIcon, HardDriveIcon, ChartBarIcon } from '../common/Icons';
 import { getPendingSubscriptionRequestCount } from '../../services/storageService';
 
-type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'courseManagement' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers' | 'subscriptionPrices' | 'deviceManagement' | 'content';
+type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'courseManagement' | 'tools' | 'homeManagement' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers' | 'subscriptionPrices' | 'deviceManagement' | 'content' | 'accountCreationDiagnostics' | 'teacherCreationDiagnostics' | 'financials';
 
 const SystemHealthIcon: React.FC<{ className?: string }> = ({ className }) => (
     <img src="https://g.top4top.io/p_3584g68tl0.png" alt="System Health" className={className} />
@@ -25,9 +25,9 @@ const mainNavItems = [
     { id: 'courseManagement', label: 'إدارة الكورسات', icon: BookOpenIcon },
     { id: 'homeManagement', label: 'إدارة الرئيسية', icon: TemplateIcon },
     { id: 'subscriptions', label: 'الاشتراكات', icon: CreditCardIcon },
+    { id: 'financials', label: 'التقارير المالية', icon: ChartBarIcon },
     { id: 'subscriptionPrices', label: 'أسعار الاشتراكات', icon: CurrencyDollarIcon },
     { id: 'tools', label: 'أكواد الاشتراكات', icon: QrcodeIcon },
-    { id: 'questionBank', label: 'بنك الأسئلة', icon: QuestionMarkCircleIcon },
 ];
 
 const settingsNavItems = [

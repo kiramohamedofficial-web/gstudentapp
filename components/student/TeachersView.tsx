@@ -2,10 +2,12 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { getAllTeachers } from '../../services/storageService';
 import { Teacher } from '../../types';
 import Loader from '../common/Loader';
+import { useSubscription } from '../../hooks/useSubscription';
+import { useSession } from '../../hooks/useSession';
 
 const TeacherCard: React.FC<{ teacher: Teacher; onClick: () => void; }> = ({ teacher, onClick }) => (
     <button onClick={onClick} className="w-full text-center bg-[var(--bg-secondary)] rounded-xl shadow-md border border-[var(--border-primary)] p-6 transition-transform transform hover:-translate-y-2 group">
-        <img src={teacher.imageUrl} alt={teacher.name} className="w-28 h-28 rounded-full mx-auto mb-4 border-4 border-[var(--bg-tertiary)] group-hover:border-[var(--accent-primary)] transition-colors duration-300" />
+        <img src={teacher.imageUrl || `https://i.ibb.co/k5y5nJg/imgbb-com-image-not-found.png`} alt={teacher.name} className="w-28 h-28 rounded-full mx-auto mb-4 border-4 border-[var(--bg-tertiary)] group-hover:border-[var(--accent-primary)] transition-colors duration-300 object-cover" />
         <h3 className="text-xl font-bold text-[var(--text-primary)]">{teacher.name}</h3>
         <p className="text-[var(--text-secondary)]">{teacher.subject}</p>
     </button>
@@ -18,6 +20,8 @@ interface TeachersViewProps {
 const TeachersView: React.FC<TeachersViewProps> = ({ onSelectTeacher }) => {
     const [teachers, setTeachers] = useState<Teacher[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const { isComprehensive, activeSubscriptions } = useSubscription();
+    const { currentUser } = useSession();
 
     useEffect(() => {
         const fetchTeachers = async () => {
@@ -27,6 +31,24 @@ const TeachersView: React.FC<TeachersViewProps> = ({ onSelectTeacher }) => {
         };
         fetchTeachers();
     }, []);
+
+    const filteredTeachers = useMemo(() => {
+        let displayTeachers = teachers;
+        
+        // Filter by student's grade
+        if (currentUser?.grade) {
+            displayTeachers = displayTeachers.filter(t => 
+                t.teachingGrades?.includes(currentUser.grade!)
+            );
+        }
+
+        if (isComprehensive || activeSubscriptions.length === 0) {
+            return displayTeachers;
+        }
+        const subscribedTeacherIds = new Set(activeSubscriptions.map(s => s.teacherId));
+        return displayTeachers.filter(t => subscribedTeacherIds.has(t.id));
+    }, [teachers, isComprehensive, activeSubscriptions, currentUser]);
+
 
     if (isLoading) {
         return (
@@ -42,7 +64,7 @@ const TeachersView: React.FC<TeachersViewProps> = ({ onSelectTeacher }) => {
              <p className="text-md text-[var(--text-secondary)] mb-8">تصفح قائمة المدرسين الخبراء لدينا واختر من يناسبك.</p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                {teachers.map((teacher, index) => (
+                {filteredTeachers.map((teacher, index) => (
                     <div key={teacher.id} className="fade-in" style={{ animationDelay: `${index * 100}ms` }}>
                         <TeacherCard teacher={teacher} onClick={() => onSelectTeacher(teacher)} />
                     </div>

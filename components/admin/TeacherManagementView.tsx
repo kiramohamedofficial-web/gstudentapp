@@ -1,9 +1,6 @@
-
-
-
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Teacher, ToastType, Grade, User } from '../../types';
-import { getAllTeachers, createTeacher, updateTeacher, deleteTeacher, getAllGrades, getAllUsers, supabase } from '../../services/storageService';
+import { getAllTeachers, createTeacher, updateTeacher, deleteTeacher, getAllGrades, getUserByTeacherId, supabase } from '../../services/storageService';
 import Modal from '../common/Modal';
 import { PlusIcon, PencilIcon, TrashIcon, UserCircleIcon } from '../common/Icons';
 import { useToast } from '../../useToast';
@@ -23,7 +20,7 @@ interface TeacherModalSaveData {
     imageUrl: string;
     teachingLevels?: ('Middle' | 'Secondary')[];
     teachingGrades?: number[];
-    email: string;
+    email: string; // From phone
     phone: string;
     password?: string;
     id?: string; // for editing
@@ -35,12 +32,16 @@ const TeacherModal: React.FC<{
     onSave: (data: TeacherModalSaveData) => void;
     teacher: Teacher | null;
 }> = ({ isOpen, onClose, onSave, teacher }) => {
-    const [formData, setFormData] = useState({ name: '', subject: '', imageUrl: '', phone: '', password: '' });
+    const [formData, setFormData] = useState({ name: '', subject: '', imageUrl: '', phone: '', password: '', email: '' });
     const [selectedLevels, setSelectedLevels] = useState<('Middle' | 'Secondary')[]>([]);
     const [selectedGrades, setSelectedGrades] = useState<number[]>([]);
     const [error, setError] = useState('');
+    const [allGrades, setAllGrades] = useState<Grade[]>([]);
+    
+    useEffect(() => {
+        getAllGrades().then(grades => setAllGrades(grades));
+    }, []);
 
-    const allGrades = useMemo(() => getAllGrades(), []);
     const middleSchoolGrades = useMemo(() => allGrades.filter(g => g.level === 'Middle').sort((a,b) => a.id - b.id), [allGrades]);
     const secondarySchoolGrades = useMemo(() => allGrades.filter(g => g.level === 'Secondary').sort((a,b) => a.id - b.id), [allGrades]);
 
@@ -48,19 +49,19 @@ const TeacherModal: React.FC<{
         const loadTeacherData = async () => {
             setError('');
             if (teacher) {
-                const allUsers = await getAllUsers();
-                const teacherUser = allUsers.find(u => u.teacherId === teacher.id);
+                const profileData = await getUserByTeacherId(teacher.id);
                 setFormData({
                     name: teacher.name || '',
                     subject: teacher.subject || '',
                     imageUrl: teacher.imageUrl || '',
-                    phone: teacherUser?.phone?.replace('+2', '') || '',
+                    phone: profileData?.phone?.replace('+2', '') || '',
+                    email: profileData?.email || '',
                     password: '' // Don't pre-fill password
                 });
                 setSelectedLevels(teacher.teachingLevels || []);
                 setSelectedGrades(teacher.teachingGrades || []);
             } else {
-                setFormData({ name: '', subject: '', imageUrl: '', phone: '', password: '' });
+                setFormData({ name: '', subject: '', imageUrl: '', phone: '', password: '', email: '' });
                 setSelectedLevels([]);
                 setSelectedGrades([]);
             }
@@ -102,6 +103,11 @@ const TeacherModal: React.FC<{
             return;
         }
 
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+            setError('الرجاء إدخال بريد إلكتروني صالح.');
+            return;
+        }
+
         if (!teacher && !formData.password) {
             setError('كلمة المرور مطلوبة للمدرس الجديد.');
             return;
@@ -110,7 +116,7 @@ const TeacherModal: React.FC<{
         const saveData: TeacherModalSaveData = { 
             id: teacher?.id,
             name: formData.name,
-            email: `${formData.phone}@gstudent.com`,
+            email: formData.email,
             subject: formData.subject,
             imageUrl: formData.imageUrl,
             phone: formData.phone,
@@ -129,6 +135,10 @@ const TeacherModal: React.FC<{
                     <div>
                         <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">اسم المدرس</label>
                         <input name="name" value={formData.name} onChange={handleChange} required className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)]" />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">البريد الإلكتروني</label>
+                        <input name="email" type="email" value={formData.email} onChange={handleChange} required className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)]" />
                     </div>
                      <div>
                         <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">رقم هاتف المدرس (للدخول)</label>
@@ -230,6 +240,7 @@ const TeacherManagementView: React.FC = () => {
     const [dataVersion, setDataVersion] = useState(0);
     const [teachers, setTeachers] = useState<Teacher[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isActionLoading, setIsActionLoading] = useState(false);
     const [modalState, setModalState] = useState<{ type: 'add' | 'edit' | 'delete' | null, teacher: Teacher | null }>({ type: null, teacher: null });
     const { addToast } = useToast();
     
@@ -246,12 +257,17 @@ const TeacherManagementView: React.FC = () => {
     const refreshData = useCallback(() => setDataVersion(v => v + 1), []);
 
     const handleSave = async (data: TeacherModalSaveData) => {
-        setIsLoading(true);
+        setIsActionLoading(true);
         try {
+            let result: { success: boolean, error?: any, data?: any };
+        
             if (data.id) { // Editing
                 const { id, ...updates } = data;
-                const { success, error } = await updateTeacher(id, updates);
-                if (!success) throw error;
+                
+                if (!updates.password?.trim()) {
+                    delete updates.password;
+                }
+                result = await updateTeacher(id, updates);
     
                 if (updates.password && updates.password.trim()) {
                      const { data: profileData, error: profileError } = await supabase.from('profiles').select('id').eq('teacher_id', id).single();
@@ -261,10 +277,8 @@ const TeacherManagementView: React.FC = () => {
                          if (passwordError) throw new Error(`Failed to update password: ${passwordError.message}`);
                      }
                 }
-    
-                addToast('تم تحديث بيانات المدرس بنجاح.', ToastType.SUCCESS);
             } else { // Adding
-                const result = await createTeacher({
+                result = await createTeacher({
                     email: data.email,
                     password: data.password,
                     name: data.name,
@@ -274,21 +288,25 @@ const TeacherManagementView: React.FC = () => {
                     teaching_levels: data.teachingLevels || [],
                     image_url: data.imageUrl,
                 });
-                if (!result.success) throw result.error;
-                addToast('تمت إضافة المدرس بنجاح.', ToastType.SUCCESS);
             }
-            refreshData();
-            closeModal();
+            
+            if (!result.success) {
+                throw result.error;
+            } else {
+                addToast(data.id ? 'تم تحديث بيانات المدرس بنجاح.' : 'تمت إضافة المدرس بنجاح.', ToastType.SUCCESS);
+                refreshData();
+                closeModal();
+            }
         } catch (error: any) {
-            addToast(`❌ فشل: ${error.message || 'An unknown error occurred.'}`, ToastType.ERROR);
+             addToast(`❌ فشل: ${error.message || 'An unknown error occurred.'}`, ToastType.ERROR);
         } finally {
-            setIsLoading(false);
+            setIsActionLoading(false);
         }
     };
     
     const handleDelete = async () => {
         if (modalState.teacher) {
-            setIsLoading(true);
+            setIsActionLoading(true);
             try {
                 const { success, error } = await deleteTeacher(modalState.teacher.id);
                 if (!success) {
@@ -305,7 +323,7 @@ const TeacherManagementView: React.FC = () => {
                     addToast('حدث خطأ غير معروف أثناء الحذف.', ToastType.ERROR);
                 }
             } finally {
-                setIsLoading(false);
+                setIsActionLoading(false);
             }
         }
     };
@@ -359,8 +377,10 @@ const TeacherManagementView: React.FC = () => {
                     هل أنت متأكد من رغبتك في حذف المدرس <span className="font-bold text-[var(--text-primary)]">{modalState.teacher?.name}</span>؟
                 </p>
                 <div className="flex justify-end space-x-3 space-x-reverse">
-                    <button onClick={closeModal} className="px-4 py-2 rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] transition-colors">إلغاء</button>
-                    <button onClick={handleDelete} className="px-4 py-2 rounded-md bg-red-600 hover:bg-red-700 transition-colors text-white">نعم، قم بالحذف</button>
+                    <button onClick={closeModal} disabled={isActionLoading} className="px-4 py-2 rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] transition-colors disabled:opacity-50">إلغاء</button>
+                    <button onClick={handleDelete} disabled={isActionLoading} className="px-4 py-2 rounded-md bg-red-600 hover:bg-red-700 transition-colors text-white disabled:opacity-50">
+                        {isActionLoading ? 'جاري الحذف...' : 'نعم، قم بالحذف'}
+                    </button>
                 </div>
             </Modal>
         </div>

@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
-import { StudentView, ToastType } from '../../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { StudentView, ToastType, PlatformSettings } from '../../types';
 import { BookOpenIcon, VideoCameraIcon, SparklesIcon, ArrowRightIcon, QrcodeIcon } from '../common/Icons';
 import { useSession } from '../../hooks/useSession';
 import { useToast } from '../../useToast';
-import { redeemCode } from '../../services/storageService';
+import { redeemCode, getPlatformSettings } from '../../services/storageService';
 import { useSubscription } from '../../hooks/useSubscription';
+import Loader from '../common/Loader';
 
 interface SubscriptionViewProps {
   onNavigate: (view: StudentView) => void;
@@ -45,6 +46,31 @@ const SubscriptionView: React.FC<SubscriptionViewProps> = ({ onNavigate }) => {
     const { addToast } = useToast();
     const [code, setCode] = useState('');
     const [isRedeeming, setIsRedeeming] = useState(false);
+    const [settings, setSettings] = useState<PlatformSettings | null>(null);
+    const [isLoadingSettings, setIsLoadingSettings] = useState(true);
+
+    useEffect(() => {
+        getPlatformSettings().then(data => {
+            setSettings(data);
+            setIsLoadingSettings(false);
+        });
+    }, []);
+    
+    const availableOptions = useMemo(() => {
+        const allOptions = [
+            { id: 'singleSubject', icon: BookOpenIcon, title: "اشتراك في مادة", description: "اختر مادة محددة للاشتراك في محتواها بشكل منفصل.", view: 'singleSubjectSubscription' as StudentView },
+            { id: 'comprehensive', icon: SparklesIcon, title: "الاشتراك الشامل", description: "وصول غير محدود لجميع المواد والكورسات بباقات متنوعة.", view: 'comprehensiveSubscription' as StudentView },
+            { id: 'courses', icon: VideoCameraIcon, title: "شراء كورس", description: "احصل على وصول كامل لكورسات المراجعة والمواد الإضافية.", view: 'courses' as StudentView },
+        ];
+        
+        const enabledModes = settings?.enabledSubscriptionModes ?? ['comprehensive', 'singleSubject'];
+
+        return allOptions.filter(opt => {
+            if (opt.id === 'singleSubject') return enabledModes.includes('singleSubject');
+            if (opt.id === 'comprehensive') return enabledModes.includes('comprehensive');
+            return true;
+        });
+    }, [settings]);
 
     const handleRedeemCode = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -71,26 +97,9 @@ const SubscriptionView: React.FC<SubscriptionViewProps> = ({ onNavigate }) => {
         setIsRedeeming(false);
     };
 
-    const options = [
-        {
-            icon: BookOpenIcon,
-            title: "اشتراك في مادة",
-            description: "اختر مادة محددة للاشتراك في محتواها بشكل منفصل.",
-            view: 'singleSubjectSubscription' as StudentView
-        },
-        {
-            icon: VideoCameraIcon,
-            title: "شراء كورس",
-            description: "احصل على وصول كامل لكورسات المراجعة والمواد الإضافية.",
-            view: 'courses' as StudentView
-        },
-        {
-            icon: SparklesIcon,
-            title: "الاشتراك الشامل",
-            description: "وصول غير محدود لجميع المواد والكورسات بباقات متنوعة.",
-            view: 'comprehensiveSubscription' as StudentView
-        }
-    ];
+    if (isLoadingSettings) {
+        return <div className="flex justify-center items-center h-64"><Loader /></div>;
+    }
 
     return (
         <div className="max-w-3xl mx-auto">
@@ -99,8 +108,8 @@ const SubscriptionView: React.FC<SubscriptionViewProps> = ({ onNavigate }) => {
             </h1>
 
             <div className="space-y-5">
-                {options.map((option, index) => (
-                     <div key={index} className="fade-in" style={{ animationDelay: `${index * 100}ms` }}>
+                {availableOptions.map((option, index) => (
+                     <div key={option.id} className="fade-in" style={{ animationDelay: `${index * 100}ms` }}>
                         <SubscriptionOptionCard
                             icon={option.icon}
                             title={option.title}

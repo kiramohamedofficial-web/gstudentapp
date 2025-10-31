@@ -1,21 +1,27 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
-import { Teacher, User, StudentView, Unit, Lesson, WatchedVideo, PlatformSettings, ToastType } from '../../types';
-import { getAllTeachers, getGradeById, getStudentProgress, getPlatformSettings } from '../../services/storageService';
-import { VideoCameraIcon, ClockIcon } from '../common/Icons';
+import { Teacher, User, StudentView, Unit, Lesson, WatchedVideo, PlatformSettings, ToastType, Grade } from '../../types';
+import { getAllTeachers, getGradeByIdSync, getStudentProgress, getPlatformSettings } from '../../services/storageService';
+import { VideoCameraIcon } from '../common/Icons';
 import { useToast } from '../../useToast';
+import { useSubscription } from '../../hooks/useSubscription';
 
 interface StudentHomeScreenProps {
     user: User;
     onNavigate: (view: StudentView, data?: { unit?: Unit, lesson?: Lesson, teacher?: Teacher }) => void;
 }
 
+const WatchedHistoryIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <img src="https://k.top4top.io/p_3591i7f001.png" alt="Watched History" className={className} />
+);
+
 const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({ user, onNavigate }) => {
     const [teachers, setTeachers] = useState<Teacher[]>([]);
-    const grade = useMemo(() => getGradeById(user.grade), [user.grade]);
+    const grade = useMemo(() => user ? getGradeByIdSync(user.grade) : null, [user]);
     const [userProgress, setUserProgress] = useState<Record<string, boolean>>({});
     const [settings, setSettings] = useState<PlatformSettings | null>(null);
     const [watchedHistory, setWatchedHistory] = useState<WatchedVideo[]>([]);
     const { addToast } = useToast();
+    const { isComprehensive, activeSubscriptions } = useSubscription();
 
     const teacherMap = useMemo(() => new Map(teachers.map(t => [t.id, t])), [teachers]);
 
@@ -51,7 +57,17 @@ const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({ user, onNavigate 
     const { overallProgress, newestLessons } = useMemo(() => {
         if (!grade) return { overallProgress: 0, newestLessons: [] };
         
-        const allUnitsForTrack = grade.semesters.flatMap(s => s.units.filter(u => !u.track || u.track === 'All' || u.track === user.track));
+        const subscribedTeacherIds = new Set(activeSubscriptions.map(s => s.teacherId));
+        
+        const allUnitsForTrack = grade.semesters.flatMap(s => s.units.filter(unit => {
+            if (!unit.track || unit.track === 'All') return true;
+            if (user.track === 'Scientific' && (unit.track === 'Scientific' || unit.track === 'Science' || unit.track === 'Math')) return true;
+            return unit.track === user.track;
+        })).filter(unit => { // NEW subscription filter
+            if (isComprehensive || activeSubscriptions.length === 0) return true;
+            return subscribedTeacherIds.has(unit.teacherId);
+        });
+        
         const allLessonsForTrack = allUnitsForTrack.flatMap(u => u.lessons);
         
         const completedCount = allLessonsForTrack.filter(l => userProgress[l.id]).length;
@@ -68,7 +84,7 @@ const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({ user, onNavigate 
             overallProgress: progress, 
             newestLessons: newest
         };
-    }, [grade, user.track, userProgress]);
+    }, [grade, user.track, userProgress, isComprehensive, activeSubscriptions]);
 
      const calculateUnitProgress = useCallback((unitId: string) => {
         if (!grade) return 0;
@@ -77,9 +93,30 @@ const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({ user, onNavigate 
         const completed = unit.lessons.filter(l => userProgress[l.id]).length;
         return (completed / unit.lessons.length) * 100;
     }, [grade, userProgress]);
+    
+    const filteredWatchedHistory = useMemo(() => {
+        if (isComprehensive || activeSubscriptions.length === 0) return watchedHistory;
+        const subscribedTeacherIds = new Set(activeSubscriptions.map(s => s.teacherId));
+        return watchedHistory.filter(item => subscribedTeacherIds.has(item.teacherId));
+    }, [watchedHistory, isComprehensive, activeSubscriptions]);
+
+    const filteredTeachers = useMemo(() => {
+        let displayTeachers = teachers;
+    
+        // Filter by student's grade
+        if (user?.grade) {
+            displayTeachers = displayTeachers.filter(t => t.teachingGrades?.includes(user.grade!));
+        }
+        
+        if (isComprehensive || activeSubscriptions.length === 0) {
+            return displayTeachers;
+        }
+        const subscribedTeacherIds = new Set(activeSubscriptions.map(s => s.teacherId));
+        return displayTeachers.filter(t => subscribedTeacherIds.has(t.id));
+    }, [teachers, isComprehensive, activeSubscriptions, user?.grade]);
 
 
-    const lastWatched = watchedHistory.length > 0 ? watchedHistory[0] : null;
+    const lastWatched = filteredWatchedHistory.length > 0 ? filteredWatchedHistory[0] : null;
     const unitForLastWatched = lastWatched ? grade?.semesters.flatMap(s => s.units).find(u => u.id === lastWatched.unitId) : null;
     const lessonForLastWatched = lastWatched && unitForLastWatched ? unitForLastWatched.lessons.find(l => l.id === lastWatched.lessonId) : null;
     const progressForLastWatched = lastWatched ? calculateUnitProgress(lastWatched.unitId) : 0;
@@ -173,7 +210,7 @@ const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({ user, onNavigate 
                                 </p>
                                 <div className="lesson-meta" style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px', fontSize: '0.8rem', color: 'var(--text-muted)'}}>
                                      <span>{unit.title}</span>
-                                     <span className="flex items-center gap-1"><ClockIcon className="w-4 h-4" /> {unit.lessons.length} درس</span>
+                                     <span className="flex items-center gap-1"><WatchedHistoryIcon className="w-4 h-4" /> {unit.lessons.length} درس</span>
                                 </div>
                             </div>
                         </article>
@@ -181,18 +218,18 @@ const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({ user, onNavigate 
                 </div>
             </section>
 
-            {watchedHistory.length > 0 && (
+            {filteredWatchedHistory.length > 0 && (
             <section>
                  <header className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
                     <h2 className="section-title" style={{ fontSize: '1.4rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span className="section-title-icon">⏱️</span>
+                        <WatchedHistoryIcon className="w-6 h-6" />
                         آخر ما شاهدت
                     </h2>
                 </header>
                  <p className="section-description" style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginBottom: '20px', lineHeight: 1.5 }}>تتم مزامنة هذه البيانات تلقائيًا مع متصفحك</p>
 
                  <div className="recently-watched-grid" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px', marginBottom: '25px' }}>
-                    {watchedHistory.slice(0, 2).map((item, index) => {
+                    {filteredWatchedHistory.slice(0, 2).map((item, index) => {
                          const unit = grade?.semesters.flatMap(s => s.units).find(u => u.id === item.unitId);
                          const lesson = unit?.lessons.find(l => l.id === item.lessonId);
                          if (!unit || !lesson) return null;
@@ -230,7 +267,7 @@ const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({ user, onNavigate 
                 <p className="section-description" style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginBottom: '20px', lineHeight: 1.5 }}>افتح معرفتك مع أفضل الخبراء في مجالاتهم</p>
 
                 <div className="teachers-list" style={{ display: 'flex', gap: '15px', overflowX: 'auto', paddingBottom: '15px', scrollbarWidth: 'none', direction: 'rtl' }}>
-                    {teachers.slice(0, 5).map(teacher => (
+                    {filteredTeachers.slice(0, 5).map(teacher => (
                         <div key={teacher.id} onClick={() => onNavigate('teacherProfile', { teacher })} className="teacher-item cursor-pointer" style={{ textAlign: 'center', flexShrink: 0, width: '85px' }}>
                             <div className="teacher-avatar" style={{ width: '75px', height: '75px', borderRadius: '50%', margin: '0 auto 10px auto', backgroundColor: '#eee', backgroundSize: 'cover', backgroundPosition: 'center', border: '3px solid var(--card-bg)', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', transition: 'var(--transition)', backgroundImage: `url(${teacher.imageUrl || fallbackTeacherImage})` }}></div>
                             <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-dark)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{teacher.name}</p>

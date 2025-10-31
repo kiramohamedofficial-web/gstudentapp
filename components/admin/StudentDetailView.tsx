@@ -1,18 +1,23 @@
 import React, { useMemo, useState, useCallback, useEffect } from 'react';
-import { User, Grade, Lesson, LessonType, QuizAttempt, ToastType, Subscription } from '../../types';
+import { User, Grade, ToastType, Subscription, QuizAttempt } from '../../types';
 import { 
-    getGradeById, getSubscriptionByUserId, getQuizAttemptsByUserId, 
-    getAllGrades, getStudentProgress, updateUser, deleteUser, 
-    createOrUpdateSubscription, getGradesForSelection, clearUserDevices
+    getSubscriptionByUserId, 
+    getAllGrades, updateUser, deleteUser, 
+    createOrUpdateSubscription, getGradesForSelection, clearUserDevices,
+    getStudentProgress, getStudentQuizAttempts
 } from '../../services/storageService';
-import { ArrowRightIcon, CheckCircleIcon, ClockIcon, PencilIcon, TrashIcon, CreditCardIcon, BookOpenIcon, UsersIcon, HardDriveIcon } from '../common/Icons';
+import { ArrowRightIcon, PencilIcon, TrashIcon, CreditCardIcon, HardDriveIcon, ChartBarIcon, VideoCameraIcon, CheckCircleIcon, XCircleIcon } from '../common/Icons';
 import Modal from '../common/Modal';
 import { useToast } from '../../useToast';
+import Loader from '../common/Loader';
 
-interface OptionGroup {
-    label: string;
-    options: { value: string; label: string; }[];
-}
+const normalizePhoneNumber = (phone: string): string => {
+    if (!phone) return '';
+    const trimmed = phone.trim().replace(/\s/g, '').replace('+20', '');
+    if (trimmed.startsWith('0') && trimmed.length === 11) return trimmed;
+    if (trimmed.length === 10 && !trimmed.startsWith('0')) return '0' + trimmed;
+    return trimmed; // Return as is if format is unusual, validation will handle it
+};
 
 const SubscriptionModal: React.FC<{
     isOpen: boolean;
@@ -28,7 +33,8 @@ const SubscriptionModal: React.FC<{
         if (subscription) {
             setPlan(subscription.plan);
             setStatus(subscription.status);
-            setEndDate(subscription.endDate ? new Date(subscription.endDate).toISOString().split('T')[0] : '');
+            const dateValue = (subscription as any).end_date || subscription.endDate;
+            setEndDate(dateValue ? new Date(dateValue).toISOString().split('T')[0] : '');
         } else {
             setPlan('Monthly');
             setStatus('Active');
@@ -73,55 +79,21 @@ const SubscriptionModal: React.FC<{
     );
 };
 
-const SessionManagementCard: React.FC<{ onClear: () => void; }> = ({ onClear }) => {
-    return (
-        <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)]">
-            <h2 className="text-lg font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2"><HardDriveIcon className="w-5 h-5 text-purple-400"/> إدارة الجلسات</h2>
-             <p className="text-sm text-[var(--text-secondary)] mb-4">
-                إذا أبلغ الطالب عن عدم قدرته على تسجيل الدخول بسبب رسالة "تم تسجيل الدخول من جهاز آخر"، يمكنك استخدام هذا الزر لمسح جميع جلساته والسماح له بتسجيل الدخول من جديد.
-            </p>
-            <button 
-                onClick={onClear} 
-                className="w-full mt-2 text-center text-sm p-2 rounded-md bg-red-600/20 text-red-300 hover:bg-red-600/40 transition-colors"
-            >
-                مسح جميع الجلسات النشطة
-            </button>
+const InfoRow: React.FC<{ label: string; value?: string | null; iconClass: string; }> = ({ label, value, iconClass }) => (
+    <div className="flex justify-between items-center py-3 border-b border-[var(--border-primary)] last:border-b-0">
+        <div className="flex items-center gap-3">
+            <i className={`${iconClass} w-5 h-5 text-[var(--text-secondary)] text-center`}></i>
+            <span className="font-semibold text-[var(--text-secondary)]">{label}</span>
         </div>
-    );
-};
+        <span className="font-medium text-[var(--text-primary)] text-left" dir="ltr">{value || 'غير محدد'}</span>
+    </div>
+);
 
 
 interface StudentDetailViewProps {
   user: User;
   onBack: () => void;
 }
-
-const StatCard: React.FC<{ icon: React.FC<{className?:string}>; label: string; value: string | number; colorClass: string; }> = ({icon: Icon, label, value, colorClass}) => (
-    <div className="bg-[var(--bg-tertiary)] p-4 rounded-xl flex items-center space-x-3 space-x-reverse">
-        <div className={`p-3 rounded-lg ${colorClass.replace('text-', 'bg-').replace(']', '/10]')}`}>
-            <Icon className={`w-6 h-6 ${colorClass}`} />
-        </div>
-        <div>
-            <p className="text-sm text-[var(--text-secondary)]">{label}</p>
-            <p className="text-lg font-bold text-[var(--text-primary)]">{value}</p>
-        </div>
-    </div>
-);
-
-const deriveTrackFromGrade = (gradeId: number): 'Scientific' | 'Literary' | undefined => {
-    switch (gradeId) {
-        case 5: // الثاني الثانوي - علمي
-        case 7: // الثالث الثانوي - علمي علوم
-        case 8: // الثالث الثانوي - علمي رياضيات
-            return 'Scientific';
-        case 6: // الثاني الثانوي - أدبي
-        case 9: // الثالث الثانوي - أدبي
-            return 'Literary';
-        default:
-            return undefined;
-    }
-};
-
 
 const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) => {
   const { addToast } = useToast();
@@ -130,144 +102,109 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
   const [editFormData, setEditFormData] = useState<Partial<User>>({});
-  const [userProgress, setUserProgress] = useState<Record<string, boolean>>({});
   const [localUser, setLocalUser] = useState(user);
 
-  useEffect(() => {
-    setLocalUser(user);
-  }, [user]);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(true);
+  const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [allGrades, setAllGrades] = useState<Grade[]>([]);
+  const [progress, setProgress] = useState<{ lesson_id: string }[]>([]);
+  const [attempts, setAttempts] = useState<QuizAttempt[]>([]);
 
+  useEffect(() => { setLocalUser(user); }, [user]);
   const refreshData = useCallback(() => setDataVersion(v => v + 1), []);
   
-  const [allGrades, setAllGrades] = useState<{id: number, name: string, level: 'Middle' | 'Secondary'}[]>([]);
-  const allGradesFromCache = useMemo(() => getAllGrades(), [dataVersion]);
-  
-  const gradeName = useMemo(() => {
-    if (!localUser.grade) return 'غير محدد';
-    const gradeInfo = allGrades.find(g => g.id === localUser.grade);
-    return gradeInfo?.name || 'غير محدد';
-  }, [localUser.grade, allGrades]);
-
-  const gradeOptionsForSelect = useMemo(() => {
-    const options: (({ value: string; label: string; }) | OptionGroup)[] = [{ value: '', label: '-- غير محدد --' }];
-    const middleSchool = allGrades.filter(g => g.level === 'Middle');
-    const secondarySchool = allGrades.filter(g => g.level === 'Secondary');
-
-    if (middleSchool.length > 0) {
-        options.push({
-            label: 'المرحلة الإعدادية',
-            options: middleSchool.map(g => ({ value: g.id.toString(), label: g.name }))
+  const lessonMap = useMemo(() => {
+    const map = new Map<string, { lessonTitle: string; unitTitle: string; }>();
+    if (allGrades) {
+        allGrades.forEach(grade => {
+            (grade.semesters || []).forEach(semester => {
+                (semester.units || []).forEach(unit => {
+                    (unit.lessons || []).forEach(lesson => {
+                        map.set(lesson.id, { lessonTitle: lesson.title, unitTitle: unit.title });
+                    });
+                });
+            });
         });
     }
-    if (secondarySchool.length > 0) {
-        options.push({
-            label: 'المرحلة الثانوية',
-            options: secondarySchool.map(g => ({ value: g.id.toString(), label: g.name }))
-        });
-    }
-    return options;
+    return map;
   }, [allGrades]);
-
-  const [subscription, setSubscription] = useState<Subscription | null>(null);
-  const [quizAttempts, setQuizAttempts] = useState<QuizAttempt[]>([]);
-
-  useEffect(() => {
-    const gradesData = getGradesForSelection();
-    setAllGrades(gradesData);
-  }, []);
-
-  useEffect(() => {
-    if (!localUser) return;
-    const fetchProgress = async () => {
-        const progressData = await getStudentProgress(localUser.id);
-        if (progressData) {
-            const progressMap = progressData.reduce((acc, item) => {
-                acc[item.lesson_id] = true;
-                return acc;
-            }, {} as Record<string, boolean>);
-            setUserProgress(progressMap);
-        }
-    };
-    fetchProgress();
-  }, [localUser, dataVersion]);
 
   useEffect(() => {
     const fetchData = async () => {
-        const subPromise = getSubscriptionByUserId(localUser.id);
-        const attemptsPromise = getQuizAttemptsByUserId(localUser.id);
-        const [subData, attemptsData] = await Promise.all([subPromise, attemptsPromise]);
+        setIsLoadingDetails(true);
+        const [subData, gradesData, progressData, attemptsData] = await Promise.all([
+            getSubscriptionByUserId(localUser.id),
+            getAllGrades(),
+            getStudentProgress(localUser.id),
+            getStudentQuizAttempts(localUser.id)
+        ]);
         setSubscription(subData);
-        setQuizAttempts(attemptsData as QuizAttempt[]);
+        setAllGrades(gradesData);
+        setProgress(progressData);
+        setAttempts(attemptsData);
+        setIsLoadingDetails(false);
     };
     fetchData();
   }, [localUser.id, dataVersion]);
   
-  const lessonMap = useMemo(() => {
-    const map = new Map<string, { title: string, unit: string }>();
-    allGradesFromCache.forEach(g => {
-        g.semesters.forEach(s => {
-            s.units.forEach(u => {
-                u.lessons.forEach(l => {
-                    map.set(l.id, { title: l.title, unit: u.title });
-                });
-            });
-        });
-    });
-    return map;
-  }, [allGradesFromCache]);
+  const gradeId = (localUser as any).grade_id;
 
-  const { totalLessons, completedLessons, progress } = useMemo(() => {
-    const grade = localUser.grade ? getGradeById(localUser.grade) : null;
-    if (!grade) return { totalLessons: 0, completedLessons: 0, progress: 0 };
-    const allLessons = grade.semesters.flatMap(s => s.units.flatMap(u => u.lessons));
-    const total = allLessons.length;
-    if (total === 0) return { totalLessons: 0, completedLessons: 0, progress: 0 };
-    const completed = allLessons.filter(l => !!userProgress[l.id]).length;
-    return { totalLessons: total, completedLessons: completed, progress: Math.round((completed / total) * 100) };
-  }, [localUser.grade, userProgress, allGradesFromCache]);
+  const gradeName = useMemo(() => {
+    if (gradeId === null || gradeId === undefined) return 'غير محدد';
+    const gradeInfo = allGrades.find(g => g.id === gradeId);
+    return gradeInfo?.name || `صف غير معروف (ID: ${gradeId})`;
+  }, [gradeId, allGrades]);
 
   const handleOpenEditModal = () => {
-    setEditFormData({ ...localUser });
+    setEditFormData({ 
+        ...localUser,
+        phone: normalizePhoneNumber(localUser.phone),
+        guardianPhone: normalizePhoneNumber((localUser as any).guardian_phone),
+        grade: (localUser as any).grade_id,
+     });
     setIsEditModalOpen(true);
   };
 
   const handleEditFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setEditFormData(prev => ({ ...prev, [name]: value }));
-};
+    setEditFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  };
 
-const handleUpdateUser = async () => {
-    if (editFormData.id) {
-        if (!editFormData.name || !editFormData.phone || !editFormData.guardianPhone) {
-            addToast("الرجاء ملء جميع الحقول.", ToastType.ERROR); return;
-        }
+  const handleUpdateUser = async () => {
+    if (!editFormData.id) return;
+    if (!editFormData.name || !editFormData.phone || !editFormData.guardianPhone) {
+        addToast("الرجاء ملء جميع الحقول.", ToastType.ERROR); return;
+    }
 
-        const gradeId = editFormData.grade ? Number(editFormData.grade) : null;
-        const derivedTrack = gradeId ? deriveTrackFromGrade(gradeId) : undefined;
+    const gradeIdNum = editFormData.grade ? Number(editFormData.grade) : null;
+    
+    const result = await updateUser(editFormData.id, {
+        name: editFormData.name,
+        phone: `+20${normalizePhoneNumber(editFormData.phone)}`,
+        guardianPhone: `+20${normalizePhoneNumber(editFormData.guardianPhone)}`,
+        grade: gradeIdNum,
+    });
 
-        const { id, ...profileUpdates } = editFormData;
-
-        const result = await updateUser(editFormData.id, {
-            ...profileUpdates,
-            grade: gradeId,
-            track: derivedTrack === undefined ? null : derivedTrack,
-        });
-
-        if (result?.error) {
-            addToast(`فشل تحديث البيانات: ${result.error.message}`, ToastType.ERROR);
-        } else {
-            addToast("تم تحديث بيانات الطالب بنجاح", ToastType.SUCCESS);
-            setLocalUser(prev => ({ ...prev, ...editFormData, grade: gradeId, track: derivedTrack || null }));
-            setIsEditModalOpen(false);
-            refreshData();
-        }
+    if (result?.error) {
+        addToast(`فشل تحديث البيانات: ${result.error.message}`, ToastType.ERROR);
+    } else {
+        addToast("تم تحديث بيانات الطالب بنجاح", ToastType.SUCCESS);
+        const updatedLocalUser = {
+            ...localUser,
+            name: editFormData.name,
+            phone: `+20${normalizePhoneNumber(editFormData.phone!)}`,
+            grade_id: gradeIdNum,
+            guardian_phone: `+20${normalizePhoneNumber(editFormData.guardianPhone!)}`
+        };
+        setLocalUser(updatedLocalUser as any);
+        setIsEditModalOpen(false);
+        refreshData();
     }
   };
   
   const handleDeleteUser = async () => {
-      const result = await deleteUser(localUser.id);
-      if (result?.error) {
-          addToast(`فشل حذف الطالب: ${result.error.message}`, ToastType.ERROR);
+      const { error } = await deleteUser(localUser.id);
+      if (error) {
+          addToast(`فشل حذف الطالب: ${error.message}`, ToastType.ERROR);
       } else {
           addToast(`تم حذف الطالب ${localUser.name} بنجاح`, ToastType.SUCCESS);
           setIsDeleteModalOpen(false);
@@ -285,18 +222,33 @@ const handleUpdateUser = async () => {
     }
   };
   
-    const handleClearDevices = async () => {
-        const { error } = await clearUserDevices(localUser.id);
-        if (error) {
-            addToast(`فشل مسح الجلسات: ${error.message}`, ToastType.ERROR);
-        } else {
-            addToast('تم مسح جميع جلسات الطالب بنجاح.', ToastType.SUCCESS);
-            refreshData();
-        }
-    };
+  const handleClearDevices = async () => {
+    const { error } = await clearUserDevices(localUser.id);
+    if (error) {
+        addToast(`فشل مسح الجلسات: ${error.message}`, ToastType.ERROR);
+    } else {
+        addToast('تم مسح جميع جلسات الطالب بنجاح.', ToastType.SUCCESS);
+        refreshData();
+    }
+  };
 
-  if (!localUser) return <div>لا يمكن تحميل بيانات الطالب.</div>;
-  
+  const { subscriptionStatus, subscriptionEndDate } = useMemo(() => {
+    const endDateStr = subscription?.endDate;
+    if (!endDateStr) return { subscriptionStatus: { text: 'لا يوجد', color: 'text-gray-400' }, subscriptionEndDate: null };
+
+    const endDate = new Date(endDateStr);
+    const isDateValid = !isNaN(endDate.getTime());
+    if (!isDateValid) return { subscriptionStatus: { text: 'تاريخ غير صالح', color: 'text-yellow-400' }, subscriptionEndDate: 'Invalid Date' };
+
+    const isActive = endDate >= new Date();
+    return {
+      subscriptionStatus: isActive
+        ? { text: 'نشط', color: 'text-green-400' }
+        : { text: 'منتهي الصلاحية', color: 'text-red-400' },
+      subscriptionEndDate: endDate.toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' })
+    };
+  }, [subscription]);
+
   return (
     <div className="fade-in">
       <button onClick={onBack} className="flex items-center space-x-2 space-x-reverse mb-6 text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
@@ -304,99 +256,115 @@ const handleUpdateUser = async () => {
         <span>العودة إلى قائمة الطلاب</span>
       </button>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-        {/* Left Column - Profile & Actions */}
-        <div className="lg:col-span-1 space-y-6 lg:sticky lg:top-6">
-            <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)]">
-                <div className="flex flex-col items-center text-center">
-                    <div className="h-24 w-24 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-4xl mb-4 shadow-lg">{localUser.name.charAt(0)}</div>
-                    <h1 className="text-2xl font-bold text-[var(--text-primary)]">{localUser.name}</h1>
-                    <p className="text-[var(--text-secondary)]">{gradeName}</p>
-                </div>
-                <div className="mt-6 pt-6 border-t border-[var(--border-primary)] space-y-2 text-sm">
-                    <p className="flex justify-between"><strong>الهاتف:</strong> <span className="text-[var(--text-secondary)]">{localUser.phone}</span></p>
-                    <p className="flex justify-between"><strong>هاتف ولي الأمر:</strong> <span className="text-[var(--text-secondary)]">{localUser.guardianPhone}</span></p>
-                </div>
-                 <div className="mt-6 flex gap-2">
-                    <button onClick={handleOpenEditModal} className="flex-1 flex items-center justify-center py-2.5 text-sm font-semibold text-white bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors"><PencilIcon className="w-4 h-4 ml-2"/> تعديل</button>
-                    <button onClick={() => setIsDeleteModalOpen(true)} className="flex-1 flex items-center justify-center py-2.5 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"><TrashIcon className="w-4 h-4 ml-2"/> حذف</button>
-                </div>
-            </div>
-            <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)]">
-                <h2 className="text-lg font-bold text-[var(--text-primary)] mb-4">إدارة الاشتراك</h2>
-                <div className="space-y-3">
-                    <p>الحالة: <span className={`font-bold ml-2 ${subscription?.status === 'Active' ? 'text-green-500' : 'text-red-500'}`}>{subscription ? (subscription.status === 'Active' ? 'نشط' : 'منتهي') : 'لا يوجد'}</span></p>
-                    {subscription && <p className="text-xs text-[var(--text-secondary)]">ينتهي في: {new Date(subscription.endDate).toLocaleDateString('ar-EG')}</p>}
-                    <button onClick={() => setIsSubModalOpen(true)} className="w-full text-center text-sm p-2 rounded-md bg-purple-600/20 text-purple-400 hover:bg-purple-600/40 transition-colors flex items-center justify-center space-x-2 space-x-reverse">
-                        <CreditCardIcon className="w-5 h-5"/>
-                        <span>تعديل الاشتراك</span>
-                    </button>
-                </div>
-            </div>
-            <SessionManagementCard onClear={handleClearDevices} />
-        </div>
-
-        {/* Right Column - Data */}
-        <div className="lg:col-span-2 space-y-6">
-            <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)]">
-                <h2 className="text-lg font-bold text-[var(--text-primary)] mb-4">ملخص التقدم</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <StatCard icon={BookOpenIcon} label="إجمالي الدروس" value={totalLessons} colorClass="text-blue-400" />
-                    <StatCard icon={CheckCircleIcon} label="دروس مكتملة" value={completedLessons} colorClass="text-green-400" />
-                    <StatCard icon={ClockIcon} label="دروس متبقية" value={totalLessons - completedLessons} colorClass="text-amber-400" />
-                </div>
-            </div>
-            
-            <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)]">
-                <h2 className="text-lg font-bold text-[var(--text-primary)] mb-4">سجل الاختبارات والواجبات</h2>
-                {quizAttempts.length > 0 ? (
-                    <div className="max-h-80 overflow-y-auto pr-2 -mr-2">
-                        <table className="w-full text-right text-sm">
-                            <thead className="sticky top-0 bg-[var(--bg-secondary)]">
-                                <tr>
-                                    <th className="pb-2 font-semibold text-[var(--text-secondary)]">الاختبار</th>
-                                    <th className="pb-2 font-semibold text-[var(--text-secondary)] text-center">الدرجة</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {quizAttempts.map(attempt => (
-                                    <tr key={attempt.id} className="border-t border-[var(--border-primary)]">
-                                        <td className="py-2"><p className="font-semibold text-[var(--text-primary)] truncate">{lessonMap.get(attempt.lessonId)?.title || 'درس محذوف'}</p><p className="text-xs text-[var(--text-secondary)]">{new Date(attempt.submittedAt).toLocaleDateString('ar-EG')}</p></td>
-                                        <td className={`py-2 text-center font-bold ${attempt.isPass ? 'text-green-500' : 'text-red-500'}`}>{attempt.score}%</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                ) : ( <p className="text-center text-sm text-[var(--text-secondary)] py-4">لم يقم الطالب بأداء أي اختبارات بعد.</p> )}
-            </div>
-        </div>
+      {/* Header Card */}
+      <div className="bg-[var(--bg-secondary)] p-6 rounded-2xl shadow-lg border border-[var(--border-primary)] mb-6">
+          <div className="flex flex-col sm:flex-row items-center gap-6">
+              <div className="h-24 w-24 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-4xl flex-shrink-0 shadow-lg">{localUser.name.charAt(0)}</div>
+              <div className="flex-1 text-center sm:text-right">
+                  <h1 className="text-3xl font-bold text-[var(--text-primary)]">{localUser.name}</h1>
+                  <p className="text-[var(--text-secondary)] mt-1">{gradeName}</p>
+              </div>
+              <div className="flex gap-3 w-full sm:w-auto">
+                  <button onClick={handleOpenEditModal} className="flex-1 flex items-center justify-center py-2.5 px-4 text-sm font-semibold text-white bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors"><PencilIcon className="w-4 h-4 ml-2"/> تعديل</button>
+                  <button onClick={() => setIsDeleteModalOpen(true)} className="flex-1 flex items-center justify-center py-2.5 px-4 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"><TrashIcon className="w-4 h-4 ml-2"/> حذف</button>
+              </div>
+          </div>
       </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-1 space-y-6">
+              <div className="bg-[var(--bg-secondary)] p-6 rounded-2xl shadow-lg border border-[var(--border-primary)]">
+                  <h2 className="text-lg font-bold text-[var(--text-primary)] mb-4">البيانات الشخصية</h2>
+                  <div className="space-y-1">
+                      <InfoRow label="الاسم الكامل" value={localUser.name} iconClass="fa-solid fa-user" />
+                      <InfoRow label="الصف الدراسي" value={gradeName} iconClass="fa-solid fa-graduation-cap" />
+                      <InfoRow label="البريد الإلكتروني" value={localUser.email} iconClass="fa-solid fa-envelope" />
+                      <InfoRow label="رقم الهاتف" value={localUser.phone} iconClass="fa-solid fa-phone" />
+                      <InfoRow label="رقم ولي الأمر" value={(localUser as any).guardian_phone} iconClass="fa-solid fa-user-shield" />
+                  </div>
+              </div>
+              <div className="bg-[var(--bg-secondary)] p-6 rounded-2xl shadow-lg border border-[var(--border-primary)]">
+                  <h2 className="text-lg font-bold text-[var(--text-primary)] mb-4">إدارة الاشتراك</h2>
+                  <div className="space-y-3 text-sm">
+                      <div className="flex justify-between items-center">
+                          <strong className="text-[var(--text-secondary)]">الحالة:</strong> 
+                          <span className={`font-bold text-lg ml-2 ${subscriptionStatus.color}`}>{subscriptionStatus.text}</span>
+                      </div>
+                      {subscriptionEndDate && (
+                          <div className="flex justify-between items-center">
+                              <strong className="text-[var(--text-secondary)]">ينتهي في:</strong> 
+                              <span className="font-semibold">{subscriptionEndDate}</span>
+                          </div>
+                      )}
+                      <button onClick={() => setIsSubModalOpen(true)} className="w-full text-center text-sm p-2 rounded-md bg-purple-600/20 text-purple-400 hover:bg-purple-600/40 transition-colors flex items-center justify-center space-x-2 space-x-reverse mt-2">
+                          <CreditCardIcon className="w-5 h-5"/>
+                          <span>تعديل الاشتراك</span>
+                      </button>
+                  </div>
+              </div>
+
+              <div className="bg-[var(--bg-secondary)] p-6 rounded-2xl shadow-lg border border-[var(--border-primary)]">
+                  <h2 className="text-lg font-bold text-[var(--text-primary)] mb-4">إدارة الجلسات</h2>
+                  <p className="text-sm text-[var(--text-secondary)] mb-4">إذا أبلغ الطالب عن عدم قدرته على تسجيل الدخول، استخدم هذا الزر لمسح جميع جلساته النشطة.</p>
+                  <button onClick={handleClearDevices} className="w-full mt-2 text-center text-sm p-2 rounded-md bg-red-600/20 text-red-300 hover:bg-red-600/40 transition-colors">مسح جميع الجلسات</button>
+              </div>
+          </div>
+          
+          <div className="lg:col-span-2 bg-[var(--bg-secondary)] p-6 rounded-2xl shadow-lg border border-[var(--border-primary)]">
+                <h2 className="text-lg font-bold text-[var(--text-primary)] mb-4 flex items-center gap-3">
+                    <ChartBarIcon className="w-6 h-6 text-purple-400"/>
+                    التقدم الأكاديمي
+                </h2>
+                {isLoadingDetails ? <div className="flex justify-center items-center h-64"><Loader/></div> : (
+                    <div className="space-y-6">
+                        <div>
+                            <h3 className="font-semibold text-[var(--text-primary)] mb-2 flex items-center gap-2"><VideoCameraIcon className="w-5 h-5"/> الحصص المشاهدة ({progress.length})</h3>
+                            <div className="max-h-64 overflow-y-auto border border-[var(--border-primary)] rounded-lg">
+                                <table className="w-full text-sm text-right">
+                                    <thead className="bg-[var(--bg-tertiary)]"><tr className="sticky top-0"><th className="px-4 py-2">الدرس</th><th className="px-4 py-2">الوحدة</th></tr></thead>
+                                    <tbody>
+                                        {progress.map(p => (
+                                            <tr key={p.lesson_id} className="border-b border-[var(--border-primary)] last:border-b-0">
+                                                <td className="px-4 py-2">{lessonMap.get(p.lesson_id)?.lessonTitle || 'درس غير معروف'}</td>
+                                                <td className="px-4 py-2 text-[var(--text-secondary)]">{lessonMap.get(p.lesson_id)?.unitTitle || 'وحدة غير معروفة'}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 className="font-semibold text-[var(--text-primary)] mb-2 flex items-center gap-2"><PencilIcon className="w-5 h-5"/> الواجبات والامتحانات ({attempts.length})</h3>
+                            <div className="max-h-64 overflow-y-auto border border-[var(--border-primary)] rounded-lg">
+                                <table className="w-full text-sm text-right">
+                                    <thead className="bg-[var(--bg-tertiary)]"><tr className="sticky top-0"><th className="px-4 py-2">الاختبار</th><th className="px-4 py-2">التاريخ</th><th className="px-4 py-2 text-center">الدرجة</th><th className="px-4 py-2 text-center">الحالة</th></tr></thead>
+                                    <tbody>
+                                        {attempts.map(att => (
+                                            <tr key={att.id} className="border-b border-[var(--border-primary)] last:border-b-0">
+                                                <td className="px-4 py-2">{lessonMap.get(att.lessonId)?.lessonTitle || 'اختبار غير معروف'}</td>
+                                                <td className="px-4 py-2 text-[var(--text-secondary)]">{new Date(att.submittedAt).toLocaleDateString('ar-EG')}</td>
+                                                <td className={`px-4 py-2 text-center font-bold ${att.isPass ? 'text-green-400' : 'text-red-400'}`}>{att.score}%</td>
+                                                <td className="px-4 py-2 text-center">{att.isPass ? <CheckCircleIcon className="w-5 h-5 text-green-400 inline"/> : <XCircleIcon className="w-5 h-5 text-red-400 inline"/>}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+      </div>
+
 
        <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="تعديل بيانات الطالب">
             <div className="space-y-4">
                 <input type="text" placeholder="الاسم" name="name" value={editFormData.name || ''} onChange={handleEditFormChange} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-primary)]" />
                 <input type="text" placeholder="رقم الهاتف" name="phone" value={editFormData.phone || ''} onChange={handleEditFormChange} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-primary)]" />
                 <input type="text" placeholder="رقم ولي الأمر" name="guardianPhone" value={editFormData.guardianPhone || ''} onChange={handleEditFormChange} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-primary)]" />
-                <select
-                    name="grade"
-                    value={String(editFormData.grade || '')}
-                    onChange={handleEditFormChange}
-                    className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-primary)]"
-                >
-                    {gradeOptionsForSelect.map(item => {
-                        if ('options' in item) { // It's a group
-                            return (
-                                <optgroup key={item.label} label={item.label}>
-                                    {item.options.map(option => (
-                                        <option key={option.value} value={option.value}>{option.label}</option>
-                                    ))}
-                                </optgroup>
-                            );
-                        } else { // It's a single option at the top
-                            return <option key={item.value} value={item.value}>{item.label}</option>;
-                        }
-                    })}
+                <select name="grade" value={String(editFormData.grade || '')} onChange={handleEditFormChange} className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-primary)]">
+                    <option value="">-- غير محدد --</option>
+                    {getGradesForSelection().map(g => (<option key={g.id} value={g.id}>{g.name}</option>))}
                 </select>
                 <div className="flex justify-end pt-4"><button onClick={handleUpdateUser} className="px-5 py-2 font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700">حفظ التغييرات</button></div>
             </div>

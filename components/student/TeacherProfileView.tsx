@@ -39,108 +39,101 @@ const TeacherProfileView: React.FC<TeacherProfileViewProps> = ({ teacher, user, 
   const [teacherUnits, setTeacherUnits] = useState<Unit[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { addToast } = useToast();
-
-  const allGrades = useMemo(() => getAllGrades(), []);
+  const [allGrades, setAllGrades] = useState<Grade[]>([]);
   
   const teacherGradeNames = useMemo(() => {
-    if (!teacher.teachingGrades) return [];
+    if (!teacher.teachingGrades || allGrades.length === 0) return [];
     return teacher.teachingGrades.map(id => allGrades.find(g => g.id === id)?.name).filter(Boolean) as string[];
   }, [teacher.teachingGrades, allGrades]);
-
+  
   useEffect(() => {
     const fetchData = async () => {
-      setIsLoading(true);
-      
-      const profilePromise = getUserByTeacherId(teacher.id);
-      
-      const studentGrade = allGrades.find(g => g.id === user.grade);
-      let units: Unit[] = [];
-      if (studentGrade) {
-        units = studentGrade.semesters
-          .flatMap(s => s.units)
-          .filter(u => u.teacherId === teacher.id);
-      }
-      setTeacherUnits(units);
-      
-      const profile = await profilePromise;
-      setTeacherUserData(profile);
-      
-      setIsLoading(false);
+        setIsLoading(true);
+        const [teacherUser, gradesData] = await Promise.all([
+            getUserByTeacherId(teacher.id),
+            getAllGrades()
+        ]);
+        
+        setTeacherUserData(teacherUser);
+        setAllGrades(gradesData);
+        
+        const studentGradeData = gradesData.find(g => g.id === user.grade);
+
+        const unitsForTeacher = (studentGradeData ? studentGradeData.semesters : [])
+            .flatMap(s => s.units)
+            .filter(u => u.teacherId === teacher.id)
+            .filter(unit => {
+                if (!unit.track || unit.track === 'All') return true;
+                if (user.track === 'Scientific' && (unit.track === 'Scientific' || unit.track === 'Science' || unit.track === 'Math')) return true;
+                return unit.track === user.track;
+            });
+        
+        setTeacherUnits(unitsForTeacher);
+        setIsLoading(false);
     };
     fetchData();
-  }, [teacher.id, user.grade, allGrades]);
+  }, [teacher.id, user.grade, user.track]);
 
-  const handleCopyPhone = () => {
-    if (teacherUserData?.phone) {
-      navigator.clipboard.writeText(teacherUserData.phone);
-      addToast('تم نسخ رقم الهاتف بنجاح!', ToastType.SUCCESS);
-    }
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      addToast('تم نسخ الرقم بنجاح!', ToastType.SUCCESS);
+    }).catch(() => {
+      addToast('فشل نسخ الرقم.', ToastType.ERROR);
+    });
   };
 
+  if (isLoading) {
+    return <div className="flex justify-center items-center h-64"><Loader /></div>;
+  }
+  
   return (
-    <div className="max-w-4xl mx-auto">
+    <div>
         <button onClick={onBack} className="flex items-center space-x-2 space-x-reverse mb-6 text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
             <ArrowRightIcon className="w-4 h-4" />
-            <span>العودة</span>
+            <span>العودة إلى قائمة المدرسين</span>
         </button>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+            <div className="lg:col-span-1 space-y-6">
+                 <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)] text-center">
+                    <img src={teacher.imageUrl || 'https://i.ibb.co/k5y5nJg/imgbb-com-image-not-found.png'} alt={teacher.name} className="w-28 h-28 rounded-full object-cover mx-auto mb-4 border-4 border-[var(--bg-tertiary)]"/>
+                    <h1 className="text-2xl font-bold text-[var(--text-primary)]">{teacher.name}</h1>
+                    <p className="text-md text-[var(--text-secondary)]">{teacher.subject}</p>
+                 </div>
 
-        {isLoading ? (
-            <div className="flex justify-center items-center p-20"><Loader /></div>
-        ) : (
-            <div className="space-y-8">
-                <header className="bg-[var(--bg-secondary)] p-6 rounded-2xl shadow-lg border border-[var(--border-primary)] flex flex-col md:flex-row items-center gap-6">
-                    <img src={teacher.imageUrl} alt={teacher.name} className="w-32 h-32 md:w-40 md:h-40 rounded-full object-cover border-4 border-[var(--border-primary)] shadow-md" />
-                    <div className="text-center md:text-right">
-                        <h1 className="text-4xl font-black text-[var(--text-primary)]">{teacher.name}</h1>
-                        <p className="text-lg text-[var(--text-secondary)] mt-1">{teacher.subject}</p>
-                    </div>
-                </header>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="md:col-span-1 space-y-6">
-                        <InfoCard icon={PhoneIcon} title="معلومات التواصل">
-                            {teacherUserData?.phone ? (
-                                <div className="flex items-center justify-between bg-[var(--bg-tertiary)] p-3 rounded-lg">
-                                    <span className="font-bold text-lg tracking-wider text-[var(--text-primary)]" dir="ltr">{teacherUserData.phone}</span>
-                                    <button onClick={handleCopyPhone} className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--border-primary)] rounded-full">
-                                        <ClipboardIcon className="w-5 h-5"/>
-                                    </button>
-                                </div>
-                            ) : (
-                                <p className="text-sm text-[var(--text-secondary)]">رقم الهاتف غير متوفر.</p>
-                            )}
-                        </InfoCard>
+                 {teacherUserData?.phone && (
+                    <InfoCard icon={PhoneIcon} title="معلومات التواصل">
+                        <div className="flex justify-between items-center bg-[var(--bg-tertiary)] p-3 rounded-lg">
+                            <span className="font-mono text-lg tracking-wider">{teacherUserData.phone}</span>
+                            <button onClick={() => copyToClipboard(teacherUserData.phone)} className="p-2 text-[var(--text-secondary)] hover:text-white rounded-md hover:bg-[var(--border-primary)]">
+                                <ClipboardIcon className="w-5 h-5"/>
+                            </button>
+                        </div>
+                    </InfoCard>
+                 )}
 
-                         <InfoCard icon={BookOpenIcon} title="المواد التي يدرسها">
-                            {teacherGradeNames.length > 0 ? (
-                                <div className="flex flex-wrap gap-2">
-                                    {teacherGradeNames.map(name => (
-                                        <span key={name} className="px-3 py-1 text-xs font-semibold rounded-full bg-[var(--bg-tertiary)] text-[var(--text-secondary)]">{name}</span>
-                                    ))}
-                                </div>
-                            ) : (
-                                 <p className="text-sm text-[var(--text-secondary)]">لم يتم تحديد مواد.</p>
-                            )}
-                        </InfoCard>
+                 <InfoCard icon={BookOpenIcon} title="الصفوف الدراسية">
+                    <div className="flex flex-wrap gap-2">
+                        {teacherGradeNames.length > 0 ? teacherGradeNames.map(name => (
+                            <span key={name} className="px-3 py-1 text-sm font-semibold bg-[var(--bg-tertiary)] rounded-full">{name}</span>
+                        )) : (
+                            <p className="text-sm text-[var(--text-secondary)]">لم تحدد بعد.</p>
+                        )}
                     </div>
-                    <div className="md:col-span-2">
-                         <InfoCard icon={VideoCameraIcon} title="الدورات والمناهج المتاحة لك">
-                             {teacherUnits.length > 0 ? (
-                                <div className="space-y-3">
-                                    {teacherUnits.map(unit => (
-                                        <CourseCard key={unit.id} unit={unit} onClick={() => onNavigateToCourse(unit)} />
-                                    ))}
-                                </div>
-                             ) : (
-                                <p className="text-center text-sm text-[var(--text-secondary)] py-8">
-                                    لا توجد دورات متاحة من هذا المدرس لصفك الدراسي حاليًا.
-                                </p>
-                             )}
-                        </InfoCard>
-                    </div>
-                </div>
+                </InfoCard>
             </div>
-        )}
+
+            <div className="lg:col-span-2 bg-[var(--bg-secondary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)]">
+                <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4">المواد المتاحة</h2>
+                 <div className="space-y-3">
+                    {teacherUnits.length > 0 ? teacherUnits.map(unit => (
+                        <CourseCard key={unit.id} unit={unit} onClick={() => onNavigateToCourse(unit)} />
+                    )) : (
+                        <p className="text-center py-8 text-[var(--text-secondary)]">لا توجد مواد متاحة من هذا المدرس لصفك الدراسي حاليًا.</p>
+                    )}
+                 </div>
+            </div>
+        </div>
     </div>
   );
 };

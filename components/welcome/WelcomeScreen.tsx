@@ -242,8 +242,7 @@ const GradesSection: React.FC<{ onNavigateToLogin: () => void }> = ({ onNavigate
     const [grades, setGrades] = useState<Grade[]>([]);
 
     useEffect(() => {
-        // Data is pre-initialized in index.tsx, so we can just grab it synchronously.
-        setGrades(getAllGrades());
+        getAllGrades().then(setGrades);
     }, []);
 
     const middleSchoolGrades = grades.filter(g => g.level === 'Middle').sort((a, b) => a.id - b.id);

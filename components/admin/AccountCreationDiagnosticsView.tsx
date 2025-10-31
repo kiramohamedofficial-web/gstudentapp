@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { UserCheckIcon, ServerIcon, DatabaseIcon, ShieldCheckIcon, TrashIcon } from '../common/Icons';
-import { checkDbConnection, getAllUsers, getGradesForSelection, signUp, getProfile, updateUser, deleteUser } from '../../services/storageService';
+import { checkDbConnection, getAllUsers, getGradesForSelection, signUp, getUserById, updateUser, deleteUser } from '../../services/storageService';
 import { useToast } from '../../useToast';
 import { User, ToastType } from '../../types';
 
@@ -133,9 +133,9 @@ const AccountCreationDiagnosticsView: React.FC = () => {
             for (let i = 0; i < 5; i++) {
                 await new Promise(res => setTimeout(res, 1500));
                 addLog(`- محاولة التحقق رقم ${i + 1}...`);
-                const profile = await getProfile(authData.user.id);
+                const { data: profile } = await getUserById(authData.user.id);
                 if (profile) {
-                    initialProfile = profile;
+                    initialProfile = profile as User;
                     addLog('✅ نجاح! تم العثور على ملف المستخدم. الربط يعمل.');
                     break;
                 }
@@ -173,7 +173,7 @@ const AccountCreationDiagnosticsView: React.FC = () => {
                 addLog('✅ نجاح! تم إرسال طلب التحديث.');
                 addLog('الخطوة 5: التحقق النهائي بعد التصحيح...');
                 await new Promise(res => setTimeout(res, 1000));
-                const finalProfile = await getProfile(authData.user.id);
+                const { data: finalProfile } = await getUserById(authData.user.id);
 
                 if (finalProfile?.grade !== testGradeId || finalProfile?.track !== expectedTrack) {
                     throw new Error(`فشل التحقق النهائي بعد التصحيح. المحفوظ: grade=${finalProfile?.grade}, track='${finalProfile?.track}'`);

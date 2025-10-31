@@ -1,4 +1,4 @@
-import React, { ErrorInfo, ReactNode } from 'react';
+import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { ShieldExclamationIcon } from './Icons';
 
 interface Props {
@@ -9,8 +9,9 @@ interface State {
   hasError: boolean;
 }
 
-class ErrorBoundary extends React.Component<Props, State> {
-  // FIX: Added a constructor to properly initialize the component's state.
+class ErrorBoundary extends Component<Props, State> {
+  // FIX: Explicitly initialize state in the constructor to ensure `this.state` is available.
+  // This resolves potential `this` context issues that can lead to errors like "Property 'props' does not exist".
   constructor(props: Props) {
     super(props);
     this.state = { hasError: false };

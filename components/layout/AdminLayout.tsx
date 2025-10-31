@@ -1,9 +1,21 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { User } from '../../types';
-import { CollectionIcon, QrcodeIcon, CreditCardIcon, HomeIcon, XIcon, TemplateIcon, CogIcon, LogoutIcon, UsersIcon, UserCircleIcon, BellIcon, QuestionMarkCircleIcon, CurrencyDollarIcon, BookOpenIcon, HardDriveIcon } from '../common/Icons';
+import { QrcodeIcon, CreditCardIcon, HomeIcon, XIcon, TemplateIcon, CogIcon, LogoutIcon, BellIcon, QuestionMarkCircleIcon, CurrencyDollarIcon, BookOpenIcon, HardDriveIcon, ChartBarIcon } from '../common/Icons';
 import { getPendingSubscriptionRequestCount } from '../../services/storageService';
 
-type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'courseManagement' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers' | 'subscriptionPrices' | 'deviceManagement' | 'content';
+type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'courseManagement' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers' | 'subscriptionPrices' | 'deviceManagement' | 'content' | 'accountCreationDiagnostics' | 'teacherCreationDiagnostics' | 'financials';
+
+const ContentManagementIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <img src="https://a.top4top.io/p_3591fcsm53.png" alt="Content Management" className={className} />
+);
+
+const TeacherManagementIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <img src="https://l.top4top.io/p_3591st8vz2.png" alt="Teacher Management" className={className} />
+);
+
+const StudentManagementIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <img src="https://l.top4top.io/p_3591vsc7c1.png" alt="Student Management" className={className} />
+);
 
 const SystemHealthIcon: React.FC<{ className?: string }> = ({ className }) => (
     <img src="https://g.top4top.io/p_3584g68tl0.png" alt="System Health" className={className} />
@@ -19,12 +31,13 @@ interface AdminLayoutProps {
 
 const mainNavItems = [
     { id: 'dashboard', label: 'الرئيسية', icon: HomeIcon },
-    { id: 'students', label: 'إدارة الطلاب', icon: UsersIcon },
-    { id: 'teachers', label: 'إدارة المدرسين', icon: UserCircleIcon },
-    { id: 'content', label: 'إدارة المنهج الدراسي', icon: CollectionIcon },
+    { id: 'students', label: 'إدارة الطلاب', icon: StudentManagementIcon },
+    { id: 'teachers', label: 'إدارة المدرسين', icon: TeacherManagementIcon },
+    { id: 'content', label: 'إدارة المنهج الدراسي', icon: ContentManagementIcon },
     { id: 'courseManagement', label: 'إدارة الكورسات', icon: BookOpenIcon },
     { id: 'homeManagement', label: 'إدارة الرئيسية', icon: TemplateIcon },
     { id: 'subscriptions', label: 'الاشتراكات', icon: CreditCardIcon },
+    { id: 'financials', label: 'التقارير المالية', icon: ChartBarIcon },
     { id: 'subscriptionPrices', label: 'أسعار الاشتراكات', icon: CurrencyDollarIcon },
     { id: 'tools', label: 'أكواد الاشتراكات', icon: QrcodeIcon },
     { id: 'questionBank', label: 'بنك الأسئلة', icon: QuestionMarkCircleIcon },

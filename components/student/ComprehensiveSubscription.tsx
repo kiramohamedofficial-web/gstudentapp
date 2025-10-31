@@ -7,7 +7,7 @@ import { ArrowRightIcon, CheckIcon } from '../common/Icons';
 import { useSession } from '../../hooks/useSession';
 import Loader from '../common/Loader';
 
-type PlanName = 'Monthly' | 'Quarterly' | 'Annual';
+type PlanName = 'Monthly' | 'Quarterly' | 'SemiAnnually' | 'Annual';
 
 interface Plan {
     name: string;
@@ -30,7 +30,7 @@ const PlanCard: React.FC<{ plan: Plan, onSelect: (plan: Plan) => void }> = ({ pl
         <div className="text-center my-6">
             <span className="text-5xl font-extrabold text-[var(--text-primary)]">{plan.price}</span>
             <span className="text-md text-[var(--text-secondary)]"> / جنيه</span>
-            {plan.originalPrice && (
+            {plan.originalPrice && plan.originalPrice > plan.price && plan.savePercent && plan.savePercent > 0 && (
                 <p className="text-sm mt-2">
                     <span className="line-through text-red-400/70">{plan.originalPrice} جنيه</span>
                     <span className="font-bold text-green-400 mr-2">وفر {plan.savePercent}%</span>
@@ -60,8 +60,8 @@ const PurchaseModal: React.FC<{
     onClose: () => void;
     plan: Plan | null;
     onConfirm: (plan: PlanName, paymentNumber: string) => void;
-    vodafoneCashNumber: string;
-}> = ({ isOpen, onClose, plan, onConfirm, vodafoneCashNumber }) => {
+    paymentNumbers: string[];
+}> = ({ isOpen, onClose, plan, onConfirm, paymentNumbers }) => {
     const [paymentNumber, setPaymentNumber] = useState('');
     const [error, setError] = useState('');
 
@@ -89,8 +89,13 @@ const PurchaseModal: React.FC<{
                  <div>
                     <h4 className="font-semibold mb-2">تعليمات الدفع:</h4>
                     <p className="text-sm text-[var(--text-secondary)]">
-                        لإتمام الاشتراك، يرجى تحويل المبلغ المطلوب عبر فودافون كاش على الرقم <span className="font-bold text-[var(--text-primary)] dir-ltr d-inline-block">{vodafoneCashNumber}</span>.
+                        لإتمام الاشتراك، يرجى تحويل المبلغ المطلوب عبر فودافون كاش على أحد الأرقام التالية:
                     </p>
+                    <div className="text-center bg-[var(--bg-primary)] p-4 rounded-lg mt-2 space-y-1">
+                        {paymentNumbers.map(num => (
+                             <p key={num} className="text-xl font-bold text-[var(--text-primary)] tracking-widest">{num}</p>
+                        ))}
+                    </div>
                 </div>
                  <div>
                     <label htmlFor="paymentNumberModal" className="block font-medium text-[var(--text-secondary)] mb-2">أدخل الرقم الذي قمت بالتحويل منه:</label>
@@ -139,12 +144,27 @@ const ComprehensiveSubscription: React.FC<ComprehensiveSubscriptionProps> = ({ o
 
     const plans = useMemo((): Plan[] => {
         if (!settings) return [];
-        const { monthly, quarterly, annual } = settings.subscriptionPrices.comprehensive;
-        return [
-            { name: 'شهري', plan: 'Monthly', price: monthly, features: ['الوصول إلى جميع الدروس', 'تصحيح الواجبات', 'امتحانات شهرية'], isPopular: false },
-            { name: 'ربع سنوي', plan: 'Quarterly', price: quarterly, originalPrice: monthly * 3, savePercent: Math.round((1 - quarterly / (monthly * 3)) * 100), features: ['جميع ميزات الباقة الشهرية', 'دعم ذو أولوية', 'ملخصات قابلة للتنزيل'], isPopular: true },
-            { name: 'سنوي', plan: 'Annual', price: annual, originalPrice: monthly * 12, savePercent: Math.round((1 - annual / (monthly * 12)) * 100), features: ['جميع ميزات الباقة الربع سنوية', 'جلسات مراجعة مباشرة', 'وصول حصري للكورسات'], isPopular: false },
+        const { monthlyPrice, quarterlyPrice, semiAnnuallyPrice, annualPrice } = settings;
+        
+        const allPlansConfig: Omit<Plan, 'isPopular'>[] = [
+            { name: 'شهري', plan: 'Monthly', price: monthlyPrice, originalPrice: monthlyPrice, savePercent: 0, features: ['الوصول إلى جميع الدروس', 'تصحيح الواجبات', 'امتحانات شهرية'] },
+            { name: 'ربع سنوي', plan: 'Quarterly', price: quarterlyPrice, originalPrice: monthlyPrice * 3, savePercent: monthlyPrice > 0 ? Math.round((1 - quarterlyPrice / (monthlyPrice * 3)) * 100) : 0, features: ['جميع ميزات الباقة الشهرية', 'دعم ذو أولوية', 'ملخصات قابلة للتنزيل'] },
+            { name: 'نصف سنوي', plan: 'SemiAnnually', price: semiAnnuallyPrice, originalPrice: monthlyPrice * 6, savePercent: monthlyPrice > 0 ? Math.round((1 - semiAnnuallyPrice / (monthlyPrice * 6)) * 100) : 0, features: ['جميع ميزات الباقة الربع سنوية', 'خصم إضافي', 'متابعة دورية'] },
+            { name: 'سنوي', plan: 'Annual', price: annualPrice, originalPrice: monthlyPrice * 12, savePercent: monthlyPrice > 0 ? Math.round((1 - annualPrice / (monthlyPrice * 12)) * 100) : 0, features: ['جميع ميزات الباقة الربع سنوية', 'جلسات مراجعة مباشرة', 'وصول حصري للكورسات'] },
         ];
+        
+        const availablePlans = allPlansConfig.filter(p => p.price > 0);
+        
+        if (availablePlans.length === 0) return [];
+        
+        // Make the quarterly plan popular if it exists, otherwise the second available option.
+        const popularIndex = availablePlans.findIndex(p => p.plan === 'Quarterly');
+        const finalPopularIndex = popularIndex !== -1 ? popularIndex : (availablePlans.length > 1 ? 1 : 0);
+
+        return availablePlans.map((p, i) => ({
+            ...(p as any),
+            isPopular: i === finalPopularIndex
+        }));
     }, [settings]);
 
     const handleSelectPlan = (plan: Plan) => {
@@ -188,7 +208,7 @@ const ComprehensiveSubscription: React.FC<ComprehensiveSubscriptionProps> = ({ o
                 onClose={() => setIsModalOpen(false)}
                 plan={selectedPlan}
                 onConfirm={handleConfirmPurchase}
-                vodafoneCashNumber={settings?.paymentNumbers.vodafoneCash || ''}
+                paymentNumbers={settings?.paymentNumbers || []}
             />
         </div>
     );

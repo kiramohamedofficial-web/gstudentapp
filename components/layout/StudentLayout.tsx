@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { StudentView, Subscription, Theme, AppNotification } from '../../types';
-import { HomeIcon, UserCircleIcon, CreditCardIcon, UsersIcon, LogoutIcon, TemplateIcon, XIcon, SparklesIcon, ChartBarIcon, BrainIcon, BellIcon, CogIcon, QuestionMarkCircleIcon, MoonIcon, ShieldCheckIcon, ShieldExclamationIcon } from '../common/Icons';
+import { UserCircleIcon, CreditCardIcon, UsersIcon, LogoutIcon, TemplateIcon, XIcon, SparklesIcon, ChartBarIcon, BrainIcon, BellIcon, CogIcon, MoonIcon, ShieldCheckIcon, ShieldExclamationIcon } from '../common/Icons';
 import { useSession } from '../../hooks/useSession';
 import { useSubscription } from '../../hooks/useSubscription';
 
@@ -12,6 +12,10 @@ interface StudentLayoutProps {
   setTheme: (theme: Theme) => void;
   gradeName?: string;
 }
+
+const HomeBottomNavIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <img src="https://k.top4top.io/p_3591rrrv00.png" alt="الرئيسية" className={className} />
+);
 
 const CurriculumIcon: React.FC<{ className?: string }> = ({ className }) => (
     <img src="https://j.top4top.io/p_3583qcfj42.png" alt="المنهج" className={className} />
@@ -42,7 +46,7 @@ const CartoonMoviesIcon: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 const bottomNavItems = [
-    { id: 'home', label: 'الرئيسية', icon: HomeIcon },
+    { id: 'home', label: 'الرئيسية', icon: HomeBottomNavIcon },
     { id: 'grades', label: 'المنهج', icon: CurriculumIcon },
     { id: 'results', label: 'النتائج', icon: ResultsBottomNavIcon },
     { id: 'subscription', label: 'الاشتراك', icon: SubscriptionBottomNavIcon },
@@ -103,10 +107,9 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ children, onNavClick, act
     }, [subscription]);
 
     const navItems = useMemo(() => [
-        { id: 'home', label: 'الرئيسية', icon: HomeIcon },
+        { id: 'home', label: 'الرئيسية', icon: HomeBottomNavIcon },
         { id: 'smartPlan', label: 'الخطة الذكية', icon: SparklesIcon },
         { id: 'chatbot', label: 'المساعد الذكي', icon: ChatbotIcon },
-        { id: 'askTheProf', label: 'اسأل البروف', icon: QuestionMarkCircleIcon },
         { id: 'adhkar', label: 'أذكار الصباح والمساء', icon: MoonIcon },
         { id: 'cartoonMovies', label: 'افلام كرتون', icon: CartoonMoviesIcon },
         { id: 'grades', label: 'المنهج الدراسي', icon: CurriculumIcon },

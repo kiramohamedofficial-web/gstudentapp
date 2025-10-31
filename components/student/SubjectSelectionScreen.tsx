@@ -1,93 +1,71 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { Grade, Unit, User, Teacher, Lesson } from '../../types';
-import { getStudentProgress, getAllTeachers, getUnitsForSemester, getLessonsForUnit } from '../../services/storageService';
-import { ArrowRightIcon, ArrowLeftIcon } from '../common/Icons';
+import { Grade, Unit, User, Teacher } from '../../types';
+import { getStudentProgress, getAllTeachers } from '../../services/storageService';
+import { BookOpenIcon, VideoCameraIcon, PencilIcon } from '../common/Icons';
 import Loader from '../common/Loader';
+import { useSubscription } from '../../hooks/useSubscription';
 
-// --- Reusable Sub-components ---
-
-const ProgressBar: React.FC<{ progress: number }> = ({ progress }) => (
-    <div className="w-full bg-gray-700/50 rounded-full h-1.5">
+// Component for the progress bar
+const ProgressBar: React.FC<{ progress: number }> = React.memo(({ progress }) => (
+    <div className="w-full bg-[var(--bg-tertiary)] rounded-full h-2 overflow-hidden">
         <div 
-            className="bg-teal-400 h-1.5 rounded-full transition-all duration-500" 
+            className="bg-gradient-to-r from-teal-400 to-cyan-500 h-2 rounded-full transition-all duration-500 ease-out" 
             style={{ width: `${Math.round(progress)}%` }}>
         </div>
     </div>
-);
+));
 
-const TeacherSubjectCard: React.FC<{ unit: Unit; teacher?: Teacher; onClick: () => void; delay: number; progress: number; }> = ({ unit, teacher, onClick, delay, progress }) => {
+// Component for a single subject card
+const SubjectCard: React.FC<{ unit: Unit; onClick: () => void; progress: number; }> = ({ unit, onClick, progress }) => {
+    const lessonCount = unit.lessons?.filter(l => l.type === 'Explanation').length || 0;
+    const homeworkCount = unit.lessons?.filter(l => l.type === 'Homework' || l.type === 'Exam').length || 0;
+
     return (
         <button
             onClick={onClick}
-            className="bg-[var(--bg-secondary)] rounded-2xl shadow-lg border border-[var(--border-primary)] p-4 flex items-center space-x-4 space-x-reverse transition-all duration-300 transform hover:-translate-y-1.5 hover:shadow-cyan-500/10 hover:border-cyan-500/50 cursor-pointer fade-in"
-            style={{ animationDelay: `${delay}ms` }}
+            className="w-full text-right bg-[var(--bg-secondary)] p-5 rounded-xl border border-[var(--border-primary)] transition-all duration-300 transform hover:-translate-y-1 hover:border-cyan-500/50 hover:shadow-xl hover:shadow-cyan-500/10 group"
         >
-            <img 
-                src={teacher?.imageUrl || `https://i.ibb.co/k5y5nJg/imgbb-com-image-not-found.png`} 
-                alt={teacher?.name || unit.title} 
-                className="w-16 h-16 rounded-xl object-cover border-2 border-[var(--border-secondary)] flex-shrink-0" 
-            />
-            
-            <div className="flex-1 min-w-0 text-right">
-                <p className="text-sm text-[var(--text-secondary)] truncate">{unit.title}</p>
-                <h3 className="text-lg font-bold text-[var(--text-primary)] truncate">
-                    {teacher ? `أ / ${teacher.name}` : '...'}
-                </h3>
-                <div className="mt-3">
-                    <ProgressBar progress={progress} />
-                </div>
+            <h4 className="font-bold text-lg text-[var(--text-primary)] mb-3 truncate">{unit.title}</h4>
+            <div className="flex items-center space-x-4 space-x-reverse text-xs text-[var(--text-secondary)] mb-4">
+                <span className="flex items-center gap-1.5"><VideoCameraIcon className="w-4 h-4"/> {lessonCount} شرح</span>
+                <span className="flex items-center gap-1.5"><PencilIcon className="w-4 h-4"/> {homeworkCount} واجب/امتحان</span>
             </div>
-            
-            <ArrowLeftIcon className="w-6 h-6 text-[var(--text-secondary)]" />
+            <div className="flex items-center gap-3">
+                <ProgressBar progress={progress} />
+                <span className="text-xs font-semibold text-cyan-400">{Math.round(progress)}%</span>
+            </div>
         </button>
     );
 };
 
-const FilterPill: React.FC<{ label: string; isActive: boolean; onClick: () => void; }> = ({ label, isActive, onClick }) => {
-    return (
-        <button
-            onClick={onClick}
-            className={`flex-shrink-0 px-5 py-2.5 rounded-full font-bold transition-all duration-300 text-sm ${
-                isActive
-                    ? 'bg-amber-400 text-black shadow-md shadow-amber-500/20'
-                    : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--border-primary)] hover:text-[var(--text-primary)]'
-            }`}
-        >
-            <span>{label}</span>
-        </button>
-    );
-};
-
-// --- Main Component ---
-
-interface SubjectSelectionScreenProps {
+// Main component: The new Curriculum View
+interface CurriculumViewProps {
     grade: Grade;
     onSubjectSelect: (unit: Unit) => void;
-    onBack: () => void;
     user: User;
 }
 
-const SubjectSelectionScreen: React.FC<SubjectSelectionScreenProps> = ({ grade, onSubjectSelect, onBack, user }) => {
-    const [activeSemesterId, setActiveSemesterId] = useState<string>(grade.semesters[0]?.id || '');
-    const [units, setUnits] = useState<Unit[]>([]);
-    const [lessonsMap, setLessonsMap] = useState<Record<string, Lesson[]>>({});
-    const [isLoadingUnits, setIsLoadingUnits] = useState(true);
-    const [activeSubject, setActiveSubject] = useState<string>('الكل');
+const CurriculumView: React.FC<CurriculumViewProps> = ({ grade, onSubjectSelect, user }) => {
+    const { isComprehensive, activeSubscriptions } = useSubscription();
+
+    const sortedSemesters = useMemo(() => {
+        // Sort semesters (e.g., "الفصل الدراسي الأول", "الفصل الدراسي الثاني")
+        return [...(grade.semesters || [])].sort((a, b) => a.title.localeCompare(b.title, 'ar-EG'));
+    }, [grade.semesters]);
+
+    const [activeSemesterId, setActiveSemesterId] = useState<string>(sortedSemesters?.[0]?.id || '');
     const [teachers, setTeachers] = useState<Teacher[]>([]);
     const [userProgress, setUserProgress] = useState<Record<string, boolean>>({});
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const fetchTeachers = async () => {
-            const data = await getAllTeachers();
-            setTeachers(data);
-        };
-        fetchTeachers();
-    }, []);
-
-    useEffect(() => {
-        if (!user) return;
-        const fetchProgress = async () => {
-            const progressData = await getStudentProgress(user.id);
+        const fetchData = async () => {
+            setIsLoading(true);
+            const [teacherData, progressData] = await Promise.all([
+                getAllTeachers(),
+                user ? getStudentProgress(user.id) : Promise.resolve([])
+            ]);
+            setTeachers(teacherData);
             if (progressData) {
                 const progressMap = progressData.reduce((acc, item) => {
                     acc[item.lesson_id] = true;
@@ -95,101 +73,84 @@ const SubjectSelectionScreen: React.FC<SubjectSelectionScreenProps> = ({ grade, 
                 }, {} as Record<string, boolean>);
                 setUserProgress(progressMap);
             }
+            setIsLoading(false);
         };
-        fetchProgress();
+        fetchData();
     }, [user]);
 
-    useEffect(() => {
-        if (!activeSemesterId) {
-            setUnits([]);
-            setIsLoadingUnits(false);
-            return;
-        }
-        const fetchUnitsAndLessons = async () => {
-            setIsLoadingUnits(true);
-            const fetchedUnits = await getUnitsForSemester(grade.id, activeSemesterId);
-            
-            // Now, fetch lessons for all these units in parallel to populate progress bars
-            const lessonPromises = fetchedUnits.map(unit => 
-                getLessonsForUnit(grade.id, activeSemesterId, unit.id)
-            );
-            const lessonsArrays = await Promise.all(lessonPromises);
-
-            const newLessonsMap: Record<string, Lesson[]> = {};
-            fetchedUnits.forEach((unit, index) => {
-                newLessonsMap[unit.id] = lessonsArrays[index];
-            });
-
-            setLessonsMap(newLessonsMap);
-            setUnits(fetchedUnits);
-            setIsLoadingUnits(false);
-        };
-        fetchUnitsAndLessons();
-    }, [activeSemesterId, grade.id]);
-
-    const handleSelectUnit = (unit: Unit) => {
-        const lessons = lessonsMap[unit.id] || [];
-        const unitWithLessons = { ...unit, lessons };
-        onSubjectSelect(unitWithLessons);
-    };
+    const activeSemester = useMemo(() => {
+        return sortedSemesters.find(s => s.id === activeSemesterId);
+    }, [sortedSemesters, activeSemesterId]);
 
     const teacherMap = useMemo(() => new Map(teachers.map(t => [t.id, t])), [teachers]);
 
-    const calculateProgress = useCallback((unit: Unit) => {
-        const lessons = lessonsMap[unit.id] || [];
+    const calculateProgress = useCallback((unit: Unit): number => {
+        const lessons = unit.lessons || [];
         const totalLessons = lessons.length;
         if (totalLessons === 0) return 0;
         
         const completedLessons = lessons.filter(lesson => userProgress[lesson.id]).length;
         return (completedLessons / totalLessons) * 100;
-    }, [userProgress, lessonsMap]);
+    }, [userProgress]);
 
-    const unitsForTrack = useMemo(() => {
-        return units.filter(unit => 
-            !unit.track || unit.track === 'All' || unit.track === user.track
-        );
-    }, [units, user.track]);
+    const unitsByTeacher = useMemo(() => {
+        if (!activeSemester) return new Map<string, Unit[]>();
+        
+        const unitsForTrack = (activeSemester.units || []).filter(unit => {
+            if (!unit.track || unit.track === 'All') return true;
+            if (user.track === 'Scientific' && (unit.track === 'Scientific' || unit.track === 'Science' || unit.track === 'Math')) return true;
+            return unit.track === user.track;
+        });
 
-    const uniqueSubjects = useMemo(() => {
-        const subjects = unitsForTrack.map(unit => unit.title);
-        return ['الكل', ...Array.from(new Set(subjects))];
-    }, [unitsForTrack]);
+        const grouped = new Map<string, Unit[]>();
+        unitsForTrack.forEach(unit => {
+            if (!grouped.has(unit.teacherId)) {
+                grouped.set(unit.teacherId, []);
+            }
+            grouped.get(unit.teacherId)!.push(unit);
+        });
 
-    const displayUnits = useMemo(() => {
-        if (activeSubject === 'الكل') {
-            return unitsForTrack;
+        // NEW FILTERING LOGIC
+        if (!isComprehensive && activeSubscriptions.length > 0) {
+            const subscribedTeacherIds = new Set(activeSubscriptions.map(s => s.teacherId));
+            const filteredGrouped = new Map<string, Unit[]>();
+            for (const [teacherId, units] of grouped.entries()) {
+                if (subscribedTeacherIds.has(teacherId)) {
+                    filteredGrouped.set(teacherId, units);
+                }
+            }
+            
+            // Sort units within each teacher's group (existing logic)
+            filteredGrouped.forEach((units) => {
+                units.sort((a, b) => a.title.localeCompare(b.title, 'ar-EG', { numeric: true }));
+            });
+            return filteredGrouped;
         }
-        return unitsForTrack.filter(unit => unit.title === activeSubject);
-    }, [unitsForTrack, activeSubject]);
 
-    useEffect(() => {
-        setActiveSubject('الكل');
-    }, [activeSemesterId]);
+
+        // Sort units within each teacher's group
+        grouped.forEach((units) => {
+            units.sort((a, b) => a.title.localeCompare(b.title, 'ar-EG', { numeric: true }));
+        });
+
+        return grouped;
+    }, [activeSemester, user.track, isComprehensive, activeSubscriptions]);
 
     return (
-        <div>
-            <button onClick={onBack} className="flex items-center space-x-2 space-x-reverse mb-6 text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
-                <ArrowRightIcon className="w-4 h-4" />
-                <span>العودة إلى الرئيسية</span>
-            </button>
-
-            <div className="flex justify-between items-center mb-4">
-                <h1 className="text-3xl md:text-4xl font-extrabold text-[var(--text-primary)] flex items-center">
-                    <span className="w-3 h-8 bg-amber-400 rounded-sm ml-3"></span>
-                     {grade.name}
-                </h1>
+        <div className="fade-in">
+            <div className="mb-8">
+                <h1 className="text-4xl font-black text-[var(--text-primary)]">{grade.name}</h1>
+                <p className="text-md text-[var(--text-secondary)] mt-1">تصفح موادك الدراسية لكل فصل دراسي.</p>
             </div>
-            <p className="text-md text-[var(--text-secondary)] mb-8">اختر المادة التي تود دراستها.</p>
 
-            {/* Semester Tabs */}
-            <div className="flex items-center space-x-2 space-x-reverse mb-6 border-b border-[var(--border-primary)]">
-                {grade.semesters.map(semester => (
+            <div className="flex items-center space-x-2 space-x-reverse mb-8 border-b border-[var(--border-primary)]">
+                {sortedSemesters.map(semester => (
                     <button
                         key={semester.id}
                         onClick={() => setActiveSemesterId(semester.id)}
                         className={`px-4 py-3 font-semibold transition-colors duration-300 border-b-2 text-sm md:text-base ${
                             activeSemesterId === semester.id
-                                ? 'border-amber-400 text-amber-400'
+                                ? 'border-[var(--accent-primary)] text-[var(--accent-primary)]'
                                 : 'border-transparent text-[var(--text-secondary)] hover:border-gray-500 hover:text-[var(--text-primary)]'
                         }`}
                     >
@@ -198,41 +159,49 @@ const SubjectSelectionScreen: React.FC<SubjectSelectionScreenProps> = ({ grade, 
                 ))}
             </div>
 
-            {/* Subject Filter Pills */}
-            <div className="flex overflow-x-auto gap-3 pb-4 mb-8" style={{ scrollbarWidth: 'none', '-ms-overflow-style': 'none' }}>
-                {uniqueSubjects.map(subject => (
-                    <FilterPill 
-                        key={subject}
-                        label={subject}
-                        isActive={activeSubject === subject}
-                        onClick={() => setActiveSubject(subject)}
-                    />
-                ))}
-            </div>
-
-            {/* Content Grid */}
-            {isLoadingUnits ? (
+            {isLoading ? (
                 <div className="flex justify-center items-center h-64"><Loader /></div>
-            ) : displayUnits.length > 0 ? (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                    {displayUnits.map((unit, index) => (
-                        <TeacherSubjectCard
-                            key={`${unit.id}-${index}`}
-                            unit={unit} 
-                            teacher={teacherMap.get(unit.teacherId)}
-                            onClick={() => handleSelectUnit(unit)} 
-                            delay={index * 50}
-                            progress={calculateProgress(unit)}
-                        />
-                    ))}
+            ) : unitsByTeacher.size > 0 ? (
+                <div className="space-y-8">
+                    {Array.from(unitsByTeacher.entries()).map(([teacherId, units], index) => {
+                        const teacher = teacherMap.get(teacherId);
+                        if (!teacher) return null;
+                        
+                        return (
+                            <div key={teacherId} className="fade-in" style={{ animationDelay: `${index * 100}ms`}}>
+                                <div className="flex items-center gap-4 mb-4">
+                                    <img 
+                                        src={teacher.imageUrl || `https://i.ibb.co/k5y5nJg/imgbb-com-image-not-found.png`} 
+                                        alt={teacher.name} 
+                                        className="w-12 h-12 rounded-full object-cover border-2 border-[var(--border-secondary)]" 
+                                    />
+                                    <div>
+                                        <h2 className="text-xl font-bold text-[var(--text-primary)]">{teacher.name}</h2>
+                                        <p className="text-sm text-[var(--text-secondary)]">{teacher.subject}</p>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {units.map(unit => (
+                                        <SubjectCard 
+                                            key={unit.id} 
+                                            unit={unit}
+                                            onClick={() => onSubjectSelect(unit)}
+                                            progress={calculateProgress(unit)}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        )
+                    })}
                 </div>
             ) : (
-                <div className="lg:col-span-2 text-center p-12 bg-[var(--bg-secondary)] rounded-xl border border-dashed border-[var(--border-primary)]">
-                    <p className="text-[var(--text-secondary)]">لا توجد مواد متاحة لهذا الاختيار حاليًا.</p>
+                <div className="text-center p-12 bg-[var(--bg-secondary)] rounded-xl border border-dashed border-[var(--border-primary)]">
+                    <BookOpenIcon className="w-16 h-16 mx-auto text-[var(--text-secondary)] opacity-20 mb-4" />
+                    <p className="text-[var(--text-secondary)]">لم يتم إضافة مواد لهذا الفصل الدراسي بعد أو أن اشتراكك لا يغطي المواد المتاحة.</p>
                 </div>
             )}
         </div>
     );
 };
 
-export default SubjectSelectionScreen;
+export default CurriculumView;

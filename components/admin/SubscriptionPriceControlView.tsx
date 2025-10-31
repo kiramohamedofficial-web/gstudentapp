@@ -2,18 +2,25 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { PlatformSettings, ToastType } from '../../types';
 import { getPlatformSettings, updatePlatformSettings } from '../../services/storageService';
 import { useToast } from '../../useToast';
-import { CurrencyDollarIcon, CreditCardIcon } from '../common/Icons';
+import { CurrencyDollarIcon, CreditCardIcon, CogIcon } from '../common/Icons';
 import Loader from '../common/Loader';
 
-const PriceInput: React.FC<{ label: string; name: string; value: number; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; }> = ({ label, name, value, onChange }) => (
+const PriceInput: React.FC<{ label: string; name: keyof PlatformSettings; value: number; currency: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; }> = ({ label, name, value, currency, onChange }) => (
     <div>
         <label htmlFor={name} className="block text-sm font-medium text-[var(--text-secondary)] mb-1">{label}</label>
         <div className="relative">
-            <input type="number" id={name} name={name} value={value} onChange={onChange} className="w-full p-3 pr-12 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg focus:ring-2 focus:ring-purple-400" />
-            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-[var(--text-secondary)]">ج.م</span>
+            <input type="number" id={name} name={name} value={value} onChange={onChange} className="w-full p-3 pr-20 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg focus:ring-2 focus:ring-purple-400" />
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-[var(--text-secondary)]">{currency}</span>
         </div>
     </div>
 );
+
+const ToggleSwitch: React.FC<{ enabled: boolean; onChange: (enabled: boolean) => void; }> = ({ enabled, onChange }) => (
+    <button type="button" onClick={() => onChange(!enabled)} className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 ${enabled ? 'bg-purple-600' : 'bg-[var(--bg-tertiary)]'}`} role="switch" aria-checked={enabled}>
+        <span aria-hidden="true" className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${enabled ? 'translate-x-5' : 'translate-x-0'}`}/>
+    </button>
+);
+
 
 const SubscriptionPriceControlView: React.FC = () => {
     const [settings, setSettings] = useState<PlatformSettings | null>(null);
@@ -31,28 +38,36 @@ const SubscriptionPriceControlView: React.FC = () => {
         fetchSettings();
     }, []);
 
-    const handleChange = useCallback((section: 'comprehensive' | 'singleSubject' | 'paymentNumbers', key: string, value: string | number) => {
+    const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
         setSettings(prev => {
             if (!prev) return null;
-            if (section === 'paymentNumbers') {
-                return {
-                    ...prev,
-                    paymentNumbers: {
-                        ...prev.paymentNumbers,
-                        [key]: value
-                    }
-                }
+            const key = name as keyof PlatformSettings;
+
+            if (key === 'paymentNumbers') {
+                return { ...prev, paymentNumbers: value.split(',').map(s => s.trim()).filter(Boolean) };
             }
-            return {
-                ...prev,
-                subscriptionPrices: {
-                    ...prev.subscriptionPrices,
-                    [section]: {
-                        ...prev.subscriptionPrices[section],
-                        [key]: Number(value)
-                    }
-                }
-            };
+            if (key === 'currency') {
+                return { ...prev, currency: value.toUpperCase() };
+            }
+            if (['monthlyPrice', 'quarterlyPrice', 'semiAnnuallyPrice', 'annualPrice'].includes(key)) {
+                return { ...prev, [key]: Number(value) };
+            }
+            return prev; // Should not happen with current form
+        });
+    }, []);
+    
+    const handleModeToggle = useCallback((mode: 'comprehensive' | 'singleSubject', isEnabled: boolean) => {
+        setSettings(prev => {
+            if (!prev) return null;
+            const currentModes = prev.enabledSubscriptionModes || ['comprehensive', 'singleSubject'];
+            let newModes: ('comprehensive' | 'singleSubject')[];
+            if (isEnabled) {
+                newModes = [...new Set([...currentModes, mode])];
+            } else {
+                newModes = currentModes.filter(m => m !== mode);
+            }
+            return { ...prev, enabledSubscriptionModes: newModes };
         });
     }, []);
 
@@ -64,7 +79,7 @@ const SubscriptionPriceControlView: React.FC = () => {
         if (error) {
             addToast(`فشل حفظ الإعدادات: ${error.message}`, ToastType.ERROR);
         } else {
-            addToast('تم حفظ إعدادات الأسعار بنجاح!', ToastType.SUCCESS);
+            addToast('تم حفظ إعدادات الاشتراكات بنجاح!', ToastType.SUCCESS);
         }
     };
 
@@ -72,45 +87,83 @@ const SubscriptionPriceControlView: React.FC = () => {
         return <div className="flex justify-center items-center h-64"><Loader /></div>;
     }
 
-    const { comprehensive, singleSubject } = settings.subscriptionPrices;
-    const { vodafoneCash } = settings.paymentNumbers;
-
     return (
         <div className="fade-in space-y-8">
             <div>
-                <h1 className="text-3xl font-bold text-[var(--text-primary)]">إدارة أسعار الاشتراكات</h1>
-                <p className="text-[var(--text-secondary)] mt-1">التحكم في أسعار الباقات وأرقام الدفع التي تظهر للطلاب.</p>
+                <h1 className="text-3xl font-bold text-[var(--text-primary)]">إدارة الاشتراكات</h1>
+                <p className="text-[var(--text-secondary)] mt-1">التحكم في أسعار الباقات، أرقام الدفع، وأنواع الاشتراكات المتاحة.</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)] space-y-6">
-                    <h2 className="text-xl font-bold text-[var(--text-primary)] border-b border-[var(--border-primary)] pb-4 flex items-center gap-3">
-                        <CurrencyDollarIcon className="w-6 h-6 text-purple-400" />
-                        أسعار الاشتراك الشامل
-                    </h2>
-                    <PriceInput label="الباقة الشهرية" name="monthly" value={comprehensive.monthly} onChange={e => handleChange('comprehensive', 'monthly', e.target.value)} />
-                    <PriceInput label="الباقة الربع سنوية (3 أشهر)" name="quarterly" value={comprehensive.quarterly} onChange={e => handleChange('comprehensive', 'quarterly', e.target.value)} />
-                    <PriceInput label="الباقة السنوية" name="annual" value={comprehensive.annual} onChange={e => handleChange('comprehensive', 'annual', e.target.value)} />
+            <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)] space-y-4">
+                <h2 className="text-xl font-bold text-[var(--text-primary)] border-b border-[var(--border-primary)] pb-4 flex items-center gap-3">
+                    <CogIcon className="w-6 h-6 text-purple-400" />
+                    أنواع الاشتراكات المتاحة
+                </h2>
+                <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-tertiary)]">
+                    <div>
+                        <h3 className="font-semibold text-[var(--text-primary)]">الاشتراك الشامل</h3>
+                        <p className="text-sm text-[var(--text-secondary)] mt-1">يسمح للطلاب بالوصول لكل المحتوى.</p>
+                    </div>
+                    <ToggleSwitch
+                        enabled={settings.enabledSubscriptionModes?.includes('comprehensive') ?? true}
+                        onChange={(enabled) => handleModeToggle('comprehensive', enabled)}
+                    />
                 </div>
-                <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)] space-y-6">
-                    <h2 className="text-xl font-bold text-[var(--text-primary)] border-b border-[var(--border-primary)] pb-4 flex items-center gap-3">
-                        <CurrencyDollarIcon className="w-6 h-6 text-purple-400" />
-                        أسعار اشتراك المادة الواحدة
-                    </h2>
-                    <PriceInput label="الباقة الشهرية" name="monthly" value={singleSubject.monthly} onChange={e => handleChange('singleSubject', 'monthly', e.target.value)} />
-                    <PriceInput label="الباقة النصف سنوية (6 أشهر)" name="semiAnnually" value={singleSubject.semiAnnually} onChange={e => handleChange('singleSubject', 'semiAnnually', e.target.value)} />
-                    <PriceInput label="الباقة السنوية" name="annually" value={singleSubject.annually} onChange={e => handleChange('singleSubject', 'annually', e.target.value)} />
+                <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-tertiary)]">
+                    <div>
+                        <h3 className="font-semibold text-[var(--text-primary)]">اشتراك المادة الواحدة</h3>
+                        <p className="text-sm text-[var(--text-secondary)] mt-1">يسمح للطلاب بالاشتراك في مواد منفصلة.</p>
+                    </div>
+                    <ToggleSwitch
+                        enabled={settings.enabledSubscriptionModes?.includes('singleSubject') ?? true}
+                        onChange={(enabled) => handleModeToggle('singleSubject', enabled)}
+                    />
+                </div>
+            </div>
+
+
+            <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)] space-y-6">
+                <h2 className="text-xl font-bold text-[var(--text-primary)] border-b border-[var(--border-primary)] pb-4 flex items-center gap-3">
+                    <CurrencyDollarIcon className="w-6 h-6 text-purple-400" />
+                    أسعار الاشتراكات
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <PriceInput label="الباقة الشهرية" name="monthlyPrice" value={settings.monthlyPrice} onChange={handleChange} currency={settings.currency || 'EGP'} />
+                    <PriceInput label="الباقة الربع سنوية (3 أشهر)" name="quarterlyPrice" value={settings.quarterlyPrice} onChange={handleChange} currency={settings.currency || 'EGP'} />
+                    <PriceInput label="الباقة النصف سنوية (6 أشهر)" name="semiAnnuallyPrice" value={settings.semiAnnuallyPrice} onChange={handleChange} currency={settings.currency || 'EGP'} />
+                    <PriceInput label="الباقة السنوية" name="annualPrice" value={settings.annualPrice} onChange={handleChange} currency={settings.currency || 'EGP'} />
+                </div>
+                 <div>
+                    <label htmlFor="currency" className="block text-sm font-medium text-[var(--text-secondary)] mb-1">رمز العملة</label>
+                    <input 
+                        type="text" 
+                        id="currency" 
+                        name="currency"
+                        placeholder="EGP"
+                        value={settings.currency || ''} 
+                        onChange={handleChange} 
+                        className="w-full md:w-1/2 p-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg focus:ring-2 focus:ring-purple-400" 
+                        maxLength={3}
+                    />
                 </div>
             </div>
 
             <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)]">
                 <h2 className="text-xl font-bold text-[var(--text-primary)] border-b border-[var(--border-primary)] pb-4 flex items-center gap-3">
                     <CreditCardIcon className="w-6 h-6 text-purple-400" />
-                    طرق الدفع
+                    أرقام الدفع
                 </h2>
                 <div>
-                    <label htmlFor="vodafoneCash" className="block text-sm font-medium text-[var(--text-secondary)] mb-1">رقم فودافون كاش</label>
-                    <input type="tel" id="vodafoneCash" name="vodafoneCash" value={vodafoneCash} onChange={e => handleChange('paymentNumbers', 'vodafoneCash', e.target.value)} className="w-full md:w-1/2 p-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg focus:ring-2 focus:ring-purple-400" />
+                    <label htmlFor="paymentNumbers" className="block text-sm font-medium text-[var(--text-secondary)] mb-1">أرقام الدفع (مفصولة بفاصلة)</label>
+                    <input 
+                        type="text" 
+                        id="paymentNumbers" 
+                        name="paymentNumbers"
+                        placeholder="01234567890, 01098765432"
+                        value={(settings.paymentNumbers || []).join(', ')} 
+                        onChange={handleChange} 
+                        className="w-full md:w-1/2 p-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg focus:ring-2 focus:ring-purple-400" 
+                    />
                 </div>
             </div>
             

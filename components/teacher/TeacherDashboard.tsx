@@ -1,12 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { User, Theme, TeacherView, Teacher } from '../../types';
+import { User, Theme, TeacherView, Teacher, Grade } from '../../types';
 import { getTeacherById, getSubscriptionsByTeacherId, getAllGrades } from '../../services/storageService';
 import TeacherLayout from './TeacherLayout';
 import TeacherContentManagement from './TeacherContentManagement';
 import TeacherSubscriptionsView from './TeacherSubscriptionsView';
 import TeacherProfileView from './TeacherProfileView';
 import { CollectionIcon, UsersIcon } from '../common/Icons';
-import QuestionBankView from '../admin/QuestionBankView';
 import { useSession } from '../../hooks/useSession';
 
 interface TeacherDashboardProps {
@@ -28,9 +27,15 @@ const StatCard: React.FC<{ title: string; value: string | number; icon: React.FC
 
 
 const MainDashboard: React.FC<{ teacher: Teacher }> = ({ teacher }) => {
-    const totalUnits = useMemo(() => {
-        const allGrades = getAllGrades();
-        return allGrades.flatMap(g => g.semesters.flatMap(s => s.units)).filter(u => u.teacherId === teacher.id).length;
+    const [totalUnits, setTotalUnits] = useState(0);
+
+    useEffect(() => {
+        const fetchUnitCount = async () => {
+            const allGrades = await getAllGrades();
+            const count = allGrades.flatMap(g => g.semesters.flatMap(s => s.units)).filter(u => u.teacherId === teacher.id).length;
+            setTotalUnits(count);
+        };
+        fetchUnitCount();
     }, [teacher.id]);
 
     const [totalStudents, setTotalStudents] = useState(0);
@@ -92,8 +97,6 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = (props) => {
             return <TeacherSubscriptionsView teacher={teacherProfile} />;
         case 'profile':
             return <TeacherProfileView teacher={teacherProfile} />;
-        case 'questionBank':
-            return <QuestionBankView />;
         case 'dashboard':
         default:
             return <MainDashboard teacher={teacherProfile} />;

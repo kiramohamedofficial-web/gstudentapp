@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Course, Teacher, ToastType, StudentView } from '../../types';
-import { getAllCourses, getAllTeachers } from '../../services/storageService';
+import { getPublishedCourses, getAllTeachers } from '../../services/storageService';
 import { useToast } from '../../useToast';
 import Modal from '../common/Modal';
 import { CreditCardIcon, UserCircleIcon } from '../common/Icons';
@@ -53,7 +53,7 @@ const CoursesStore: React.FC<CoursesStoreProps> = ({ onNavigate }) => {
         const fetchData = async () => {
             try {
                 const [courseData, teacherData] = await Promise.all([
-                    getAllCourses(),
+                    getPublishedCourses(),
                     getAllTeachers()
                 ]);
                 setCourses(courseData);

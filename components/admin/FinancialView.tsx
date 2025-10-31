@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { SubscriptionRequest, ToastType, Subscription, Grade, User, PlatformSettings } from '../../types';
-import { getSubscriptionRequests, updateSubscriptionRequest, createOrUpdateSubscription, getAllSubscriptions, getAllUsers, getAllGrades, getPlatformSettings } from '../../services/storageService';
+import { getAllSubscriptionRequests, updateSubscriptionRequest, createOrUpdateSubscription, getAllSubscriptions, getAllUsers, getAllGrades, getPlatformSettings } from '../../services/storageService';
 import { useToast } from '../../useToast';
 import Modal from '../common/Modal';
 import { BellIcon, CheckCircleIcon, ClockIcon, CreditCardIcon, PhoneIcon, TrashIcon, CheckIcon, UserCircleIcon, CurrencyDollarIcon } from '../common/Icons';
@@ -158,7 +158,7 @@ const SubscriptionManagementView: React.FC = () => {
         const fetchData = async () => {
             setIsLoading(true);
             const [requests, subscriptions, users, grades, platformSettings] = await Promise.all([
-                getSubscriptionRequests(),
+                getAllSubscriptionRequests(),
                 getAllSubscriptions(),
                 getAllUsers(),
                 getAllGrades(),
@@ -208,23 +208,12 @@ const SubscriptionManagementView: React.FC = () => {
 
     const getPriceForRequest = (request: SubscriptionRequest): number | null => {
         if (!settings) return null;
-        const isSingleSubject = !!request.subjectName || !!request.unitId;
-        if (isSingleSubject) {
-            const prices = settings.subscriptionPrices.singleSubject;
-            switch (request.plan) {
-                case 'Monthly': return prices.monthly;
-                case 'SemiAnnually': return prices.semiAnnually;
-                case 'Annual': return prices.annually;
-                default: return null;
-            }
-        } else { // Comprehensive
-            const prices = settings.subscriptionPrices.comprehensive;
-            switch (request.plan) {
-                case 'Monthly': return prices.monthly;
-                case 'Quarterly': return prices.quarterly;
-                case 'Annual': return prices.annual;
-                default: return null;
-            }
+        switch (request.plan) {
+            case 'Monthly': return settings.monthlyPrice;
+            case 'Quarterly': return settings.quarterlyPrice;
+            case 'SemiAnnually': return settings.semiAnnuallyPrice;
+            case 'Annual': return settings.annualPrice;
+            default: return null;
         }
     };
 

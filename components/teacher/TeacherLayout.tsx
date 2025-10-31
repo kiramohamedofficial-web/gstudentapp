@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { User, Teacher, TeacherView } from '../../types';
-import { CollectionIcon, CreditCardIcon, UserCircleIcon, LogoutIcon, MenuIcon, XIcon, HomeIcon, QuestionMarkCircleIcon } from '../common/Icons';
+import { CollectionIcon, CreditCardIcon, UserCircleIcon, LogoutIcon, MenuIcon, XIcon, HomeIcon } from '../common/Icons';
 
 interface TeacherLayoutProps {
   user: User;
@@ -15,7 +15,6 @@ const navItems = [
     { id: 'dashboard', label: 'الرئيسية', icon: HomeIcon },
     { id: 'content', label: 'المحتوى الدراسي', icon: CollectionIcon },
     { id: 'subscriptions', label: 'الاشتراكات', icon: CreditCardIcon },
-    { id: 'questionBank', label: 'بنك الأسئلة', icon: QuestionMarkCircleIcon },
     { id: 'profile', label: 'الملف الشخصي', icon: UserCircleIcon },
 ];
 
@@ -62,7 +61,7 @@ const TeacherLayout: React.FC<TeacherLayoutProps> = ({ user, teacher, onLogout, 
                 </div>
 
                 <div className="header-actions">
-                    <button onClick={() => onNavClick('questionBank')} className="notification-btn">
+                    <button className="notification-btn">
                         <i className="fas fa-bell"></i>
                     </button>
                     <div onClick={() => onNavClick('profile')} className="user-avatar">

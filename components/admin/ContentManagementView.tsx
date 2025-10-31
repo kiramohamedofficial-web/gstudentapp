@@ -2,7 +2,8 @@ import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { Grade, Semester, Unit, Lesson, LessonType, ToastType, Teacher, QuizType, QuizQuestion } from '../../types';
 import {
     getAllGrades, addLessonToUnit, updateLesson, deleteLesson,
-    addUnitToSemester, updateUnit, deleteUnit, getAllTeachers, getUnitsForSemester, getLessonsForUnit
+    addUnitToSemester, updateUnit, deleteUnit, getAllTeachers, getUnitsForSemester, 
+    getLessonsByUnit
 } from '../../services/storageService';
 import Modal from '../common/Modal';
 import { PlusIcon, PencilIcon, TrashIcon, DotsVerticalIcon, BookOpenIcon, VideoCameraIcon, DocumentTextIcon, ChevronDownIcon, SparklesIcon, XIcon } from '../common/Icons';
@@ -286,6 +287,57 @@ const LessonModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (dat
 };
 
 
+const getLessonIcon = (type: LessonType) => {
+    switch(type) {
+        case LessonType.EXPLANATION: return VideoCameraIcon;
+        case LessonType.HOMEWORK: return PencilIcon;
+        case LessonType.EXAM: return BookOpenIcon;
+        case LessonType.SUMMARY: return DocumentTextIcon;
+        default: return BookOpenIcon;
+    }
+}
+
+const LessonPartItem: React.FC<{ lesson: Lesson, onEdit: () => void, onDelete: () => void }> = ({ lesson, onEdit, onDelete }) => {
+    const Icon = getLessonIcon(lesson.type);
+    return (
+        <div className="p-2 pl-3 bg-[var(--bg-secondary)] rounded-lg flex justify-between items-center">
+            <div className="flex items-center gap-3">
+                <Icon className="w-5 h-5 text-[var(--text-secondary)]" />
+                <span className="text-sm font-medium">{lesson.title}</span>
+            </div>
+            <div className="flex gap-2">
+                <button onClick={onEdit} className="p-1.5 text-[var(--text-secondary)] hover:text-yellow-400"><PencilIcon className="w-4 h-4"/></button>
+                <button onClick={onDelete} className="p-1.5 text-[var(--text-secondary)] hover:text-red-500"><TrashIcon className="w-4 h-4"/></button>
+            </div>
+        </div>
+    );
+};
+
+const AddPartButton: React.FC<{ type: LessonType, onClick: () => void }> = ({ type, onClick }) => {
+    const labels: Record<LessonType, string> = {
+        [LessonType.EXPLANATION]: "إضافة شرح",
+        [LessonType.HOMEWORK]: "إضافة واجب",
+        [LessonType.EXAM]: "إضافة امتحان",
+        [LessonType.SUMMARY]: "إضافة ملخص",
+    };
+    const Icon = getLessonIcon(type);
+    return (
+        <button onClick={onClick} className="w-full text-sm p-2 rounded-lg bg-transparent border-2 border-dashed border-[var(--border-primary)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors flex items-center justify-center gap-2">
+            <Icon className="w-4 h-4" />
+            {labels[type]}
+        </button>
+    );
+};
+
+
+interface GroupedLesson {
+    baseTitle: string;
+    explanations: Lesson[];
+    homeworks: Lesson[];
+    exams: Lesson[];
+    summaries: Lesson[];
+}
+
 const ContentManagementView: React.FC = () => {
     const [dataVersion, setDataVersion] = useState(0);
     const { addToast } = useToast();
@@ -324,6 +376,7 @@ const ContentManagementView: React.FC = () => {
             const fetchUnits = async () => {
                 setIsLoadingUnits(true);
                 setExpandedUnitId(null);
+                setLessonsMap({});
                 const fetchedUnits = await getUnitsForSemester(parseInt(selectedGradeId), selectedSemesterId);
                 setUnits(fetchedUnits);
                 setIsLoadingUnits(false);
@@ -355,7 +408,7 @@ const ContentManagementView: React.FC = () => {
         if (newExpandedId && !lessonsMap[newExpandedId] && selectedGradeId && selectedSemesterId) {
             setLoadingLessons(prev => new Set(prev).add(unitId));
             try {
-                const fetchedLessons = await getLessonsForUnit(parseInt(selectedGradeId), selectedSemesterId, newExpandedId);
+                const fetchedLessons = await getLessonsByUnit(newExpandedId);
                 setLessonsMap(prevMap => ({ ...prevMap, [newExpandedId]: fetchedLessons }));
             } catch (error) {
                 addToast('فشل تحميل الدروس لهذه الوحدة.', ToastType.ERROR);
@@ -376,7 +429,7 @@ const ContentManagementView: React.FC = () => {
                     await updateUnit(selectedGrade.id, selectedSemester.id, { ...modalState.data.unit, ...unitData });
                     addToast('تم تعديل الوحدة!', ToastType.SUCCESS);
                 } else { // Adding
-                    await addUnitToSemester(selectedGrade.id, selectedSemester.id, { ...unitData, teacherId: unitData.teacherId! } as Omit<Unit, 'id' | 'lessons'>);
+                    await addUnitToSemester(selectedGrade.id, selectedSemester.id, { ...unitData, teacherId: unitData.teacherId! } as Omit<Unit, 'id'|'lessons'>);
                     addToast('تمت إضافة الوحدة!', ToastType.SUCCESS);
                 }
                 refreshData();
@@ -401,10 +454,6 @@ const ContentManagementView: React.FC = () => {
         }
     }, [addToast, closeModal, modalState.data, refreshData, selectedGrade, selectedSemester]);
     
-    const handleAddLesson = useCallback((unit: Unit, type: LessonType) => {
-        openModal('add-lesson', { unit, lesson: { type } });
-    }, [openModal]);
-
     const handleSaveLesson = useCallback(async (lessonData: Lesson | Omit<Lesson, 'id'>) => {
         const { unit } = modalState.data;
         if (selectedGrade && selectedSemester && unit) {
@@ -438,16 +487,6 @@ const ContentManagementView: React.FC = () => {
         }
     }, [addToast, closeModal, modalState.data, refreshData, selectedGrade, selectedSemester]);
     
-    const getLessonIcon = (type: LessonType) => {
-        switch(type) {
-            case LessonType.EXPLANATION: return VideoCameraIcon;
-            case LessonType.HOMEWORK: return PencilIcon;
-            case LessonType.EXAM: return BookOpenIcon;
-            case LessonType.SUMMARY: return DocumentTextIcon;
-            default: return BookOpenIcon;
-        }
-    }
-
     return (
         <div className="space-y-6">
             <div className="bg-yellow-100 border-r-4 border-yellow-500 text-yellow-800 p-4 rounded-lg flex gap-3">
@@ -464,7 +503,17 @@ const ContentManagementView: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <select value={selectedGradeId} onChange={(e) => { setSelectedGradeId(e.target.value); setSelectedSemesterId(''); setExpandedUnitId(null); }} className="w-full p-3 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg focus:ring-2 focus:ring-[var(--accent-primary)] transition-all">
+                <select
+                    value={selectedGradeId}
+                    onChange={(e) => {
+                        const newGradeId = e.target.value;
+                        setSelectedGradeId(newGradeId);
+                        const newGrade = grades.find(g => g.id.toString() === newGradeId);
+                        setSelectedSemesterId(newGrade?.semesters[0]?.id || '');
+                        setExpandedUnitId(null);
+                    }}
+                    className="w-full p-3 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg focus:ring-2 focus:ring-[var(--accent-primary)] transition-all"
+                >
                     {grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                 </select>
                 <select value={selectedSemesterId} onChange={(e) => { setSelectedSemesterId(e.target.value); setExpandedUnitId(null); }} disabled={!selectedGrade} className="w-full p-3 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg focus:ring-2 focus:ring-[var(--accent-primary)] transition-all disabled:opacity-50">
@@ -477,8 +526,31 @@ const ContentManagementView: React.FC = () => {
                     <div className="flex justify-center items-center py-20"><Loader /></div>
                 ) : (
                     units.map(unit => {
-                        const lessonsForUnit = lessonsMap[unit.id];
-                        const lessonCount = lessonsForUnit?.length;
+                        const lessonsForUnit = lessonsMap[unit.id] || [];
+                        const lessonCount = lessonsForUnit.length;
+                        
+                        const groupedLessons = useMemo((): GroupedLesson[] => {
+                            if (!lessonsForUnit) return [];
+                            const lessonGroups: Record<string, GroupedLesson> = {};
+                        
+                            lessonsForUnit.forEach(lesson => {
+                                const titleWithoutPrefix = lesson.title.replace(/^(شرح|واجب|امتحان|ملخص)\s/i, '').trim();
+                                const baseTitle = titleWithoutPrefix.split(/[:\-(]/)[0].trim();
+                        
+                                if (!lessonGroups[baseTitle]) {
+                                    lessonGroups[baseTitle] = { baseTitle, explanations: [], homeworks: [], exams: [], summaries: [] };
+                                }
+                                
+                                switch (lesson.type) {
+                                    case LessonType.EXPLANATION: lessonGroups[baseTitle].explanations.push(lesson); break;
+                                    case LessonType.HOMEWORK: lessonGroups[baseTitle].homeworks.push(lesson); break;
+                                    case LessonType.EXAM: lessonGroups[baseTitle].exams.push(lesson); break;
+                                    case LessonType.SUMMARY: lessonGroups[baseTitle].summaries.push(lesson); break;
+                                }
+                            });
+                        
+                            return Object.values(lessonGroups).sort((a, b) => a.baseTitle.localeCompare(b.baseTitle, 'ar-EG', { numeric: true }));
+                        }, [lessonsForUnit]);
 
                         return (
                         <div key={unit.id} className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-primary)]">
@@ -492,7 +564,7 @@ const ContentManagementView: React.FC = () => {
                                 </div>
                                 <div className="flex items-center gap-4">
                                     <span className="text-sm font-semibold bg-[var(--bg-tertiary)] px-3 py-1 rounded-full">
-                                        {typeof lessonCount === 'number' ? `${lessonCount} دروس` : (unit.lessons.length > 0 ? `${unit.lessons.length} دروس` : 'فارغ')}
+                                        {lessonCount > 0 ? `${lessonCount} أجزاء` : 'فارغ'}
                                     </span>
                                     <div className="relative">
                                         <button onClick={(e) => { e.stopPropagation(); setOptionsMenuUnitId(p => p === unit.id ? null : unit.id); }} className="p-2 text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] rounded-full"><DotsVerticalIcon className="w-5 h-5"/></button>
@@ -506,36 +578,43 @@ const ContentManagementView: React.FC = () => {
                                 </div>
                             </header>
                             {expandedUnitId === unit.id && (
-                                <div className="p-4 border-t border-[var(--border-primary)] space-y-4">
-                                    {loadingLessons.has(unit.id) ? (
-                                        <div className="flex justify-center items-center py-4"><Loader /></div>
-                                    ) : (lessonsForUnit && lessonsForUnit.length > 0) ? (
-                                        <div className="space-y-2">
-                                        {lessonsForUnit.map(lesson => (
-                                            <div key={lesson.id} className="p-2 bg-[var(--bg-tertiary)] rounded-md flex justify-between items-center">
-                                                <div className="flex items-center gap-2">
-                                                    {React.createElement(getLessonIcon(lesson.type), { className: "w-4 h-4 text-[var(--text-secondary)]" })}
-                                                    <span className="text-sm">{lesson.title}</span>
-                                                </div>
-                                                <div className="flex gap-1">
-                                                    <button onClick={() => openModal('edit-lesson', { unit, lesson })} className="p-1 text-[var(--text-secondary)] hover:text-yellow-400"><PencilIcon className="w-4 h-4"/></button>
-                                                    <button onClick={() => openModal('delete-lesson', { unit, lesson })} className="p-1 text-[var(--text-secondary)] hover:text-red-500"><TrashIcon className="w-4 h-4"/></button>
+                                <div className="p-4 border-t border-[var(--border-primary)] space-y-6">
+                                    {loadingLessons.has(unit.id) ? <div className="flex justify-center py-4"><Loader /></div>
+                                     : groupedLessons.length > 0 ? (
+                                        groupedLessons.map(group => (
+                                            <div key={group.baseTitle} className="bg-[var(--bg-primary)] p-4 rounded-xl border border-[var(--border-primary)]">
+                                                <h4 className="font-bold text-lg mb-4 text-[var(--text-primary)]">{group.baseTitle}</h4>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                    <div>
+                                                        <h5 className="font-semibold text-sm text-[var(--text-secondary)] mb-2">الشرح</h5>
+                                                        {group.explanations.map(l => <LessonPartItem key={l.id} lesson={l} onEdit={() => openModal('edit-lesson', {unit, lesson: l})} onDelete={() => openModal('delete-lesson', {unit, lesson: l})}/>)}
+                                                        {group.explanations.length === 0 && <AddPartButton type={LessonType.EXPLANATION} onClick={() => openModal('add-lesson', {unit, lesson: {type: LessonType.EXPLANATION, title: `${group.baseTitle} - شرح`}})}/>}
+                                                    </div>
+                                                    <div>
+                                                        <h5 className="font-semibold text-sm text-[var(--text-secondary)] mb-2">الواجب</h5>
+                                                        {group.homeworks.map(l => <LessonPartItem key={l.id} lesson={l} onEdit={() => openModal('edit-lesson', {unit, lesson: l})} onDelete={() => openModal('delete-lesson', {unit, lesson: l})}/>)}
+                                                        {group.homeworks.length === 0 && <AddPartButton type={LessonType.HOMEWORK} onClick={() => openModal('add-lesson', {unit, lesson: {type: LessonType.HOMEWORK, title: `${group.baseTitle} - واجب`}})}/>}
+                                                    </div>
+                                                    <div>
+                                                        <h5 className="font-semibold text-sm text-[var(--text-secondary)] mb-2">الامتحان</h5>
+                                                        {group.exams.map(l => <LessonPartItem key={l.id} lesson={l} onEdit={() => openModal('edit-lesson', {unit, lesson: l})} onDelete={() => openModal('delete-lesson', {unit, lesson: l})}/>)}
+                                                        {group.exams.length === 0 && <AddPartButton type={LessonType.EXAM} onClick={() => openModal('add-lesson', {unit, lesson: {type: LessonType.EXAM, title: `${group.baseTitle} - امتحان`}})}/>}
+                                                    </div>
+                                                    <div>
+                                                        <h5 className="font-semibold text-sm text-[var(--text-secondary)] mb-2">الملخص</h5>
+                                                        {group.summaries.map(l => <LessonPartItem key={l.id} lesson={l} onEdit={() => openModal('edit-lesson', {unit, lesson: l})} onDelete={() => openModal('delete-lesson', {unit, lesson: l})}/>)}
+                                                        {group.summaries.length === 0 && <AddPartButton type={LessonType.SUMMARY} onClick={() => openModal('add-lesson', {unit, lesson: {type: LessonType.SUMMARY, title: `${group.baseTitle} - ملخص`}})}/>}
+                                                    </div>
                                                 </div>
                                             </div>
-                                        ))}
-                                        </div>
-                                    ) : (
+                                        ))
+                                     ) : (
                                         <p className="text-center text-sm text-[var(--text-secondary)] py-4">لا توجد دروس في هذه الوحدة.</p>
-                                    )}
-                                    <div>
-                                        <p className="text-sm font-semibold mb-2">إضافة جزء جديد:</p>
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                            <button onClick={() => handleAddLesson(unit, LessonType.EXPLANATION)} className="flex items-center justify-center gap-2 p-3 bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] rounded-lg"><PlusIcon className="w-4 h-4"/> شرح</button>
-                                            <button onClick={() => handleAddLesson(unit, LessonType.HOMEWORK)} className="flex items-center justify-center gap-2 p-3 bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] rounded-lg"><PlusIcon className="w-4 h-4"/> واجب</button>
-                                            <button onClick={() => handleAddLesson(unit, LessonType.EXAM)} className="flex items-center justify-center gap-2 p-3 bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] rounded-lg"><PlusIcon className="w-4 h-4"/> امتحان</button>
-                                            <button onClick={() => handleAddLesson(unit, LessonType.SUMMARY)} className="flex items-center justify-center gap-2 p-3 bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] rounded-lg"><PlusIcon className="w-4 h-4"/> ملخص</button>
-                                        </div>
-                                    </div>
+                                     )}
+                                    <button onClick={() => openModal('add-lesson', {unit, lesson: { type: LessonType.EXPLANATION }})} className="w-full p-3 border-2 border-dashed border-[var(--border-primary)] rounded-lg flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:border-solid transition-all">
+                                        <PlusIcon className="w-5 h-5 ml-2"/> 
+                                        إضافة درس جديد (ابدأ بإضافة شرح)
+                                    </button>
                                 </div>
                             )}
                         </div>

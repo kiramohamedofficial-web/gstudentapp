@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { User, QuizAttempt } from '../../types';
-import { getQuizAttemptsByUserId, getAllGrades } from '../../services/storageService';
+import { User, QuizAttempt, Grade } from '../../types';
+import { getStudentQuizAttempts, getAllGrades } from '../../services/storageService';
 import { CheckCircleIcon, XCircleIcon } from '../common/Icons';
 import Loader from '../common/Loader';
 import { useSession } from '../../hooks/useSession';
@@ -14,26 +14,31 @@ const ResultsView: React.FC = () => {
         if (!user) return;
         const fetchAttempts = async () => {
             setIsLoading(true);
-            const data = await getQuizAttemptsByUserId(user.id);
+            const data = await getStudentQuizAttempts(user.id);
             setAttempts(data);
             setIsLoading(false);
         };
         fetchAttempts();
     }, [user]);
 
-    const lessonMap = useMemo(() => {
-        const map = new Map<string, string>();
-        const allGrades = getAllGrades();
-        allGrades.forEach(grade => {
-            grade.semesters.forEach(semester => {
-                semester.units.forEach(unit => {
-                    unit.lessons.forEach(lesson => {
-                        map.set(lesson.id, lesson.title);
+    const [lessonMap, setLessonMap] = useState<Map<string, string>>(new Map());
+
+    useEffect(() => {
+        const buildLessonMap = async () => {
+            const allGrades = await getAllGrades();
+            const map = new Map<string, string>();
+            allGrades.forEach(grade => {
+                grade.semesters.forEach(semester => {
+                    semester.units.forEach(unit => {
+                        unit.lessons.forEach(lesson => {
+                            map.set(lesson.id, lesson.title);
+                        });
                     });
                 });
             });
-        });
-        return map;
+            setLessonMap(map);
+        };
+        buildLessonMap();
     }, []);
 
     if (!user) return null;

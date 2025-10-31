@@ -163,7 +163,10 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, grade, onLesson
         if (isSubLoading) {
              return <div className="text-center p-8 bg-[var(--bg-secondary)] rounded-lg">جاري التحقق من الاشتراك...</div>
         }
-        if (currentLesson.type === LessonType.EXPLANATION && !hasActiveSubscription) {
+        
+        const lessonType = (currentLesson.type || '').toLowerCase();
+
+        if (lessonType === LessonType.EXPLANATION.toLowerCase() && !hasActiveSubscription) {
             return (
                 <div className="relative w-full max-w-4xl mx-auto aspect-video bg-gradient-to-br from-[rgba(var(--bg-secondary-rgb),0.5)] to-[rgba(var(--bg-primary-rgb),0.5)] rounded-2xl shadow-2xl border border-purple-500/30 flex flex-col items-center justify-center p-8 text-center overflow-hidden backdrop-blur-lg">
                     <div className="absolute -top-1/4 -right-1/4 w-72 h-72 bg-purple-600/30 rounded-full filter blur-3xl animate-blob"></div>
@@ -191,8 +194,8 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, grade, onLesson
             );
         }
 
-        switch (currentLesson.type) {
-            case LessonType.EXPLANATION: {
+        switch (lessonType) {
+            case LessonType.EXPLANATION.toLowerCase(): {
                 if(!currentLesson.content) {
                     return <div className="text-center p-8 bg-[var(--bg-secondary)] rounded-lg">المحتوى غير متوفر لهذا الدرس بعد.</div>
                 }
@@ -237,10 +240,10 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, grade, onLesson
                    </div>
                 );
             }
-            case LessonType.HOMEWORK:
-            case LessonType.EXAM:
+            case LessonType.HOMEWORK.toLowerCase():
+            case LessonType.EXAM.toLowerCase():
                 return <QuizTaker lesson={currentLesson} onComplete={onLessonComplete} />;
-            case LessonType.SUMMARY:
+            case LessonType.SUMMARY.toLowerCase():
                 return <div className="p-6 bg-[var(--bg-secondary)] rounded-lg prose" dangerouslySetInnerHTML={{ __html: currentLesson.content }} />;
             default:
                 return <p>المحتوى غير متوفر.</p>;

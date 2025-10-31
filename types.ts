@@ -7,9 +7,9 @@ export enum Role {
   SUPERVISOR = 'supervisor',
 }
 
-export type StudentView = 'home' | 'grades' | 'subscription' | 'profile' | 'teachers' | 'courses' | 'singleSubjectSubscription' | 'comprehensiveSubscription' | 'results' | 'smartPlan' | 'chatbot' | 'askTheProf' | 'adhkar' | 'cartoonMovies' | 'teacherProfile' | 'courseDetail';
-export type TeacherView = 'dashboard' | 'content' | 'subscriptions' | 'profile' | 'questionBank';
-export type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'courseManagement' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers' | 'subscriptionPrices' | 'deviceManagement' | 'content' | 'accountCreationDiagnostics' | 'teacherCreationDiagnostics';
+export type StudentView = 'home' | 'grades' | 'subscription' | 'profile' | 'teachers' | 'courses' | 'singleSubjectSubscription' | 'comprehensiveSubscription' | 'results' | 'smartPlan' | 'chatbot' | 'adhkar' | 'cartoonMovies' | 'teacherProfile' | 'courseDetail';
+export type TeacherView = 'dashboard' | 'content' | 'subscriptions' | 'profile';
+export type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'courseManagement' | 'tools' | 'homeManagement' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers' | 'subscriptionPrices' | 'deviceManagement' | 'content' | 'accountCreationDiagnostics' | 'teacherCreationDiagnostics' | 'financials';
 
 
 export interface User {
@@ -19,6 +19,7 @@ export interface User {
   phone: string;
   guardianPhone: string;
   grade: number | null;
+  gradeData?: Grade;
   track?: 'Scientific' | 'Literary' | 'All' | null; // For 2nd & 3rd year secondary students
   role: Role;
   subscriptionId?: string;
@@ -126,6 +127,7 @@ export interface SubscriptionRequest {
   unitId?: string;
 }
 
+// FIX: Added StudentQuestion interface to support the "Ask the Professor" and "Question Bank" features.
 export interface StudentQuestion {
   id: string;
   userId: string;
@@ -202,18 +204,7 @@ export interface PlatformFeature {
     description: string;
 }
 
-export interface SubscriptionPrices {
-  comprehensive: {
-    monthly: number;
-    quarterly: number;
-    annual: number;
-  };
-  singleSubject: {
-    monthly: number;
-    semiAnnually: number;
-    annually: number;
-  };
-}
+export type SubscriptionMode = 'comprehensive' | 'singleSubject';
 
 export interface PlatformSettings {
   platformName: string;
@@ -229,10 +220,13 @@ export interface PlatformSettings {
   contactPhone: string;
   contactFacebookUrl: string;
   contactYoutubeUrl: string;
-  subscriptionPrices: SubscriptionPrices;
-  paymentNumbers: {
-    vodafoneCash: string;
-  };
+  monthlyPrice: number;
+  quarterlyPrice: number;
+  semiAnnuallyPrice: number;
+  annualPrice: number;
+  currency?: string;
+  paymentNumbers: string[];
+  enabledSubscriptionModes?: SubscriptionMode[];
   announcementBanner?: {
     text: string;
     subtitle?: string;

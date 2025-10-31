@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { User, ToastType } from '../../types';
-import { getAllUsers, clearUserDevices, supabase } from '../../services/storageService';
+import { getAllUsers, clearUserDevices, supabase, clearAllActiveSessions } from '../../services/storageService';
 import { useToast } from '../../useToast';
-import { HardDriveIcon, TrashIcon, ShieldExclamationIcon } from '../common/Icons';
+import { HardDriveIcon, TrashIcon, ShieldExclamationIcon, LogoutIcon } from '../common/Icons';
 import Loader from '../common/Loader';
+import Modal from '../common/Modal';
 
 interface ViolatingUser extends User {
     activeSessions: number;
@@ -13,6 +14,8 @@ const DeviceManagementView: React.FC = () => {
     const [violatingUsers, setViolatingUsers] = useState<ViolatingUser[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const { addToast } = useToast();
+    const [isClearAllModalOpen, setIsClearAllModalOpen] = useState(false);
+    const [isClearingAll, setIsClearingAll] = useState(false);
 
     const fetchData = useCallback(async () => {
         setIsLoading(true);
@@ -71,10 +74,34 @@ const DeviceManagementView: React.FC = () => {
         }
     };
 
+    const handleClearAllDevices = async () => {
+        setIsClearingAll(true);
+        const { error } = await clearAllActiveSessions();
+        if (error) {
+            addToast(`فشل تسجيل خروج جميع الأجهزة: ${error.message}`, ToastType.ERROR);
+        } else {
+            addToast('تم تسجيل خروج جميع الأجهزة النشطة بنجاح.', ToastType.SUCCESS);
+            fetchData(); // Refresh the list
+        }
+        setIsClearingAll(false);
+        setIsClearAllModalOpen(false);
+    };
+
     return (
         <div className="fade-in">
-            <h1 className="text-3xl font-bold text-[var(--text-primary)]">إدارة الأجهزة</h1>
-            <p className="text-[var(--text-secondary)] mt-1 mb-8">فحص وعرض الحسابات التي لديها أكثر من جلسة نشطة في نفس الوقت (حالة استثنائية).</p>
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-8 gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold text-[var(--text-primary)]">إدارة الأجهزة</h1>
+                    <p className="text-[var(--text-secondary)] mt-1">فحص وعرض الحسابات التي لديها أكثر من جلسة نشطة في نفس الوقت (حالة استثنائية).</p>
+                </div>
+                <button 
+                    onClick={() => setIsClearAllModalOpen(true)}
+                    className="flex items-center justify-center space-x-2 space-x-reverse px-4 py-2 font-semibold bg-red-600/20 text-red-300 hover:bg-red-600/40 rounded-lg transition-colors"
+                >
+                    <LogoutIcon className="w-5 h-5"/> 
+                    <span>تسجيل خروج جميع الأجهزة</span>
+                </button>
+            </div>
 
             {isLoading ? (
                 <div className="flex justify-center items-center py-20"><Loader /></div>
@@ -114,6 +141,18 @@ const DeviceManagementView: React.FC = () => {
                     <p className="text-[var(--text-secondary)] mt-1">لا يوجد أي مستخدم لديه أكثر من جلسة نشطة.</p>
                 </div>
             )}
+            
+            <Modal isOpen={isClearAllModalOpen} onClose={() => setIsClearAllModalOpen(false)} title="تأكيد تسجيل الخروج الجماعي">
+                <p className="text-[var(--text-secondary)] mb-6">
+                    هل أنت متأكد؟ سيؤدي هذا الإجراء إلى تسجيل خروج جميع المستخدمين النشطين من المنصة وسيتعين عليهم تسجيل الدخول مرة أخرى.
+                </p>
+                <div className="flex justify-end space-x-3 space-x-reverse">
+                    <button onClick={() => setIsClearAllModalOpen(false)} className="px-4 py-2 rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] transition-colors">إلغاء</button>
+                    <button onClick={handleClearAllDevices} disabled={isClearingAll} className="px-4 py-2 rounded-md bg-red-600 hover:bg-red-700 transition-colors text-white disabled:opacity-50">
+                        {isClearingAll ? 'جاري التنفيذ...' : 'نعم، تسجيل الخروج'}
+                    </button>
+                </div>
+            </Modal>
         </div>
     );
 };

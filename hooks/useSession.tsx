@@ -1,19 +1,20 @@
 import React, { createContext, useState, useEffect, useCallback, useContext } from 'react';
-import { User } from '../types';
+import { User, Grade } from '../types';
 import { 
     registerAndRedeemCode,
     signIn,
     signUp,
     signOut,
     onAuthStateChange,
-    getProfile,
+    getUserById,
     getSession,
     addActivityLog,
     updateUser,
     deleteUser,
     sendPasswordResetEmail,
     updateUserPassword,
-    getOrCreateDeviceId
+    getOrCreateDeviceId,
+    supabase
 } from '../services/storageService';
 import { useToast } from '../useToast';
 
@@ -52,10 +53,11 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
             }
 
             if (session) {
-                let profile: User | null = null;
+                let profile: any = null;
                 let attempts = 0;
                 while (!profile && attempts < 5) {
-                    profile = await getProfile(session.user.id);
+                    const { data: profileData } = await supabase.from('profiles').select('*, grades(*, semesters(*, units(*, lessons(*))))').eq('id', session.user.id).single();
+                    profile = profileData;
                     if (!profile) {
                         attempts++;
                         await new Promise(res => setTimeout(res, 1000 * attempts));
@@ -63,7 +65,15 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 }
 
                 if (profile) {
-                    setCurrentUser(profile);
+                    const mergedUser: User = {
+                        ...(profile as any),
+                        id: session.user.id,
+                        email: session.user.email || profile.email,
+                        grade: profile.grade_id,
+                        guardianPhone: profile.guardian_phone,
+                        gradeData: profile.grades as Grade,
+                    };
+                    setCurrentUser(mergedUser);
                 } else {
                     console.error("User is logged in but profile data is missing after multiple attempts.");
                     addToast('فشل تحميل بيانات الملف الشخصي. قد تحتاج إلى تسجيل الخروج والدخول مرة أخرى.', 'error');
@@ -100,13 +110,18 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setAuthError('');
         
         const postSignUpUpdate = async (userId: string) => {
+            // Explicitly update all profile fields to make it robust against trigger failures
             const { error: updateError } = await updateUser(userId, {
+                name: userData.name,
+                phone: userData.phone,
+                guardianPhone: userData.guardianPhone,
                 grade: userData.grade,
                 track: userData.track,
             });
+
             if (updateError) {
                 console.error("Post-registration update failed:", updateError.message);
-                addToast('تم إنشاء الحساب، ولكن قد تحتاج إلى تحديث صفك الدراسي يدويًا من ملفك الشخصي.', 'warning');
+                addToast('تم إنشاء الحساب، ولكن قد تحتاج إلى تحديث بياناتك يدويًا من ملفك الشخصي.', 'warning');
             }
         };
 

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { Course, Book, ToastType, Teacher } from '../../types';
+import { Book, ToastType, Teacher } from '../../types';
 import { 
     getFeaturedCourses, addFeaturedCourse, updateFeaturedCourse, deleteFeaturedCourse,
     getFeaturedBooks, addFeaturedBook, updateFeaturedBook, deleteFeaturedBook, getAllTeachers
@@ -32,9 +32,14 @@ const HomeManagementView: React.FC = () => {
     const [modalState, setModalState] = useState<{ type: string | null; data: any }>({ type: null, data: {} });
     const [formData, setFormData] = useState<any>({});
     const [activeTab, setActiveTab] = useState<'courses' | 'books'>('courses');
+    
+    const [courses, setCourses] = useState<any[]>([]);
+    const [books, setBooks] = useState<Book[]>([]);
 
-    const courses = useMemo(() => getFeaturedCourses(), [dataVersion]);
-    const books = useMemo(() => getFeaturedBooks(), [dataVersion]);
+    useEffect(() => {
+        getFeaturedCourses().then(data => setCourses(data));
+        getFeaturedBooks().then(data => setBooks(data as Book[]));
+    }, [dataVersion]);
     
     const [teachers, setTeachers] = useState<Teacher[]>([]);
     useEffect(() => {
@@ -162,7 +167,7 @@ const HomeManagementView: React.FC = () => {
             <Modal isOpen={['add-course', 'edit-course'].includes(modalState.type || '')} onClose={closeModal} title={modalState.type === 'add-course' ? 'إضافة كورس جديد' : 'تعديل كورس'}>
                 <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="space-y-4">
                     <FormInput label="العنوان" name="title" value={formData.title || ''} onChange={handleFormChange} />
-                    <FormInput label="العنوان الفرعي" name="subtitle" value={formData.description || ''} onChange={handleFormChange} />
+                    <FormInput label="العنوان الفرعي" name="description" value={formData.description || ''} onChange={handleFormChange} />
                     <div>
                         <label htmlFor="teacherId" className="block text-sm font-medium text-[var(--text-secondary)] mb-1">المدرس</label>
                         <select name="teacherId" id="teacherId" value={formData.teacherId || ''} onChange={handleFormChange} required className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)] focus:ring-purple-500 focus:border-purple-500">
