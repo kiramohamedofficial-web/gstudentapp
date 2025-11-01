@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect, useCallback, useContext } from 'react';
-import { User, Grade } from '../types';
+import { User, Grade, ToastType } from '../types';
 import { 
     registerAndRedeemCode,
     signIn,
@@ -32,6 +32,8 @@ interface SessionContextType {
     handleLogout: () => Promise<void>;
     handleSendPasswordReset: (email: string) => Promise<void>;
     handleUpdatePassword: (password: string) => Promise<void>;
+    isPostRegistrationModalOpen: boolean;
+    closePostRegistrationModal: () => void;
 }
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
@@ -64,6 +66,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const [authError, setAuthError] = useState<string>('');
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [authView, setAuthView] = useState<AuthView>('welcome');
+    const [isPostRegistrationModalOpen, setIsPostRegistrationModalOpen] = useState(false);
     const { addToast } = useToast();
     
     useEffect(() => {
@@ -121,6 +124,10 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
             subscription?.unsubscribe();
         };
     }, [addToast]);
+    
+    const closePostRegistrationModal = useCallback(() => {
+        setIsPostRegistrationModalOpen(false);
+    }, []);
 
     const handleLogin = useCallback(async (identifier: string, password: string): Promise<void> => {
         setAuthError('');
@@ -159,6 +166,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
                     setAuthError(error);
                 } else {
                     addToast(`مرحباً بك ${userData.name}! تم إنشاء حسابك وتفعيل اشتراكك.`, 'success');
+                    setIsPostRegistrationModalOpen(true);
                 }
             }
         } else {
@@ -168,6 +176,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
             } else if (data.user) {
                 await postSignUpUpdate(data.user.id);
                 addToast(`تم إنشاء حسابك بنجاح! مرحباً بك.`, 'success');
+                setIsPostRegistrationModalOpen(true);
             }
         }
     }, [addToast]);
@@ -223,7 +232,9 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         handleRegister,
         handleLogout,
         handleSendPasswordReset,
-        handleUpdatePassword
+        handleUpdatePassword,
+        isPostRegistrationModalOpen,
+        closePostRegistrationModal
     };
 
     return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

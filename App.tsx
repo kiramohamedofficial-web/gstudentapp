@@ -10,9 +10,10 @@ import WelcomeScreen from './components/welcome/WelcomeScreen';
 import AuthScreen from './components/auth/AuthScreen';
 import ScreenSecurity from './components/common/ScreenSecurity';
 import ErrorBoundary from './components/common/ErrorBoundary';
+import Modal from './components/common/Modal';
 
 const App: React.FC = () => {
-  const { currentUser, isLoading, authView, setAuthView } = useSession();
+  const { currentUser, isLoading, authView, setAuthView, isPostRegistrationModalOpen, closePostRegistrationModal } = useSession();
   const [theme, setTheme] = useState<Theme>('light');
 
   useEffect(() => {
@@ -71,6 +72,30 @@ const App: React.FC = () => {
       </div>
       
       <ToastContainer />
+
+      <Modal
+        isOpen={isPostRegistrationModalOpen}
+        onClose={closePostRegistrationModal}
+        title="⚠️ تنبيه هام عند التسجيل"
+      >
+        <div className="bg-red-500/10 border border-red-500/30 text-red-300 p-4 rounded-lg space-y-3">
+          <ul className="list-disc list-inside space-y-2 text-right">
+            <li>سيتم <strong>حذف حسابك تلقائيًّا بعد 60 يومًا من عدم النشاط</strong> (عدم الدخول إلى المنصة).</li>
+            <li><strong>تسجيل الدخول مسموح به من جهاز واحد فقط</strong> في نفس الوقت.</li>
+          </ul>
+          <p className="font-semibold pt-2 border-t border-red-500/30">
+            يُرجى الالتزام بسياسة الاستخدام لضمان استمرارية حسابك.
+          </p>
+        </div>
+        <div className="mt-6 flex justify-end">
+          <button
+            onClick={closePostRegistrationModal}
+            className="px-6 py-2 font-bold bg-red-600 text-white rounded-lg transition-colors hover:bg-red-700"
+          >
+            حسنًا، فهمت
+          </button>
+        </div>
+      </Modal>
     </>
   );
 };
