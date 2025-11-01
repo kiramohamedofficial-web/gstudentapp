@@ -128,7 +128,11 @@ export const getSession = async () => { const { data: { session } } = await supa
 export const onAuthStateChange = (callback: (event: string, session: Session | null) => void) => supabase.auth.onAuthStateChange(callback);
 export const sendPasswordResetEmail = async (email: string) => supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
 export const updateUserPassword = async (password: string) => supabase.auth.updateUser({ password });
-export const deleteSelf = async () => { const { data: { user } } = await supabase.auth.getUser(); if (!user) return { error: { message: 'User not authenticated.' } }; const { error } = await supabase.auth.admin.deleteUser(user.id); if (!error) await signOut(); return { error }; };
+export const deleteSelf = async () => {
+    const { error } = await supabase.rpc('delete_user_self');
+    if (!error) await signOut(); 
+    return { error }; 
+};
 
 // =================================================================
 // 📚 NEW DATA FETCHING GUIDE IMPLEMENTATION
@@ -197,16 +201,31 @@ export async function getAllGrades(): Promise<Grade[]> {
     }
     if (!data) return [];
 
-    return data.map((grade: any) => ({
-        ...grade,
-        semesters: (grade.semesters || []).map((semester: any) => ({
-            ...semester,
-            units: (semester.units || []).map((unit: any) => ({
-                ...unit,
-                teacherId: unit.teacher_id, // Map snake_case to camelCase
-                lessons: (unit.lessons || []).map((lesson: any) => ({
-                    ...lesson,
+    // FIX: Explicitly map all fields from snake_case (DB) to camelCase (App)
+    // This is the root cause fix for the grade loading issue.
+    return data.map((grade: any): Grade => ({
+        id: grade.id,
+        name: grade.name,
+        level: grade.level,
+        levelAr: grade.level_ar,
+        semesters: (grade.semesters || []).map((semester: any): Semester => ({
+            id: semester.id,
+            title: semester.title,
+            grade_id: semester.grade_id,
+            units: (semester.units || []).map((unit: any): Unit => ({
+                id: unit.id,
+                title: unit.title,
+                teacherId: unit.teacher_id,
+                track: unit.track,
+                semester_id: unit.semester_id,
+                lessons: (unit.lessons || []).map((lesson: any): Lesson => ({
+                    id: lesson.id,
+                    title: lesson.title,
+                    type: lesson.type,
+                    content: lesson.content,
                     quizType: lesson.quiz_type,
+                    questions: lesson.questions,
+                    imageUrl: lesson.image_url,
                     correctAnswers: lesson.correct_answers,
                     timeLimit: lesson.time_limit,
                     passingScore: lesson.passing_score,
@@ -214,7 +233,7 @@ export async function getAllGrades(): Promise<Grade[]> {
                 }))
             }))
         }))
-    })) as Grade[];
+    }));
 }
 export async function getGradeById(gradeId: number) { return supabase.from('grades').select('*').eq('id', gradeId).single(); }
 export async function getGradesByLevel(level: 'Middle' | 'Secondary') { return supabase.from('grades').select('*').eq('level', level).order('id'); }
@@ -520,7 +539,7 @@ export const initData = async (): Promise<void> => {
     }
 };
 
-export const getGradesForSelection = (): {id: number, name: string, level: 'Middle' | 'Secondary'}[] => (curriculumCache?.grades || defaultGrades).map(g => ({ id: g.id, name: g.name, level: g.level }));
+export const getGradesForSelection = (): {id: number, name: string, level: 'Middle' | 'Secondary', levelAr: 'الإعدادي' | 'الثانوي'}[] => (curriculumCache?.grades || defaultGrades).map(g => ({ id: g.id, name: g.name, level: g.level, levelAr: g.levelAr }));
 export const getUnitsForSemester = async (gradeId: number, semesterId: string): Promise<Unit[]> => {
     const { data, error } = await supabase.from('units').select('*').eq('semester_id', semesterId).order('id', { ascending: true });
     if (error) { console.error(error); return []; }
@@ -570,60 +589,50 @@ export const getPendingSubscriptionRequestCount = async (): Promise<number> => {
 };
 
 export async function createTeacher(params: any) {
-  const { data, error } = await supabase.rpc('create_teacher_account', { teacher_name: params.name, teacher_email: params.email, teacher_password: params.password, teacher_subject: params.subject, teaching_grades_array: params.teaching_grades, teaching_levels_array: params.teaching_levels, teacher_image_url: params.image_url || null });
+  const { data, error } = await supabase.rpc('create_teacher_account', {
+      teacher_name: params.name,
+      teacher_email: params.email,
+      teacher_password: params.password,
+      teacher_phone: params.phone ? `+20${params.phone.replace(/^0/, '')}` : null,
+      teacher_subject: params.subject,
+      teaching_grades_array: params.teaching_grades,
+      teaching_levels_array: params.teaching_levels,
+      teacher_image_url: params.image_url || null
+  });
   if (error) return { success: false, error, data: null };
   if (data?.success) return { success: true, data, error: null };
   return { success: false, error: { message: data?.error || 'An unknown error occurred.' }, data: null };
 }
 
 export async function updateTeacher(teacherId: string, updates: any) {
-  const { data, error } = await supabase.from('teachers').update({ 
-    name: updates.name, 
-    subject: updates.subject, 
-    teaching_grades: updates.teachingGrades, 
-    teaching_levels: updates.teachingLevels, 
-    image_url: updates.imageUrl 
-  }).eq('id', teacherId).select().single();
-  
-  if (error) return { success: false, error };
+  // This function now calls a single RPC to perform a transactional update,
+  // ensuring that all related tables (teachers, profiles, auth.users) are updated atomically.
+  // This prevents data inconsistency if one part of the update fails.
+  const rpcParams = {
+    p_teacher_id: teacherId,
+    p_name: updates.name,
+    p_subject: updates.subject,
+    p_image_url: updates.imageUrl,
+    p_teaching_levels: updates.teachingLevels,
+    p_teaching_grades: updates.teachingGrades,
+    p_email: updates.email,
+    p_phone: updates.phone ? `+20${updates.phone.replace(/^0/, '')}` : null,
+    p_password: updates.password || null
+  };
 
-  if (updates.name || updates.phone || updates.email) {
-    const { data: profileData, error: profileError } = await supabase.from('profiles').select('id').eq('teacher_id', teacherId).single();
-    if (profileError) {
-      return { success: false, error: profileError };
-    }
-    
-    if (profileData) {
-      const userId = profileData.id;
-      const profilePayload: Record<string, any> = {};
-      
-      if (updates.name) profilePayload.name = updates.name;
-      
-      if (updates.phone) {
-        let phone = updates.phone;
-        if (phone.startsWith('0')) {
-            phone = phone.substring(1);
-        }
-        profilePayload.phone = `+20${phone}`;
-      }
+  const { data, error } = await supabase.rpc('update_teacher_account', rpcParams);
 
-      if (updates.email) {
-          const { error: authUpdateError } = await supabase.auth.admin.updateUserById(userId, { email: updates.email });
-          if (authUpdateError) {
-              return { success: false, error: authUpdateError };
-          }
-          profilePayload.email = updates.email;
-      }
-      
-      if (Object.keys(profilePayload).length > 0) {
-        const { error: profileUpdateError } = await supabase.from('profiles').update(profilePayload).eq('id', userId);
-        if (profileUpdateError) {
-          return { success: false, error: profileUpdateError };
-        }
-      }
-    }
+  if (error) {
+    console.error('RPC update_teacher_account error:', error);
+    return { success: false, error };
   }
-  return { success: true, data };
+
+  if (data?.success) {
+    return { success: true, data: data };
+  } else {
+    console.error('RPC update_teacher_account failed:', data?.error);
+    return { success: false, error: { message: data?.error || 'An unknown error occurred in the database function.' } };
+  }
 }
 
 export async function deleteTeacher(teacherId: string) {
@@ -674,7 +683,10 @@ export const updateUser = async (userId: string, updates: Partial<User>) => {
     const { error } = await supabase.from('profiles').update(payload).eq('id', userId);
     return { error };
 };
-export const deleteUser = async (id: string) => { const { error } = await supabase.auth.admin.deleteUser(id); return { error }; };
+export const deleteUser = async (id: string) => {
+    const { error } = await supabase.rpc('delete_user_by_id', { userid: id });
+    return { error };
+};
 export const clearUserDevices = async (userId: string) => { const { error } = await supabase.from('user_sessions').delete().eq('user_id', userId); return { error }; };
 
 export const clearAllActiveSessions = async () => {
@@ -698,6 +710,9 @@ export async function generateSubscriptionCodes(options: { teacherId?: string, d
         if (newCode) generatedCodes.push(newCode);
     }
     return generatedCodes;
+};
+export const deleteSubscriptionCode = async (code: string) => {
+    return supabase.from('subscription_codes').delete().eq('code', code);
 };
 
 // Functions without a direct guide equivalent but necessary for the app

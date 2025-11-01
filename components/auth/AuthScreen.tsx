@@ -9,7 +9,7 @@ interface AuthScreenProps {
 }
 
 type AuthView = 'login' | 'register-step-1' | 'register-step-2' | 'reset-password' | 'update-password';
-type GradeForSelect = Pick<Grade, 'id' | 'name' | 'level'>;
+type GradeForSelect = { id: number; name: string; level: 'Middle' | 'Secondary'; levelAr: 'الإعدادي' | 'الثانوي'; };
 
 
 const GradeSelectionModal: React.FC<{
@@ -40,7 +40,14 @@ const GradeSelectionModal: React.FC<{
 
     const gradesForLevel = useMemo(() => {
         if (!selectedLevel) return [];
-        return grades.filter(g => g.level === selectedLevel);
+        // FIX: Use .includes() for robust matching against 'إعدادي'/'ثانوي'
+        if (selectedLevel === 'Middle') {
+            return grades.filter(g => g.levelAr?.includes('إعدادي'));
+        }
+        if (selectedLevel === 'Secondary') {
+            return grades.filter(g => g.levelAr?.includes('ثانوي'));
+        }
+        return [];
     }, [grades, selectedLevel]);
 
     if (!isOpen) return null;
@@ -86,9 +93,9 @@ const GradeSelectionModal: React.FC<{
 const PhoneInput: React.FC<{ name: string; placeholder: string; value: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; required?: boolean; }> = ({ name, placeholder, value, onChange, required = false }) => (
     <div className="relative">
         <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
-            <span className="text-gray-400">🇪🇬 +20</span>
+            <span className="text-[var(--text-secondary)]">🇪🇬 +20</span>
         </div>
-        <input name={name} type="tel" placeholder={placeholder} value={value} onChange={onChange} required={required} className="w-full px-4 py-3 pr-24 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-[var(--accent-primary)] text-left tracking-widest placeholder:text-right" dir="ltr" maxLength={11} />
+        <input name={name} type="tel" placeholder={placeholder} value={value} onChange={onChange} required={required} className="w-full px-4 py-3 pr-24 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg placeholder:text-[var(--text-secondary)] focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-[var(--accent-primary)] text-left tracking-widest placeholder:text-right" dir="ltr" maxLength={11} />
     </div>
 );
 

@@ -32,6 +32,8 @@ const DeviceManagementView = lazy(() => import('./DeviceManagementView'));
 const AccountCreationDiagnosticsView = lazy(() => import('./AccountCreationDiagnosticsView'));
 const TeacherCreationDiagnosticsView = lazy(() => import('./TeacherCreationDiagnosticsView'));
 const FinancialReportsView = lazy(() => import('./FinancialReportsView'));
+const CurriculumDiagnosticsView = lazy(() => import('./CurriculumDiagnosticsView'));
+const SubscriptionCodeDiagnosticsView = lazy(() => import('./SubscriptionCodeDiagnosticsView'));
 
 
 interface AdminDashboardProps {
@@ -467,6 +469,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
       case 'accountSettings': return <AdminSettingsView theme={theme} setTheme={setTheme} />;
       case 'accountCreationDiagnostics': return <Suspense fallback={suspenseLoader}><AccountCreationDiagnosticsView /></Suspense>;
       case 'teacherCreationDiagnostics': return <Suspense fallback={suspenseLoader}><TeacherCreationDiagnosticsView /></Suspense>;
+      case 'curriculumDiagnostics': return <Suspense fallback={suspenseLoader}><CurriculumDiagnosticsView onBack={() => setActiveView('systemHealth')} /></Suspense>;
+      case 'subscriptionCodeDiagnostics': return <Suspense fallback={suspenseLoader}><SubscriptionCodeDiagnosticsView onBack={() => setActiveView('systemHealth')} /></Suspense>;
       case 'dashboard':
       default:
         return <MainDashboard onNavigate={setActiveView} />;

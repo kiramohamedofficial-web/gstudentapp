@@ -180,6 +180,26 @@ const AccountCreationDiagnosticsView: React.FC = () => {
                 }
                 addLog(`✅ البيانات النهائية مطابقة.`);
             }
+
+            // Step 5: Deletion Check
+            addLog('الخطوة 5: التحقق من عملية حذف الحساب...');
+            const { error: deleteError } = await deleteUser(authData.user.id);
+            if (deleteError) {
+                createdUserId = authData.user.id; // Keep ID for manual cleanup log
+                throw new Error(`فشل حذف المستخدم: ${deleteError.message}`);
+            }
+            addLog('✅ نجاح! تم إرسال أمر الحذف بنجاح.');
+
+            addLog('الخطوة 6: التأكد من أن المستخدم لم يعد موجودًا...');
+            await new Promise(res => setTimeout(res, 1500)); // Wait for deletion to propagate
+            const { data: finalCheck } = await getUserById(authData.user.id);
+            if (finalCheck) {
+                createdUserId = authData.user.id; // Keep ID for manual cleanup log
+                throw new Error('فشل التحقق من الحذف! لا يزال من الممكن العثور على المستخدم.');
+            }
+            addLog('✅ نجاح! تم التأكد من حذف المستخدم نهائيًا.');
+            createdUserId = null; // Prevent double cleanup attempt in finally block
+
             addLog("🏁 اكتملت المحاكاة بنجاح!");
             addToast("اكتملت المحاكاة بنجاح!", ToastType.SUCCESS);
         } catch (error: any) {
@@ -187,10 +207,10 @@ const AccountCreationDiagnosticsView: React.FC = () => {
              addToast("فشلت المحاكاة. انظر السجلات للمزيد.", ToastType.ERROR);
         } finally {
             if (createdUserId) {
-                addLog(`التنظيف: حذف المستخدم التجريبي (ID: ${createdUserId})...`);
+                addLog(`التنظيف النهائي: محاولة حذف المستخدم التجريبي (ID: ${createdUserId}) مرة أخرى...`);
                 const { error: deleteError } = await deleteUser(createdUserId);
                 if (deleteError) {
-                    addLog(`❌ فشل حذف المستخدم التجريبي: ${deleteError.message}`);
+                    addLog(`❌ فشل حذف المستخدم التجريبي: ${deleteError.message}. الرجاء حذفه يدويًا.`);
                 } else {
                     addLog(`✅ تم حذف المستخدم التجريبي بنجاح.`);
                 }

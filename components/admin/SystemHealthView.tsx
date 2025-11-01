@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { ShieldExclamationIcon, DatabaseIcon, TrashIcon, ShieldCheckIcon, WaveIcon, PhotoIcon, KeyIcon, HardDriveIcon, UserCheckIcon, ServerIcon, CogIcon } from '../common/Icons';
+import { ShieldExclamationIcon, DatabaseIcon, TrashIcon, ShieldCheckIcon, WaveIcon, PhotoIcon, KeyIcon, HardDriveIcon, UserCheckIcon, ServerIcon, CogIcon, QrcodeIcon } from '../common/Icons';
 import Modal from '../common/Modal';
 import { useToast } from '../../useToast';
 import { ToastType, AdminView } from '../../types';
@@ -254,7 +254,7 @@ const SystemHealthView: React.FC<SystemHealthViewProps> = ({ onNavigate }) => {
             </HealthCard>
             
             <HealthCard title="الصيانة والأدوات التشخيصية" icon={CogIcon}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <div>
                          <h3 className="font-semibold text-[var(--text-primary)]">صيانة النظام</h3>
                          <p className="text-sm text-[var(--text-secondary)] mt-1 mb-3">حذف البيانات المتبقية (مثل الاشتراكات والتقدم) المتعلقة بالطلاب الذين تم حذف حساباتهم.</p>
@@ -269,6 +269,20 @@ const SystemHealthView: React.FC<SystemHealthViewProps> = ({ onNavigate }) => {
                             <button onClick={() => onNavigate('accountCreationDiagnostics')} className="w-full text-left p-3 rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] transition-colors text-sm">فحص إنشاء حساب طالب</button>
                             <button onClick={() => onNavigate('teacherCreationDiagnostics')} className="w-full text-left p-3 rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] transition-colors text-sm">فحص إنشاء حساب مدرس</button>
                         </div>
+                    </div>
+                    <div>
+                         <h3 className="font-semibold text-[var(--text-primary)]">فحص بيانات المناهج</h3>
+                         <p className="text-sm text-[var(--text-secondary)] mt-1 mb-3">أداة متخصصة لفحص سلامة بيانات الصفوف والمراحل الدراسية وتشخيص مشاكل العرض.</p>
+                         <button onClick={() => onNavigate('curriculumDiagnostics')} className="w-full text-left p-3 rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] transition-colors text-sm">
+                             بدء فحص المناهج الدراسية
+                         </button>
+                    </div>
+                    <div>
+                         <h3 className="font-semibold text-[var(--text-primary)]">فحص أكواد الاشتراك</h3>
+                         <p className="text-sm text-[var(--text-secondary)] mt-1 mb-3">محاكاة عملية استخدام كود اشتراك لمرة واحدة للتأكد من عدم إمكانية إعادة استخدامه.</p>
+                         <button onClick={() => onNavigate('subscriptionCodeDiagnostics')} className="w-full text-left p-3 rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] transition-colors text-sm">
+                             بدء فحص أكواد الاشتراك
+                         </button>
                     </div>
                 </div>
             </HealthCard>

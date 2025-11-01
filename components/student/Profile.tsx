@@ -47,7 +47,6 @@ const CircularProgress: React.FC<{ progress: number }> = ({ progress }) => {
         <circle
           stroke="url(#progressGradient)"
           strokeWidth={strokeWidth}
-          strokeDasharray={circumference}
           style={{ strokeDashoffset, transition: 'stroke-dashoffset 1s ease-out' }}
           strokeLinecap="round"
           fill="transparent"
@@ -86,7 +85,7 @@ const EditProfileModal: React.FC<{ isOpen: boolean; onClose: () => void; user: U
         guardianPhone: '',
         grade: null as number | null,
     });
-    const [grades, setGrades] = useState<{ id: number; name: string }[]>([]);
+    const [grades, setGrades] = useState<{ id: number; name: string; level: 'Middle' | 'Secondary'; levelAr: 'الإعدادي' | 'الثانوي' }[]>([]);
 
     useEffect(() => {
         if (isOpen) {

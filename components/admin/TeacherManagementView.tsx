@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Teacher, ToastType, Grade, User } from '../../types';
-import { getAllTeachers, createTeacher, updateTeacher, deleteTeacher, getAllGrades, getUserByTeacherId, supabase } from '../../services/storageService';
+import { getAllTeachers, createTeacher, updateTeacher, deleteTeacher, getGradesForSelection, getUserByTeacherId, supabase } from '../../services/storageService';
 import Modal from '../common/Modal';
 import { PlusIcon, PencilIcon, TrashIcon, UserCircleIcon } from '../common/Icons';
 import { useToast } from '../../useToast';
@@ -36,21 +36,17 @@ const TeacherModal: React.FC<{
     const [selectedLevels, setSelectedLevels] = useState<('Middle' | 'Secondary')[]>([]);
     const [selectedGrades, setSelectedGrades] = useState<number[]>([]);
     const [error, setError] = useState('');
-    const [allGrades, setAllGrades] = useState<Grade[]>([]);
+    const [allGrades, setAllGrades] = useState<{ id: number; name: string; level: 'Middle' | 'Secondary'; levelAr: 'الإعدادي' | 'الثانوي' }[]>([]);
     
-    // FIX: Replaced .then() with async/await and updated comment.
     useEffect(() => {
-        const fetchGrades = async () => {
-            if (isOpen) {
-                const grades = await getAllGrades();
-                setAllGrades(grades);
-            }
-        };
-        fetchGrades();
+        if (isOpen) {
+            const grades = getGradesForSelection();
+            setAllGrades(grades);
+        }
     }, [isOpen]);
 
-    const middleSchoolGrades = useMemo(() => allGrades.filter(g => g.level === 'Middle').sort((a,b) => a.id - b.id), [allGrades]);
-    const secondarySchoolGrades = useMemo(() => allGrades.filter(g => g.level === 'Secondary').sort((a,b) => a.id - b.id), [allGrades]);
+    const middleSchoolGrades = useMemo(() => allGrades.filter(g => g.levelAr?.includes('إعدادي')).sort((a,b) => a.id - b.id), [allGrades]);
+    const secondarySchoolGrades = useMemo(() => allGrades.filter(g => g.levelAr?.includes('ثانوي')).sort((a,b) => a.id - b.id), [allGrades]);
 
     useEffect(() => {
         const loadTeacherData = async () => {
@@ -105,11 +101,19 @@ const TeacherModal: React.FC<{
         setError('');
 
         const phoneRegex = /^01[0125]\d{8}$/;
+        if (!formData.phone) {
+             setError('الرجاء إدخال رقم هاتف.');
+             return;
+        }
         if (!phoneRegex.test(formData.phone)) {
             setError('الرجاء إدخال رقم هاتف مصري صحيح (11 رقم).');
             return;
         }
-
+        
+        if (!formData.email) {
+            setError('الرجاء إدخال بريد إلكتروني.');
+            return;
+        }
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
             setError('الرجاء إدخال بريد إلكتروني صالح.');
             return;
