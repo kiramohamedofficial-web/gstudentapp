@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, lazy, Suspense, useCallback } from 'react';
-import { Unit, Lesson, StudentView, Theme, Teacher, Course, ToastType } from '../../types';
+import { Unit, Lesson, StudentView, Theme, Teacher, Course, ToastType, CartoonMovie } from '../../types';
 import StudentLayout from '../layout/StudentLayout';
 import { SparklesIcon } from '../common/Icons';
 import { useSession } from '../../hooks/useSession';
@@ -38,7 +38,7 @@ const SuspenseLoader: React.FC = () => (
 const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
   const { theme, setTheme } = props;
   const { currentUser: user } = useSession();
-  const [activeView, setActiveView] = useState<StudentView>('home');
+  const [activeView, setActiveView] = useState<StudentView>('cartoonMovies');
   const [isDataSaverEnabled, setIsDataSaverEnabled] = useState(false);
   const { addToast } = useToast();
 

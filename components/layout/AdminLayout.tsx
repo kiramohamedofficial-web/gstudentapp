@@ -3,7 +3,7 @@ import { User } from '../../types';
 import { QrcodeIcon, CreditCardIcon, HomeIcon, XIcon, TemplateIcon, CogIcon, LogoutIcon, BellIcon, QuestionMarkCircleIcon, CurrencyDollarIcon, BookOpenIcon, HardDriveIcon, ChartBarIcon } from '../common/Icons';
 import { getPendingSubscriptionRequestCount } from '../../services/storageService';
 
-type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'courseManagement' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers' | 'subscriptionPrices' | 'deviceManagement' | 'content' | 'accountCreationDiagnostics' | 'teacherCreationDiagnostics' | 'financials';
+type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'courseManagement' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers' | 'subscriptionPrices' | 'deviceManagement' | 'content' | 'accountCreationDiagnostics' | 'teacherCreationDiagnostics' | 'financials' | 'cartoonMoviesManagement';
 
 const ContentManagementIcon: React.FC<{ className?: string }> = ({ className }) => (
     <img src="https://a.top4top.io/p_3591fcsm53.png" alt="Content Management" className={className} />
@@ -21,6 +21,11 @@ const SystemHealthIcon: React.FC<{ className?: string }> = ({ className }) => (
     <img src="https://g.top4top.io/p_3584g68tl0.png" alt="System Health" className={className} />
 );
 
+const CartoonMoviesIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <img src="https://h.top4top.io/p_3584kk8d71.png" alt="Cartoon Movies" className={className} />
+);
+
+
 interface AdminLayoutProps {
   user: User;
   onLogout: () => void;
@@ -36,6 +41,7 @@ const mainNavItems = [
     { id: 'content', label: 'إدارة المنهج الدراسي', icon: ContentManagementIcon },
     { id: 'courseManagement', label: 'إدارة الكورسات', icon: BookOpenIcon },
     { id: 'homeManagement', label: 'إدارة الرئيسية', icon: TemplateIcon },
+    { id: 'cartoonMoviesManagement', label: 'أفلام الكرتون', icon: CartoonMoviesIcon },
     { id: 'subscriptions', label: 'الاشتراكات', icon: CreditCardIcon },
     { id: 'financials', label: 'التقارير المالية', icon: ChartBarIcon },
     { id: 'subscriptionPrices', label: 'أسعار الاشتراكات', icon: CurrencyDollarIcon },

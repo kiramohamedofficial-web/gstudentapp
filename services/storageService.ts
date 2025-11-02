@@ -1,8 +1,12 @@
+
+
+
 import React from 'react';
 import { createClient, Session, User as SupabaseUser } from '@supabase/supabase-js';
 import {
   User, Role, Subscription, Grade, Teacher, Lesson, Unit, SubscriptionRequest,
-  SubscriptionCode, Semester, QuizAttempt, ActivityLog, LessonType, PlatformSettings, Course, Book, StudentQuestion
+  SubscriptionCode, Semester, QuizAttempt, ActivityLog, LessonType, PlatformSettings, Course, Book, StudentQuestion,
+  CartoonMovie
 } from '../types';
 
 // =================================================================
@@ -520,6 +524,69 @@ export async function getPlatformStatistics() {
     return { totalStudents: totalStudents.count || 0, totalTeachers: totalTeachers.count || 0, totalLessons: totalLessons.count || 0, activeSubscriptions: activeSubscriptions.count || 0 };
 }
 
+// --- CARTOON MOVIES ---
+export async function getPublishedCartoonMovies(): Promise<CartoonMovie[]> {
+    const { data, error } = await supabase.from('cartoon_movies').select('*').eq('is_published', true).order('created_at', { ascending: false });
+    if (error) { console.error(error); return []; }
+    return (data?.map(movie => ({
+        id: movie.id,
+        title: movie.title,
+        story: movie.story,
+        posterUrl: movie.poster_url,
+        downloadUrl: movie.download_url,
+        downloadInstructions: movie.download_instructions,
+        loadInstructions: movie.load_instructions,
+        isPublished: movie.is_published,
+        createdAt: movie.created_at,
+    })) as CartoonMovie[]) || [];
+}
+
+export async function getAllCartoonMovies(): Promise<CartoonMovie[]> {
+    const { data, error } = await supabase.from('cartoon_movies').select('*').order('created_at', { ascending: false });
+    if (error) { console.error(error); return []; }
+    return (data?.map(movie => ({
+        id: movie.id,
+        title: movie.title,
+        story: movie.story,
+        posterUrl: movie.poster_url,
+        downloadUrl: movie.download_url,
+        downloadInstructions: movie.download_instructions,
+        loadInstructions: movie.load_instructions,
+        isPublished: movie.is_published,
+        createdAt: movie.created_at,
+    })) as CartoonMovie[]) || [];
+}
+
+export async function addCartoonMovie(movie: Partial<Omit<CartoonMovie, 'id' | 'createdAt'>>) {
+    const payload = {
+        title: movie.title,
+        story: movie.story,
+        poster_url: movie.posterUrl,
+        download_url: movie.downloadUrl,
+        download_instructions: movie.downloadInstructions,
+        load_instructions: movie.loadInstructions,
+        is_published: movie.isPublished,
+    };
+    return supabase.from('cartoon_movies').insert(payload);
+}
+
+export async function updateCartoonMovie(id: string, updates: Partial<CartoonMovie>) {
+    const payload: Record<string, any> = {};
+    if (updates.title !== undefined) payload.title = updates.title;
+    if (updates.story !== undefined) payload.story = updates.story;
+    if (updates.posterUrl !== undefined) payload.poster_url = updates.posterUrl;
+    if (updates.downloadUrl !== undefined) payload.download_url = updates.downloadUrl;
+    if (updates.downloadInstructions !== undefined) payload.download_instructions = updates.downloadInstructions;
+    if (updates.loadInstructions !== undefined) payload.load_instructions = updates.loadInstructions;
+    if (updates.isPublished !== undefined) payload.is_published = updates.isPublished;
+    
+    return supabase.from('cartoon_movies').update(payload).eq('id', id);
+}
+
+export async function deleteCartoonMovie(id: string) {
+    return supabase.from('cartoon_movies').delete().eq('id', id);
+}
+
 
 // =================================================================
 // EXISTING FUNCTIONS (Kept for App Integrity or No Guide Equivalent)
@@ -589,50 +656,141 @@ export const getPendingSubscriptionRequestCount = async (): Promise<number> => {
 };
 
 export async function createTeacher(params: any) {
-  const { data, error } = await supabase.rpc('create_teacher_account', {
-      teacher_name: params.name,
-      teacher_email: params.email,
-      teacher_password: params.password,
-      teacher_phone: params.phone ? `+20${params.phone.replace(/^0/, '')}` : null,
-      teacher_subject: params.subject,
-      teaching_grades_array: params.teaching_grades,
-      teaching_levels_array: params.teaching_levels,
-      teacher_image_url: params.image_url || null
-  });
-  if (error) return { success: false, error, data: null };
-  if (data?.success) return { success: true, data, error: null };
-  return { success: false, error: { message: data?.error || 'An unknown error occurred.' }, data: null };
+    try {
+        // Step 1: Create user in auth.users using admin privileges.
+        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+            email: params.email,
+            password: params.password,
+            phone: params.phone ? `+20${params.phone.replace(/^0/, '')}` : undefined,
+            email_confirm: true, // Auto-confirm email for simplicity
+            user_metadata: { name: params.name },
+        });
+
+        if (authError) {
+            if (authError.message.includes('unique constraint') || authError.message.includes('already exists')) {
+                 throw new Error(`الحساب بالبريد الإلكتروني أو رقم الهاتف هذا موجود بالفعل.`);
+            }
+            if (authError.message.toLowerCase().includes('user not allowed')) {
+                const domain = params.email.split('@')[1];
+                const detailedError = `فشل إنشاء الحساب لأن نطاق البريد الإلكتروني "@${domain}" غير مسموح به.\n\nلحل المشكلة، يرجى الذهاب إلى لوحة تحكم Supabase، ثم:\n1. Authentication > Settings\n2. ابحث عن قسم "Allowed Email Domains".\n3. أضف النطاق "${domain}" واضغط حفظ.`;
+                throw new Error(detailedError);
+            }
+            if (authError.message.toLowerCase().includes('service_role key required') || authError.message.toLowerCase().includes('jwt')) {
+                const detailedError = `فشل المصادقة كمسؤول (Admin). لا يمكن إنشاء حسابات مدرسين من طرف العميل مباشرةً لأسباب أمنية. هذه الميزة تتطلب إعدادًا من جانب الخادم (Supabase Edge Function). يرجى التواصل مع مطور المنصة.`;
+                throw new Error(detailedError);
+            }
+            throw new Error(`فشل إنشاء حساب المصادقة: ${authError.message}`);
+        }
+
+        const newUserId = authData.user.id;
+
+        // Step 2: Verify that the `profiles` table was populated by the trigger.
+        let profileData, profileError;
+        for (let i = 0; i < 3; i++) {
+            await new Promise(res => setTimeout(res, 500));
+            const { data, error } = await supabase.from('profiles').select('id').eq('id', newUserId).single();
+            if (data) {
+                profileData = data;
+                profileError = null;
+                break;
+            }
+            profileError = error;
+        }
+
+        if (profileError || !profileData) {
+            await supabase.auth.admin.deleteUser(newUserId);
+            throw new Error(`فشل التحقق من إنشاء الملف الشخصي. قد يكون الربط (DB Trigger) معطلاً. الخطأ: ${profileError?.message}`);
+        }
+
+        // Step 3: Create the teacher-specific record in the `teachers` table.
+        const { data: teacherData, error: teacherError } = await supabase
+            .from('teachers')
+            .insert({
+                name: params.name,
+                subject: params.subject,
+                image_url: params.image_url || null,
+                teaching_grades: params.teaching_grades,
+                teaching_levels: params.teaching_levels,
+            })
+            .select()
+            .single();
+
+        if (teacherError) {
+            await supabase.auth.admin.deleteUser(newUserId);
+            throw new Error(`فشل إنشاء سجل المدرس: ${teacherError.message}`);
+        }
+        
+        const newTeacherId = teacherData.id;
+
+        // Step 4: Link the user's profile to the new teacher record and set their role.
+        const { error: profileUpdateError } = await supabase
+            .from('profiles')
+            .update({ teacher_id: newTeacherId, role: 'teacher' })
+            .eq('id', newUserId);
+            
+        if (profileUpdateError) {
+            await supabase.auth.admin.deleteUser(newUserId);
+            await supabase.from('teachers').delete().eq('id', newTeacherId);
+            throw new Error(`فشل ربط الملف الشخصي بسجل المدرس: ${profileUpdateError.message}`);
+        }
+        
+        return { success: true, data: { teacher_id: newTeacherId, user_id: newUserId }, error: null };
+
+    } catch (error: any) {
+        return { success: false, error, data: null };
+    }
 }
 
 export async function updateTeacher(teacherId: string, updates: any) {
-  // This function now calls a single RPC to perform a transactional update,
-  // ensuring that all related tables (teachers, profiles, auth.users) are updated atomically.
-  // This prevents data inconsistency if one part of the update fails.
-  const rpcParams = {
-    p_teacher_id: teacherId,
-    p_name: updates.name,
-    p_subject: updates.subject,
-    p_image_url: updates.imageUrl,
-    p_teaching_levels: updates.teachingLevels,
-    p_teaching_grades: updates.teachingGrades,
-    p_email: updates.email,
-    p_phone: updates.phone ? `+20${updates.phone.replace(/^0/, '')}` : null,
-    p_password: updates.password || null
-  };
+    try {
+        const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('teacher_id', teacherId)
+            .single();
+        
+        if (profileError) throw new Error(`Could not find a user profile for this teacher: ${profileError.message}`);
+        
+        const userId = profile.id;
 
-  const { data, error } = await supabase.rpc('update_teacher_account', rpcParams);
+        const [teacherResult, profileResult, authResult] = await Promise.all([
+            supabase.from('teachers').update({
+                name: updates.name,
+                subject: updates.subject,
+                image_url: updates.imageUrl,
+                teaching_levels: updates.teachingLevels,
+                teaching_grades: updates.teachingGrades,
+            }).eq('id', teacherId),
+            
+            supabase.from('profiles').update({ name: updates.name }).eq('id', userId),
 
-  if (error) {
-    console.error('RPC update_teacher_account error:', error);
-    return { success: false, error };
-  }
+            (() => {
+                const authUpdates: any = {};
+                if (updates.email) authUpdates.email = updates.email;
+                if (updates.phone) authUpdates.phone = `+20${updates.phone.replace(/^0/, '')}`;
+                if (updates.password && updates.password.trim()) authUpdates.password = updates.password;
+                
+                if (Object.keys(authUpdates).length > 0) {
+                    return supabase.auth.admin.updateUserById(userId, authUpdates);
+                }
+                return Promise.resolve({ error: null });
+            })()
+        ]);
+        
+        if (teacherResult.error) throw new Error(`Failed to update teachers table: ${teacherResult.error.message}`);
+        if (profileResult.error) console.warn(`Failed to update name in profiles table: ${profileResult.error.message}`);
+        if (authResult.error) {
+            if (authResult.error.message.toLowerCase().includes('service_role key required') || authResult.error.message.toLowerCase().includes('jwt')) {
+                throw new Error(`فشل المصادقة كمسؤول (Admin). لا يمكن تعديل بيانات المدرسين الحساسة من طرف العميل مباشرةً لأسباب أمنية.`);
+            }
+            throw new Error(`Failed to update auth user: ${authResult.error.message}`);
+        }
+        
+        return { success: true, data: { message: "Teacher updated successfully." }, error: null };
 
-  if (data?.success) {
-    return { success: true, data: data };
-  } else {
-    console.error('RPC update_teacher_account failed:', data?.error);
-    return { success: false, error: { message: data?.error || 'An unknown error occurred in the database function.' } };
-  }
+    } catch (error: any) {
+        return { success: false, error, data: null };
+    }
 }
 
 export async function deleteTeacher(teacherId: string) {
@@ -640,7 +798,13 @@ export async function deleteTeacher(teacherId: string) {
     if (profileError && profileError.code !== 'PGRST116') return { success: false, error: profileError };
     if (profileData) {
         const { error: adminDeleteError } = await supabase.auth.admin.deleteUser(profileData.id);
-        if (adminDeleteError && !adminDeleteError.message.includes('User not found')) return { success: false, error: adminDeleteError };
+        if (adminDeleteError && !adminDeleteError.message.includes('User not found')) {
+            if (adminDeleteError.message.toLowerCase().includes('service_role key required') || adminDeleteError.message.toLowerCase().includes('jwt')) {
+                const detailedError = `فشل المصادقة كمسؤول (Admin). لا يمكن حذف حسابات المدرسين من طرف العميل مباشرةً لأسباب أمنية.`;
+                return { success: false, error: new Error(detailedError) };
+            }
+            return { success: false, error: adminDeleteError };
+        }
     }
     const { error: teacherError } = await supabase.from('teachers').delete().eq('id', teacherId);
     if (teacherError) return { success: false, error: teacherError };
@@ -684,7 +848,7 @@ export const updateUser = async (userId: string, updates: Partial<User>) => {
     return { error };
 };
 export const deleteUser = async (id: string) => {
-    const { error } = await supabase.rpc('delete_user_by_id', { userid: id });
+    const { error } = await supabase.auth.admin.deleteUser(id);
     return { error };
 };
 export const clearUserDevices = async (userId: string) => { const { error } = await supabase.from('user_sessions').delete().eq('user_id', userId); return { error }; };

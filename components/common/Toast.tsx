@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useToast } from '../../useToast';
 import { ToastMessage, ToastType } from '../../types';
@@ -26,7 +25,7 @@ const Toast: React.FC<{ toast: ToastMessage; onDismiss: (id: string) => void }> 
                     <Icon className="w-6 h-6" />
                 </div>
                 <div className="mr-3 ml-3 flex-1 text-right">
-                    <p className="text-sm font-semibold">{toast.message}</p>
+                    <p className="text-sm font-semibold whitespace-pre-wrap">{toast.message}</p>
                 </div>
                 <div className="flex-shrink-0 flex">
                     <button onClick={() => onDismiss(toast.id)} className="inline-flex rounded-md text-white/70 hover:text-white focus:outline-none">
