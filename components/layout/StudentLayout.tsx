@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { StudentView, Subscription, Theme, AppNotification } from '../../types';
-import { UserCircleIcon, CreditCardIcon, UsersIcon, LogoutIcon, TemplateIcon, XIcon, SparklesIcon, ChartBarIcon, BrainIcon, BellIcon, CogIcon, MoonIcon, ShieldCheckIcon, ShieldExclamationIcon } from '../common/Icons';
+import { UserCircleIcon, CreditCardIcon, UsersIcon, LogoutIcon, TemplateIcon, XIcon, SparklesIcon, BrainIcon, BellIcon, CogIcon, MoonIcon, ShieldCheckIcon, ShieldExclamationIcon, QuestionMarkCircleIcon } from '../common/Icons';
 import { useSession } from '../../hooks/useSession';
 import { useSubscription } from '../../hooks/useSubscription';
 
@@ -33,8 +33,8 @@ const ProfileBottomNavIcon: React.FC<{ className?: string }> = ({ className }) =
     <img src="https://l.top4top.io/p_3583el7rr0.png" alt="ملفي" className={className} />
 );
 
-const ResultsBottomNavIcon: React.FC<{ className?: string }> = ({ className }) => (
-    <img src="https://a.top4top.io/p_3583i1gc31.png" alt="النتائج" className={className} />
+const ResultsIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <img src="https://www2.0zz0.com/2025/11/02/17/240318741.png" alt="النتائج" className={className} />
 );
 
 const ChatbotIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -45,10 +45,14 @@ const CartoonMoviesIcon: React.FC<{ className?: string }> = ({ className }) => (
     <img src="https://h.top4top.io/p_3584kk8d71.png" alt="افلام كرتون" className={className} />
 );
 
+const QuestionBankIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <img src="https://www2.0zz0.com/2025/11/02/17/635761079.png" alt="بنك الأسئلة" className={className} />
+);
+
+
 const bottomNavItems = [
     { id: 'home', label: 'الرئيسية', icon: HomeBottomNavIcon },
     { id: 'grades', label: 'المنهج', icon: CurriculumIcon },
-    { id: 'results', label: 'النتائج', icon: ResultsBottomNavIcon },
     { id: 'subscription', label: 'الاشتراك', icon: SubscriptionBottomNavIcon },
     { id: 'profile', label: 'ملفي', icon: ProfileBottomNavIcon },
 ];
@@ -110,12 +114,13 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ children, onNavClick, act
         { id: 'home', label: 'الرئيسية', icon: HomeBottomNavIcon },
         { id: 'smartPlan', label: 'الخطة الذكية', icon: SparklesIcon },
         { id: 'chatbot', label: 'المساعد الذكي', icon: ChatbotIcon },
+        { id: 'questionBank', label: 'بنك الأسئلة', icon: QuestionBankIcon },
         { id: 'adhkar', label: 'أذكار الصباح والمساء', icon: MoonIcon },
         { id: 'cartoonMovies', label: 'افلام كرتون', icon: CartoonMoviesIcon },
         { id: 'grades', label: 'المنهج الدراسي', icon: CurriculumIcon },
         { id: 'teachers', label: 'المدرسون', icon: UsersIcon },
         { id: 'courses', label: 'الكورسات', icon: CoursesIcon },
-        { id: 'results', label: 'الواجبات والنتائج', icon: ChartBarIcon },
+        { id: 'results', label: 'الواجبات والنتائج', icon: ResultsIcon },
         { id: 'subscription', label: 'الاشتراك', icon: CreditCardIcon },
     ], []);
 
@@ -216,7 +221,7 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ children, onNavClick, act
                               <div className="h-px bg-[var(--border-primary)] mx-4"></div>
                               <div className="p-2 space-y-1">
                                   <button onClick={() => { onNavClick('profile'); setIsProfileMenuOpen(false); }} className="w-full flex items-center p-3 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 space-x-3 space-x-reverse text-right"><UserCircleIcon className="w-6 h-6 text-[var(--text-secondary)]" /><span>الملف الشخصي</span></button>
-                                  <button onClick={() => { onNavClick('results'); setIsProfileMenuOpen(false); }} className="w-full flex items-center p-3 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 space-x-3 space-x-reverse text-right"><ChartBarIcon className="w-6 h-6 text-[var(--text-secondary)]" /><span>الإحصائيات</span></button>
+                                  <button onClick={() => { onNavClick('results'); setIsProfileMenuOpen(false); }} className="w-full flex items-center p-3 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 space-x-3 space-x-reverse text-right"><ResultsIcon className="w-6 h-6 text-[var(--text-secondary)]" /><span>الإحصائيات</span></button>
                                   <button onClick={() => { onNavClick('profile'); setIsProfileMenuOpen(false); }} className="w-full flex items-center p-3 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 space-x-3 space-x-reverse text-right"><CogIcon className="w-6 h-6 text-[var(--text-secondary)]" /><span>الإعدادات</span></button>
                               </div>
                               <div className="h-px bg-[var(--border-primary)] mx-4"></div>

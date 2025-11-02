@@ -54,6 +54,99 @@ export const getAIExplanation = async (
   }
 };
 
+export const generatePracticeTest = async (
+  unit: string,
+  topic: string,
+  grade: string,
+  difficulty: 'سهل' | 'متوسط' | 'صعب',
+  numQuestions: number,
+  questionTypes: string[]
+): Promise<QuizQuestion[]> => {
+  if (!process.env.API_KEY) {
+    throw new Error("مفتاح API غير متوفر.");
+  }
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+  const prompt = `
+    أنت خبير في وضع الامتحانات للمناهج التعليمية المصرية.
+    مهمتك هي إنشاء اختبار تدريبي تفاعلي بنظام الاختيار من متعدد (MCQ).
+
+    **معلومات الاختبار:**
+    - المادة (الوحدة): "${unit}"
+    - الموضوع (الدرس): "${topic}"
+    - الصف الدراسي: ${grade}
+    - مستوى الصعوبة: ${difficulty}
+    - عدد الأسئلة: ${numQuestions}
+
+    **التعليمات:**
+    1.  أنشئ ${numQuestions} سؤالاً بصيغة الاختيار من متعدد حول الموضوع المحدد.
+    2.  يجب أن يكون لكل سؤال 4 اختيارات (خيارات).
+    3.  يجب أن يكون هناك إجابة واحدة صحيحة فقط.
+    4.  لكل سؤال، قدم شرحًا موجزًا وواضحًا للإجابة الصحيحة (rationale). يجب أن يكون الشرح تعليميًا ومفيدًا للطالب.
+    5.  يجب أن تكون جميع المحتويات (الأسئلة، الخيارات، الشرح) باللغة العربية.
+    6.  يجب أن يكون الناتج بصيغة JSON مطابقة تمامًا للمخطط المحدد أدناه.
+
+    Example of a single question object:
+    {
+      "questionText": "ما هي عاصمة مصر؟",
+      "options": ["الإسكندرية", "القاهرة", "الجيزة", "الأقصر"],
+      "correctAnswerIndex": 1,
+      "rationale": "القاهرة هي العاصمة الرسمية لجمهورية مصر العربية وأكبر مدنها."
+    }
+  `;
+
+  const responseSchema = {
+    type: Type.OBJECT,
+    properties: {
+        questions: {
+            type: Type.ARRAY,
+            description: 'Array of quiz questions',
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    questionText: { 
+                        type: Type.STRING,
+                        description: 'The text of the question in Arabic.'
+                    },
+                    options: {
+                        type: Type.ARRAY,
+                        description: 'An array of 4 possible answers in Arabic.',
+                        items: { type: Type.STRING }
+                    },
+                    correctAnswerIndex: { 
+                        type: Type.INTEGER,
+                        description: 'The 0-based index of the correct answer in the options array.'
+                    },
+                    rationale: {
+                        type: Type.STRING,
+                        description: 'A brief explanation for why the correct answer is right, in Arabic.'
+                    }
+                },
+                required: ['questionText', 'options', 'correctAnswerIndex', 'rationale']
+            }
+        }
+    },
+    required: ['questions']
+  };
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: responseSchema,
+      },
+    });
+
+    const jsonResponse = JSON.parse(response.text);
+    return jsonResponse.questions || [];
+  } catch (error) {
+    console.error("Gemini Practice Test Generation Error:", error);
+    throw new Error("فشل توليد الاختبار. قد يكون الطلب معقدًا جدًا أو حدث خطأ في الشبكة. حاول مرة أخرى.");
+  }
+};
+
 export const generateQuiz = async (
   topic: string,
   grade: string,

@@ -149,6 +149,9 @@ const EditProfileModal: React.FC<{ isOpen: boolean; onClose: () => void; user: U
     );
 };
 
+const ResultsIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <img src="https://www2.0zz0.com/2025/11/02/17/240318741.png" alt="النتائج" className={className} />
+);
 
 const Profile: React.FC<ProfileProps> = ({ theme, setTheme, isDataSaverEnabled, onDataSaverToggle }) => {
   const { currentUser: user, handleLogout: onLogout } = useSession();

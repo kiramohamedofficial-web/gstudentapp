@@ -1,6 +1,7 @@
 
 
 
+
 import React from 'react';
 import { createClient, Session, User as SupabaseUser } from '@supabase/supabase-js';
 import {
@@ -887,8 +888,59 @@ export const getSubscriptionByUserId = async (userId: string): Promise<Subscript
 // Kept for legacy compatibility where direct calls might still exist
 export const markLessonComplete = async (userId: string, lessonId: string) => { await supabase.from('progress').insert({ student_id: userId, lesson_id: lessonId }); };
 export const addActivityLog = (action: string, details: string) => console.log(`Activity: ${action} - ${details}`);
-export const getChatUsage = (userId: string) => ({ remaining: 50 });
-export const incrementChatUsage = (userId: string) => {};
+
+const getTodayDateString = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = (today.getMonth() + 1).toString().padStart(2, '0');
+    const day = today.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+export const getChatUsage = (userId: string): { remaining: number } => {
+    if (!userId) return { remaining: 0 };
+
+    const countKey = `chatbotUsageCount_${userId}`;
+    const resetKey = `chatbotUsageLastReset_${userId}`;
+    const today = getTodayDateString();
+    
+    const lastReset = localStorage.getItem(resetKey);
+
+    if (lastReset !== today) {
+        // It's a new day, or the first time ever. Reset the count.
+        localStorage.setItem(countKey, '50');
+        localStorage.setItem(resetKey, today);
+        return { remaining: 50 };
+    }
+
+    // It's the same day, get the current count.
+    const countStr = localStorage.getItem(countKey);
+    if (countStr === null) {
+        // Should not happen if lastReset is today, but as a fallback.
+        localStorage.setItem(countKey, '50');
+        return { remaining: 50 };
+    }
+
+    return { remaining: parseInt(countStr, 10) };
+};
+
+export const incrementChatUsage = (userId: string): { remaining: number } => {
+    if (!userId) return { remaining: 0 };
+    
+    // getChatUsage already handles the reset, so we call it to ensure we have the correct starting count for the day.
+    const currentUsage = getChatUsage(userId);
+    
+    const countKey = `chatbotUsageCount_${userId}`;
+
+    if (currentUsage.remaining > 0) {
+        const newCount = currentUsage.remaining - 1;
+        localStorage.setItem(countKey, newCount.toString());
+        return { remaining: newCount };
+    }
+    
+    return { remaining: 0 };
+};
+
 export const getActivityLogs = (): ActivityLog[] => [];
 
 export const updatePlatformSettings = async (newSettings: PlatformSettings): Promise<{ error: any }> => {

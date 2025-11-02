@@ -94,8 +94,9 @@ const ChatbotView: React.FC<{ onNavigate: (view: StudentView) => void }> = ({ on
         setMessages(prev => [...prev, userMessage]);
         setInput('');
         setIsLoading(true);
-        incrementChatUsage(user.id);
-        setRemaining(prev => prev - 1);
+        
+        const newUsage = incrementChatUsage(user.id);
+        setRemaining(newUsage.remaining);
 
         const history = messages.map(m => ({
             role: m.role,
