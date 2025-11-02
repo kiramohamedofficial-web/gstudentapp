@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { Grade, QuizQuestion } from '../types';
+import { Grade, QuizQuestion, Unit } from '../types';
 
 // Per coding guidelines, the API key is sourced directly from process.env.API_KEY
 // and is assumed to be pre-configured and valid.
@@ -183,4 +183,103 @@ export const getChatbotResponseStream = async (
     // Re-throw a more user-friendly error
     throw new Error(userMessage);
   }
+};
+
+export interface StudyPlanInputs {
+    gradeName: string;
+    dailyStudyHours: number;
+    dayStartTime: string;
+    dayEndTime: string;
+    subjects: {
+        name: string;
+        weeklyHours: number;
+        priority: 'مرتفعة' | 'عادية';
+    }[];
+    busyTimes: Record<string, string[]>; // e.g., { 'الأحد': ['14:00-16:00'] }
+}
+
+export interface StudyScheduleItem {
+    day: string;
+    startTime: string;
+    endTime: string;
+    subject: string;
+}
+
+export const generateStudyPlan = async (inputs: StudyPlanInputs): Promise<StudyScheduleItem[]> => {
+    if (!process.env.API_KEY) {
+        throw new Error("مفتاح API غير متوفر. لا يمكن استخدام المساعد الذكي.");
+    }
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+    const busyTimesString = Object.entries(inputs.busyTimes)
+        .filter(([, times]) => times.length > 0)
+        .map(([day, times]) => `- ${day}: ${times.join(', ')}`)
+        .join('\n');
+
+    const subjectsString = inputs.subjects
+        .map(s => `- مادة "${s.name}": ${s.weeklyHours} ساعات أسبوعيًا, الأهمية: ${s.priority}`)
+        .join('\n');
+
+    const prompt = `
+        أنت خبير في تنظيم الجداول الدراسية للطلاب. مهمتك هي إنشاء جدول دراسي أسبوعي منظم لطالب بناءً على المدخلات التالية.
+
+        **بيانات الطالب:**
+        - الصف الدراسي: ${inputs.gradeName}
+        - هدف المذاكرة اليومي: حوالي ${inputs.dailyStudyHours} ساعات.
+        - الأوقات المتاحة للمذاكرة بشكل عام: من ${inputs.dayStartTime} صباحًا إلى ${inputs.dayEndTime} مساءً.
+
+        **المواد المطلوبة هذا الأسبوع:**
+        ${subjectsString}
+
+        **الأوقات غير المتاحة (مشغول):**
+        ${busyTimesString || 'لا يوجد أوقات محددة كغير متاحة.'}
+
+        **التعليمات:**
+        1.  قم بإنشاء جدول دراسي أسبوعي (من الأحد إلى السبت).
+        2.  استخدم فقط الأوقات المتاحة للطالب.
+        3.  ابدأ بجدولة المواد ذات الأهمية "المرتفعة" أولاً.
+        4.  أنشئ جلسات مذاكرة تتراوح مدتها بين ساعة وساعتين. تجنب الجلسات الأطول من ساعتين متواصلة لنفس المادة.
+        5.  وزّع المواد بشكل متوازن على مدار الأسبوع.
+        6.  تأكد من تحقيق إجمالي الساعات المطلوبة أسبوعيًا لكل مادة.
+        7.  يجب أن يكون الناتج بصيغة JSON مطابقة تمامًا للمخطط المحدد. يجب أن تكون أيام الأسبوع والأسماء باللغة العربية.
+    `;
+
+    const scheduleSchema = {
+        type: Type.OBJECT,
+        properties: {
+            schedule: {
+                type: Type.ARRAY,
+                description: "الجدول الدراسي الأسبوعي.",
+                items: {
+                    type: Type.OBJECT,
+                    properties: {
+                        day: { type: Type.STRING, description: "يوم الأسبوع باللغة العربية (مثال: 'الأحد')." },
+                        startTime: { type: Type.STRING, description: "وقت البدء بصيغة HH:mm (مثال: '15:00')." },
+                        endTime: { type: Type.STRING, description: "وقت الانتهاء بصيغة HH:mm (مثال: '17:00')." },
+                        subject: { type: Type.STRING, description: "اسم المادة الدراسية." },
+                    },
+                    required: ['day', 'startTime', 'endTime', 'subject']
+                }
+            }
+        },
+        required: ['schedule']
+    };
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-pro', // Using pro for this complex task
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: scheduleSchema,
+                temperature: 0.2, // Lower temperature for more deterministic output
+            },
+        });
+        
+        const jsonResponse = JSON.parse(response.text);
+        return jsonResponse.schedule || [];
+    } catch (error) {
+        console.error("Gemini Study Plan Generation Error:", error);
+        throw new Error("فشل توليد الخطة. قد يكون الطلب معقدًا جدًا. حاول تقليل عدد المواد أو الساعات.");
+    }
 };

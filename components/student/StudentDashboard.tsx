@@ -22,6 +22,7 @@ const ChatbotView = lazy(() => import('./ChatbotView'));
 const AdhkarView = lazy(() => import('./AdhkarView'));
 const CartoonMoviesView = lazy(() => import('./CartoonMoviesView'));
 const CourseDetailView = lazy(() => import('./CourseDetailView'));
+const SmartPlanView = lazy(() => import('./SmartPlanView'));
 
 
 interface StudentDashboardProps {
@@ -38,7 +39,7 @@ const SuspenseLoader: React.FC = () => (
 const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
   const { theme, setTheme } = props;
   const { currentUser: user } = useSession();
-  const [activeView, setActiveView] = useState<StudentView>('cartoonMovies');
+  const [activeView, setActiveView] = useState<StudentView>('home');
   const [isDataSaverEnabled, setIsDataSaverEnabled] = useState(false);
   const { addToast } = useToast();
 
@@ -181,13 +182,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
       case 'results':
         return <ResultsView />;
       case 'smartPlan':
-        return (
-            <div className="text-center p-12 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-primary)] flex flex-col items-center">
-                <SparklesIcon className="w-16 h-16 text-purple-400 mb-4"/>
-                <h2 className="text-2xl font-bold">الخطة الذكية.. قريبًا!</h2>
-                <p className="text-[var(--text-secondary)] mt-2 max-w-md">نعمل على تطوير هذه الميزة لمساعدتك على تنظيم دراستك بفاعلية. ترقب التحديثات القادمة.</p>
-            </div>
-        );
+        return <SmartPlanView />;
       case 'subscription':
         return <SubscriptionView onNavigate={setActiveView} />;
       case 'singleSubjectSubscription':
