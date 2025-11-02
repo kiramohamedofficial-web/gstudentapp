@@ -159,7 +159,7 @@ const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({ user, onNavigate 
                     </div>
                     <div className="continue-info" style={{ width: '100%' }}>
                         <h3 style={{ margin: '0 0 4px 0', fontSize: '1.1rem' }}>{lastWatched.lessonTitle}</h3>
-                        <p style={{ margin: '0 0 12px 0', fontSize: '0.9rem', color: 'var(--text-muted)' }}>{lastWatched.unitTitle}</p>
+                        <p style={{ margin: '0 0 12px 0', fontSize: '0.9rem', color: 'var(--text-muted)' }}>english</p>
                         <div className="progress-bar" style={{ width: '100%', height: '8px', backgroundColor: '#E0E8F5', borderRadius: '4px', overflow: 'hidden' }}>
                             <div className="progress-bar-inner" style={{ height: '100%', width: `${progressForLastWatched}%`, background: 'linear-gradient(90deg, var(--primary-color), var(--primary-light))', borderRadius: '4px', transition: 'width 0.5s ease' }}></div>
                         </div>
@@ -206,7 +206,7 @@ const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({ user, onNavigate 
                             <div className="lesson-info" style={{ padding: '18px' }}>
                                 <h3 className="lesson-title" style={{ fontSize: '1.1rem', fontWeight: 700, margin: '0 0 10px 0', color: 'var(--text-dark)', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{lesson.title}</h3>
                                 <p className="lesson-instructor" style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    <span className="instructor-icon" style={{ color: 'var(--primary-color)' }}>👤</span> {teacherMap.get(unit.teacherId)?.name || '...'}
+                                    <span className="instructor-icon" style={{ color: 'var(--primary-color)' }}>👤</span> english
                                 </p>
                                 <div className="lesson-meta" style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px', fontSize: '0.8rem', color: 'var(--text-muted)'}}>
                                      <span>{unit.title}</span>
@@ -234,12 +234,11 @@ const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({ user, onNavigate 
                          const lesson = unit?.lessons.find(l => l.id === item.lessonId);
                          if (!unit || !lesson) return null;
                          const progress = calculateUnitProgress(unit.id);
-                         const imageUrl = index === 0 
-                            ? "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60"
-                            : "https://images.unsplash.com/photo-1517077304055-6e89abbf09b0?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60";
+                         const teacher = teacherMap.get(item.teacherId);
+                         const imageUrl = teacher?.imageUrl || fallbackTeacherImage;
                         return (
                             <article key={item.lessonId} onClick={() => onNavigate('grades', { unit, lesson })} className="video-card cursor-pointer" style={{ display: 'flex', alignItems: 'flex-start', backgroundColor: 'var(--card-bg)', borderRadius: 'var(--border-radius)', boxShadow: 'var(--shadow)', padding: '15px', gap: '15px', transition: 'var(--transition)' }}>
-                                <div className="video-thumbnail" style={{ width: '100px', height: '75px', borderRadius: '10px', backgroundSize: 'cover', flexShrink: 0, position: 'relative', overflow: 'hidden', backgroundImage: `url(${imageUrl})`}}></div>
+                                <div className="video-thumbnail" style={{ width: '100px', height: '75px', borderRadius: '10px', backgroundSize: 'cover', backgroundPosition: 'center', flexShrink: 0, position: 'relative', overflow: 'hidden', backgroundImage: `url(${imageUrl})`}}></div>
                                 <div className="video-info" style={{ flex: 1 }}>
                                     <h3 className="video-title" style={{ fontSize: '1rem', fontWeight: 600, margin: '0 0 8px 0', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{item.lessonTitle}</h3>
                                     <div className="video-progress-container" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '8px' }}>
