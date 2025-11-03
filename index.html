@@ -120,21 +120,21 @@
     --shadow-glow: 0 0 25px rgba(var(--accent-primary-rgb), 0.25);
   }
 
-  /* Royal Theme - Regal & Deep */
-  [data-theme="royal"] {
-    --bg-primary: #1d1c33; --bg-primary-rgb: 29, 28, 51;
-    --bg-secondary: #292640; --bg-secondary-rgb: 41, 38, 64;
-    --bg-tertiary: #332f4d;
-    --border-primary: rgba(220, 193, 89, 0.2);
-    --border-secondary: rgba(220, 193, 89, 0.3);
-    --text-primary: #e1e0e9;
-    --text-secondary: #a9a7b8;
-    --text-accent: #dcc159;
-    --accent-primary: #dcc159; --accent-primary-rgb: 220, 193, 89;
-    --accent-secondary: #c8a12a;
-    --accent-gradient: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-    --glass-bg: rgba(41, 38, 64, 0.6);
-    --glass-border: rgba(220, 193, 89, 0.2);
+  /* Ghost Theme - Dark & Ethereal */
+  [data-theme="ghost"] {
+    --bg-primary: #101418; --bg-primary-rgb: 16, 20, 24;
+    --bg-secondary: #191e24; --bg-secondary-rgb: 25, 30, 36;
+    --bg-tertiary: #2c333d;
+    --border-primary: rgba(200, 220, 255, 0.1);
+    --border-secondary: rgba(200, 220, 255, 0.2);
+    --text-primary: #e1e8f0;
+    --text-secondary: #8a99ab;
+    --text-accent: #38bdf8;
+    --accent-primary: #38bdf8; --accent-primary-rgb: 56, 189, 248;
+    --accent-secondary: #7dd3fc;
+    --accent-gradient: linear-gradient(135deg, var(--accent-secondary), var(--accent-primary));
+    --glass-bg: rgba(25, 30, 36, 0.6);
+    --glass-border: rgba(200, 220, 255, 0.1);
     --shadow-glow: 0 0 25px rgba(var(--accent-primary-rgb), 0.2);
   }
 
@@ -891,6 +891,46 @@
     [data-theme="pink"] .menu-toggle span {
         display: none;
     }
+
+    /* GHOST THEME ICON OVERRIDES */
+    [data-theme="ghost"] .menu-toggle {
+        width: 38px;
+        height: 38px;
+        padding: 0;
+        background-image: url('https://www2.0zz0.com/2025/11/02/22/789476682.png');
+        background-size: 32px;
+        background-position: center;
+        background-repeat: no-repeat;
+    }
+
+    [data-theme="ghost"] .menu-toggle span {
+        display: none;
+    }
+
+    [data-theme="ghost"] img[alt="الرئيسية"] {
+        content: url('https://www2.0zz0.com/2025/11/02/22/644082372.png');
+        width: 24px;
+        height: 24px;
+    }
+
+    [data-theme="ghost"] img[alt="الاشتراكات"] {
+        content: url('https://www2.0zz0.com/2025/11/02/22/644082372.png');
+        width: 24px;
+        height: 24px;
+    }
+
+    [data-theme="ghost"] img[alt="المنهج"] {
+        content: url('https://www2.0zz0.com/2025/11/02/22/550492888.png');
+        width: 24px;
+        height: 24px;
+    }
+
+    [data-theme="ghost"] img[alt="ملفي"] {
+        content: url('https://www2.0zz0.com/2025/11/02/22/191358214.png');
+        width: 24px;
+        height: 24px;
+    }
+    /* END GHOST THEME ICON OVERRIDES */
 
     /* Responsive */
     @media (max-width: 768px) {

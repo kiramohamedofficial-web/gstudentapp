@@ -29,12 +29,21 @@ const ToggleSwitch: React.FC<{ enabled: boolean; onChange: (enabled: boolean) =>
     </button>
 );
 
+const DEFAULT_DOWNLOAD_INSTRUCTIONS = `1. اضغط على رابط التحميل.\n2. سيتم نقلك إلى صفحة التحميل، انتظر قليلاً.\n3. اضغط على "تنزيل مجاني" أو "Free Download".\n4. انتظر العد التنازلي ثم اضغط "إنشاء رابط التنزيل".\n5. أخيرًا، اضغط على "اضغط هنا للتنزيل".`;
+const DEFAULT_LOAD_INSTRUCTIONS = `1. بعد التحميل، قم بفك ضغط الملف إذا كان مضغوطًا.\n2. ستجد ملفًا بامتداد .mp4 أو .mkv.\n3. قم بتشغيل الملف باستخدام أي مشغل فيديو على جهازك.`;
+const DEFAULT_INSTRUCTIONS_THUMBNAIL = 'https://l.top4top.io/p_35939s82l0.png';
+
 const MovieModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (data: Partial<Omit<CartoonMovie, 'id' | 'createdAt'>>) => void; movie: Partial<CartoonMovie> | null; }> = ({ isOpen, onClose, onSave, movie }) => {
     const [formData, setFormData] = useState<Partial<Omit<CartoonMovie, 'id' | 'createdAt'>>>({});
 
     useEffect(() => {
         if (isOpen) {
-            setFormData(movie || { isPublished: true });
+            setFormData(movie?.id ? movie : { 
+                isPublished: true,
+                downloadInstructions: DEFAULT_DOWNLOAD_INSTRUCTIONS,
+                loadInstructions: DEFAULT_LOAD_INSTRUCTIONS,
+                instructionsThumbnailUrl: DEFAULT_INSTRUCTIONS_THUMBNAIL,
+            });
         }
     }, [movie, isOpen]);
     
@@ -49,17 +58,31 @@ const MovieModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (data
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={movie?.id ? 'تعديل الفيلم' : 'إضافة فيلم جديد'}>
-            <form onSubmit={handleSubmit} className="space-y-4 max-h-[75vh] overflow-y-auto p-1">
-                <input type="text" name="title" placeholder="عنوان الفيلم" value={formData.title || ''} onChange={handleChange} className="w-full p-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md" required />
-                <textarea name="story" placeholder="قصة الفيلم" value={formData.story || ''} onChange={handleChange} rows={4} className="w-full p-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md"></textarea>
-                <ImageUpload label="صورة البوستر" value={formData.posterUrl || ''} onChange={url => setFormData(p => ({...p, posterUrl: url}))} />
-                <input type="text" name="downloadUrl" placeholder="رابط التحميل" value={formData.downloadUrl || ''} onChange={handleChange} className="w-full p-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md" />
-                <textarea name="downloadInstructions" placeholder="تعليمات التحميل" value={formData.downloadInstructions || ''} onChange={handleChange} rows={3} className="w-full p-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md"></textarea>
-                <textarea name="loadInstructions" placeholder="تعليمات التشغيل" value={formData.loadInstructions || ''} onChange={handleChange} rows={3} className="w-full p-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md"></textarea>
-                <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-tertiary)]">
+            <form onSubmit={handleSubmit} className="space-y-6 max-h-[75vh] overflow-y-auto p-1">
+                <div className="bg-[var(--bg-tertiary)] p-4 rounded-lg border border-[var(--border-primary)] space-y-4">
+                    <h3 className="font-semibold text-lg border-b border-[var(--border-primary)] pb-2">المعلومات الأساسية</h3>
+                    <input type="text" name="title" placeholder="عنوان الفيلم" value={formData.title || ''} onChange={handleChange} className="w-full p-2 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-md" required />
+                    <textarea name="story" placeholder="قصة الفيلم" value={formData.story || ''} onChange={handleChange} rows={4} className="w-full p-2 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-md"></textarea>
+                </div>
+
+                <div className="bg-[var(--bg-tertiary)] p-4 rounded-lg border border-[var(--border-primary)] space-y-4">
+                     <h3 className="font-semibold text-lg border-b border-[var(--border-primary)] pb-2">الوسائط والروابط</h3>
+                    <ImageUpload label="صورة البوستر" value={formData.posterUrl || ''} onChange={url => setFormData(p => ({...p, posterUrl: url}))} />
+                    <input type="text" name="downloadUrl" placeholder="رابط التحميل" value={formData.downloadUrl || ''} onChange={handleChange} className="w-full p-2 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-md" />
+                </div>
+
+                <div className="bg-[var(--bg-tertiary)] p-4 rounded-lg border border-[var(--border-primary)] space-y-4">
+                     <h3 className="font-semibold text-lg border-b border-[var(--border-primary)] pb-2">تعليمات التشغيل (قالب تلقائي)</h3>
+                    <ImageUpload label="صورة مصغرة للتعليمات" value={formData.instructionsThumbnailUrl || ''} onChange={url => setFormData(p => ({...p, instructionsThumbnailUrl: url}))} />
+                    <textarea name="downloadInstructions" placeholder="تعليمات التحميل" value={formData.downloadInstructions || ''} onChange={handleChange} rows={5} className="w-full p-2 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-md"></textarea>
+                    <textarea name="loadInstructions" placeholder="تعليمات التشغيل" value={formData.loadInstructions || ''} onChange={handleChange} rows={4} className="w-full p-2 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-md"></textarea>
+                </div>
+
+                <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)]">
                     <label className="font-semibold text-[var(--text-primary)]">نشر الفيلم للطلاب</label>
                     <ToggleSwitch enabled={formData.isPublished ?? true} onChange={val => setFormData(p => ({...p, isPublished: val}))} />
                 </div>
+                
                 <div className="flex justify-end pt-4"><button type="submit" className="px-5 py-2 font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700">حفظ</button></div>
             </form>
         </Modal>
@@ -92,16 +115,19 @@ const CartoonMoviesManagementView: React.FC = () => {
     const handleSave = async (data: Partial<Omit<CartoonMovie, 'id' | 'createdAt'>>) => {
         try {
             if (modalState.data.id) { // Editing
-                await updateCartoonMovie(modalState.data.id, data);
+                const { error } = await updateCartoonMovie(modalState.data.id, data);
+                if (error) throw error;
                 addToast("تم تحديث الفيلم بنجاح.", ToastType.SUCCESS);
             } else { // Adding
-                await addCartoonMovie(data);
+                const { error } = await addCartoonMovie(data);
+                if (error) throw error;
                 addToast("تم إضافة الفيلم بنجاح.", ToastType.SUCCESS);
             }
             refreshData();
             closeModal();
         } catch(error: any) {
-            addToast(`حدث خطأ: ${error.message}`, ToastType.ERROR);
+            addToast(`فشل حفظ الفيلم: ${error.message}`, ToastType.ERROR);
+            console.error("Failed to save cartoon movie:", error);
         }
     };
 

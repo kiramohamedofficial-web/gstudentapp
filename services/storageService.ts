@@ -537,6 +537,7 @@ export async function getPublishedCartoonMovies(): Promise<CartoonMovie[]> {
         downloadUrl: movie.download_url,
         downloadInstructions: movie.download_instructions,
         loadInstructions: movie.load_instructions,
+        instructionsThumbnailUrl: movie.instructions_thumbnail_url,
         isPublished: movie.is_published,
         createdAt: movie.created_at,
     })) as CartoonMovie[]) || [];
@@ -553,6 +554,7 @@ export async function getAllCartoonMovies(): Promise<CartoonMovie[]> {
         downloadUrl: movie.download_url,
         downloadInstructions: movie.download_instructions,
         loadInstructions: movie.load_instructions,
+        instructionsThumbnailUrl: movie.instructions_thumbnail_url,
         isPublished: movie.is_published,
         createdAt: movie.created_at,
     })) as CartoonMovie[]) || [];
@@ -566,6 +568,7 @@ export async function addCartoonMovie(movie: Partial<Omit<CartoonMovie, 'id' | '
         download_url: movie.downloadUrl,
         download_instructions: movie.downloadInstructions,
         load_instructions: movie.loadInstructions,
+        instructions_thumbnail_url: movie.instructionsThumbnailUrl,
         is_published: movie.isPublished,
     };
     return supabase.from('cartoon_movies').insert(payload);
@@ -579,6 +582,7 @@ export async function updateCartoonMovie(id: string, updates: Partial<CartoonMov
     if (updates.downloadUrl !== undefined) payload.download_url = updates.downloadUrl;
     if (updates.downloadInstructions !== undefined) payload.download_instructions = updates.downloadInstructions;
     if (updates.loadInstructions !== undefined) payload.load_instructions = updates.loadInstructions;
+    if (updates.instructionsThumbnailUrl !== undefined) payload.instructions_thumbnail_url = updates.instructionsThumbnailUrl;
     if (updates.isPublished !== undefined) payload.is_published = updates.isPublished;
     
     return supabase.from('cartoon_movies').update(payload).eq('id', id);

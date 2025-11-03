@@ -236,7 +236,7 @@ export interface PlatformSettings {
   };
 }
 
-export type Theme = 'dark' | 'light' | 'royal' | 'gold' | 'pink' | 'sunset' | 'forest' | 'ocean' | 'wave' | 'matrix';
+export type Theme = 'dark' | 'light' | 'ghost' | 'gold' | 'pink' | 'sunset' | 'forest' | 'ocean' | 'wave' | 'matrix';
 
 export interface SubscriptionCode {
     code: string;
@@ -279,6 +279,7 @@ export interface CartoonMovie {
   downloadUrl: string;
   downloadInstructions: string;
   loadInstructions: string;
+  instructionsThumbnailUrl: string;
   isPublished: boolean;
   createdAt: string;
 }

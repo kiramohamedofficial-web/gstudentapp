@@ -140,135 +140,137 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ children, onNavClick, act
     if (!user) return null;
 
     return (
-    <div className="h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] p-0 md:p-3">
-      <div className="flex w-full h-full md:gap-3">
-        {/* Desktop Sidebar */}
-        <aside className="w-72 flex-shrink-0 bg-[var(--glass-bg)] backdrop-blur-[var(--glass-blur)] border border-[var(--glass-border)] rounded-2xl flex-col hidden md:flex overflow-hidden">
-            <div className="h-20 flex items-center justify-center px-4 flex-shrink-0">
-                <div className="flex items-center"><img src="https://j.top4top.io/p_3584uziv73.png" alt="Gstudent Logo" className="w-12 h-12" /></div>
-            </div>
-            <div className="w-full h-px bg-[var(--border-primary)] flex-shrink-0"></div>
-            <NavContent navItems={navItems} activeView={activeView} onNavClick={onNavClick} onLogout={onLogout} subscription={subscription} />
-        </aside>
+    <>
+      <div className="h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] p-0 md:p-3">
+        <div className="flex w-full h-full md:gap-3">
+          {/* Desktop Sidebar */}
+          <aside className="w-72 flex-shrink-0 bg-[var(--glass-bg)] backdrop-blur-[var(--glass-blur)] border border-[var(--glass-border)] rounded-2xl flex-col hidden md:flex overflow-hidden">
+              <div className="h-20 flex items-center justify-center px-4 flex-shrink-0">
+                  <div className="flex items-center"><img src="https://j.top4top.io/p_3584uziv73.png" alt="Gstudent Logo" className="w-12 h-12" /></div>
+              </div>
+              <div className="w-full h-px bg-[var(--border-primary)] flex-shrink-0"></div>
+              <NavContent navItems={navItems} activeView={activeView} onNavClick={onNavClick} onLogout={onLogout} subscription={subscription} />
+          </aside>
 
-        <div className="flex-1 flex flex-col overflow-hidden md:rounded-2xl">
-          {/* Header */}
-           <header className="app-header">
-                {/* Right Side (in RTL) */}
-                <div className="menu-toggle md:hidden" onClick={() => setIsMobileNavOpen(true)}>
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                </div>
-                <div className="hidden md:flex">
-                     {!isSubLoading && (
-                        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold ${hasActiveSubscription ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
-                            {hasActiveSubscription ? <ShieldCheckIcon className="w-4 h-4" /> : <ShieldExclamationIcon className="w-4 h-4" />}
-                            <span>{hasActiveSubscription ? 'الاشتراك فعال' : 'الاشتراك غير فعال'}</span>
-                        </div>
-                    )}
-                </div>
-
-                {/* Center */}
-                <div className="header-logo absolute left-1/2 -translate-x-1/2" style={{ cursor: 'pointer' }} onClick={() => onNavClick('home')}>
-                    <div className="header-logo-icon"></div>
-                </div>
-
-                {/* Left Side (in RTL) */}
-                <div className="header-actions">
-                    <div className="relative">
-                        <button onClick={() => { setIsNotificationsOpen(p => !p); setIsProfileMenuOpen(false); }} className="notification-btn">
-                            <i className="fas fa-bell"></i>
-                            {notifications.length > 0 && <span className="badge">{notifications.length}</span>}
-                        </button>
-                         {isNotificationsOpen && (
-                           <div ref={notificationsRef} className="absolute top-full mt-3 left-0 w-80 bg-[var(--bg-primary)] border border-[var(--border-secondary)] rounded-2xl shadow-lg z-50 fade-in-up">
-                              <div className="p-4 border-b border-[var(--border-primary)]"><h3 className="font-bold text-lg text-[var(--text-primary)]">الإشعارات</h3></div>
-                              {notifications.length > 0 ? (
-                                <>
-                                  <div className="p-2 max-h-80 overflow-y-auto">{notifications.map(n => 
-                                      <button 
-                                          key={n.id} 
-                                          onClick={() => {
-                                              if (n.link) onNavClick(n.link);
-                                              setIsNotificationsOpen(false);
-                                          }}
-                                          className="w-full p-3 rounded-lg hover:bg-[var(--bg-tertiary)] text-right"
-                                      >
-                                          <p className="text-sm text-[var(--text-primary)]">{n.text}</p>
-                                          <p className="text-xs text-[var(--text-secondary)] mt-1">
-                                              {new Date(n.createdAt).toLocaleTimeString('ar-EG', { hour: 'numeric', minute: '2-digit' })}
-                                          </p>
-                                      </button>
-                                  )}</div>
-                                </>
-                              ) : (
-                                <div className="p-8 text-center text-sm text-[var(--text-secondary)]">
-                                    <p>لا توجد إشعارات جديدة حاليًا.</p>
-                                </div>
-                              )}
-                          </div>
-                      )}
-                    </div>
-                  
-                    <div className="relative">
-                        <div onClick={() => { setIsProfileMenuOpen(p => !p); setIsNotificationsOpen(false); }} className="user-avatar">
-                            {user.name.charAt(0)}
-                        </div>
-                         {isProfileMenuOpen && (
-                          <div ref={profileMenuRef} className="absolute top-full mt-3 left-0 w-72 bg-[var(--bg-primary)] border border-[var(--border-secondary)] rounded-2xl shadow-lg z-50 fade-in-up overflow-hidden">
-                              <div className="p-4"><p className="font-bold text-lg text-[var(--text-primary)] truncate">{user.name}</p><p className="text-sm text-[var(--text-secondary)]">{gradeName || 'طالب'}</p></div>
-                              <div className="h-px bg-[var(--border-primary)] mx-4"></div>
-                              <div className="p-2 space-y-1">
-                                  <button onClick={() => { onNavClick('profile'); setIsProfileMenuOpen(false); }} className="w-full flex items-center p-3 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 space-x-3 space-x-reverse text-right"><UserCircleIcon className="w-6 h-6 text-[var(--text-secondary)]" /><span>الملف الشخصي</span></button>
-                                  <button onClick={() => { onNavClick('results'); setIsProfileMenuOpen(false); }} className="w-full flex items-center p-3 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 space-x-3 space-x-reverse text-right"><ResultsIcon className="w-6 h-6 text-[var(--text-secondary)]" /><span>الإحصائيات</span></button>
-                                  <button onClick={() => { onNavClick('profile'); setIsProfileMenuOpen(false); }} className="w-full flex items-center p-3 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 space-x-3 space-x-reverse text-right"><CogIcon className="w-6 h-6 text-[var(--text-secondary)]" /><span>الإعدادات</span></button>
-                              </div>
-                              <div className="h-px bg-[var(--border-primary)] mx-4"></div>
-                              <div className="p-2"><button onClick={onLogout} className="w-full flex items-center p-3 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors duration-200 space-x-3 space-x-reverse text-right"><LogoutIcon className="w-6 h-6" /><span>تسجيل الخروج</span></button></div>
-                          </div>
-                      )}
-                    </div>
-                </div>
-            </header>
-          <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-24 md:pb-6 bg-[var(--bg-secondary)] md:rounded-b-2xl">
-              {isBannerVisible && expiringNotification && (
-                  <div className="bg-amber-500/10 border border-amber-500/30 text-amber-300 text-sm rounded-lg p-4 mb-6 flex items-start gap-3 fade-in" role="alert">
-                      <ShieldExclamationIcon className="w-5 h-5 flex-shrink-0 mt-0.5 text-amber-400" />
-                      <div className="flex-grow">
-                          <h4 className="font-bold">تنبيه هام</h4>
-                          <p>
-                              {expiringNotification.text} 
-                              <button onClick={() => expiringNotification.link && onNavClick(expiringNotification.link)} className="font-bold underline hover:text-amber-200 mx-2">جدد الآن</button>
-                          </p>
-                      </div>
-                      <button onClick={() => setIsBannerVisible(false)} className="p-1 rounded-full text-amber-300/70 hover:bg-amber-500/20">
-                          <XIcon className="w-4 h-4" />
-                      </button>
+          <div className="flex-1 flex flex-col overflow-hidden md:rounded-2xl">
+            {/* Header */}
+             <header className="app-header">
+                  {/* Right Side (in RTL) */}
+                  <div className="menu-toggle md:hidden" onClick={() => setIsMobileNavOpen(true)}>
+                      <span></span>
+                      <span></span>
+                      <span></span>
                   </div>
-              )}
-              <div key={activeView} className="fade-in">{children}</div>
-          </main>
-        </div>
-      </div>
-      <div className="md:hidden fixed bottom-2 left-2 right-2 h-16 bg-[var(--glass-bg)] backdrop-blur-[var(--glass-blur)] border border-[var(--glass-border)] flex justify-around items-center shadow-lg rounded-2xl">
-          {bottomNavItems.map((item) => <BottomNavItem key={item.id} onClick={() => onNavClick(item.id as StudentView)} label={item.label} icon={item.icon} isActive={activeView === item.id} />)}
-      </div>
-      {isMobileNavOpen && (
-        <div className="md:hidden fixed inset-0 z-[60]" role="dialog" aria-modal="true">
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setIsMobileNavOpen(false)}></div>
-          <div className="fixed inset-y-2 right-2 w-72 bg-[var(--bg-secondary)] border border-[var(--border-primary)] flex flex-col animate-slide-in-right rounded-2xl overflow-hidden">
-            <div className="h-20 flex items-center justify-between px-6 flex-shrink-0">
-               <div className="flex items-center">
-                   <img src="https://j.top4top.io/p_3584uziv73.png" alt="Gstudent Logo" className="w-10 h-10" />
-               </div>
-              <button onClick={() => setIsMobileNavOpen(false)} className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"><XIcon className="w-6 h-6" /></button>
-            </div>
-            <NavContent navItems={navItems} activeView={activeView} onNavClick={(v) => { onNavClick(v); setIsMobileNavOpen(false); }} onLogout={() => { onLogout(); setIsMobileNavOpen(false); }} subscription={subscription} />
+                  <div className="hidden md:flex">
+                       {!isSubLoading && (
+                          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold ${hasActiveSubscription ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                              {hasActiveSubscription ? <ShieldCheckIcon className="w-4 h-4" /> : <ShieldExclamationIcon className="w-4 h-4" />}
+                              <span>{hasActiveSubscription ? 'الاشتراك فعال' : 'الاشتراك غير فعال'}</span>
+                          </div>
+                      )}
+                  </div>
+
+                  {/* Center */}
+                  <div className="header-logo absolute left-1/2 -translate-x-1/2" style={{ cursor: 'pointer' }} onClick={() => onNavClick('home')}>
+                      <div className="header-logo-icon"></div>
+                  </div>
+
+                  {/* Left Side (in RTL) */}
+                  <div className="header-actions">
+                      <div className="relative">
+                          <button onClick={() => { setIsNotificationsOpen(p => !p); setIsProfileMenuOpen(false); }} className="notification-btn">
+                              <i className="fas fa-bell"></i>
+                              {notifications.length > 0 && <span className="badge">{notifications.length}</span>}
+                          </button>
+                           {isNotificationsOpen && (
+                             <div ref={notificationsRef} className="absolute top-full mt-3 left-0 w-80 bg-[var(--bg-primary)] border border-[var(--border-secondary)] rounded-2xl shadow-lg z-50 fade-in-up">
+                                <div className="p-4 border-b border-[var(--border-primary)]"><h3 className="font-bold text-lg text-[var(--text-primary)]">الإشعارات</h3></div>
+                                {notifications.length > 0 ? (
+                                  <>
+                                    <div className="p-2 max-h-80 overflow-y-auto">{notifications.map(n => 
+                                        <button 
+                                            key={n.id} 
+                                            onClick={() => {
+                                                if (n.link) onNavClick(n.link);
+                                                setIsNotificationsOpen(false);
+                                            }}
+                                            className="w-full p-3 rounded-lg hover:bg-[var(--bg-tertiary)] text-right"
+                                        >
+                                            <p className="text-sm text-[var(--text-primary)]">{n.text}</p>
+                                            <p className="text-xs text-[var(--text-secondary)] mt-1">
+                                                {new Date(n.createdAt).toLocaleTimeString('ar-EG', { hour: 'numeric', minute: '2-digit' })}
+                                            </p>
+                                        </button>
+                                    )}</div>
+                                  </>
+                                ) : (
+                                  <div className="p-8 text-center text-sm text-[var(--text-secondary)]">
+                                      <p>لا توجد إشعارات جديدة حاليًا.</p>
+                                  </div>
+                                )}
+                            </div>
+                        )}
+                      </div>
+                    
+                      <div className="relative">
+                          <div onClick={() => { setIsProfileMenuOpen(p => !p); setIsNotificationsOpen(false); }} className="user-avatar">
+                              {user.name.charAt(0)}
+                          </div>
+                           {isProfileMenuOpen && (
+                            <div ref={profileMenuRef} className="absolute top-full mt-3 left-0 w-72 bg-[var(--bg-primary)] border border-[var(--border-secondary)] rounded-2xl shadow-lg z-50 fade-in-up overflow-hidden">
+                                <div className="p-4"><p className="font-bold text-lg text-[var(--text-primary)] truncate">{user.name}</p><p className="text-sm text-[var(--text-secondary)]">{gradeName || 'طالب'}</p></div>
+                                <div className="h-px bg-[var(--border-primary)] mx-4"></div>
+                                <div className="p-2 space-y-1">
+                                    <button onClick={() => { onNavClick('profile'); setIsProfileMenuOpen(false); }} className="w-full flex items-center p-3 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 space-x-3 space-x-reverse text-right"><UserCircleIcon className="w-6 h-6 text-[var(--text-secondary)]" /><span>الملف الشخصي</span></button>
+                                    <button onClick={() => { onNavClick('results'); setIsProfileMenuOpen(false); }} className="w-full flex items-center p-3 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 space-x-3 space-x-reverse text-right"><ResultsIcon className="w-6 h-6 text-[var(--text-secondary)]" /><span>الإحصائيات</span></button>
+                                    <button onClick={() => { onNavClick('profile'); setIsProfileMenuOpen(false); }} className="w-full flex items-center p-3 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 space-x-3 space-x-reverse text-right"><CogIcon className="w-6 h-6 text-[var(--text-secondary)]" /><span>الإعدادات</span></button>
+                                </div>
+                                <div className="h-px bg-[var(--border-primary)] mx-4"></div>
+                                <div className="p-2"><button onClick={onLogout} className="w-full flex items-center p-3 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors duration-200 space-x-3 space-x-reverse text-right"><LogoutIcon className="w-6 h-6" /><span>تسجيل الخروج</span></button></div>
+                            </div>
+                        )}
+                      </div>
+                  </div>
+              </header>
+            <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-24 md:pb-6 bg-[var(--bg-secondary)] md:rounded-b-2xl">
+                {isBannerVisible && expiringNotification && (
+                    <div className="bg-amber-500/10 border border-amber-500/30 text-amber-300 text-sm rounded-lg p-4 mb-6 flex items-start gap-3 fade-in" role="alert">
+                        <ShieldExclamationIcon className="w-5 h-5 flex-shrink-0 mt-0.5 text-amber-400" />
+                        <div className="flex-grow">
+                            <h4 className="font-bold">تنبيه هام</h4>
+                            <p>
+                                {expiringNotification.text} 
+                                <button onClick={() => expiringNotification.link && onNavClick(expiringNotification.link)} className="font-bold underline hover:text-amber-200 mx-2">جدد الآن</button>
+                            </p>
+                        </div>
+                        <button onClick={() => setIsBannerVisible(false)} className="p-1 rounded-full text-amber-300/70 hover:bg-amber-500/20">
+                            <XIcon className="w-4 h-4" />
+                        </button>
+                    </div>
+                )}
+                <div key={activeView} className="fade-in">{children}</div>
+            </main>
           </div>
         </div>
-      )}
-    </div>
+        <div className="md:hidden fixed bottom-2 left-2 right-2 h-16 bg-[var(--glass-bg)] backdrop-blur-[var(--glass-blur)] border border-[var(--glass-border)] flex justify-around items-center shadow-lg rounded-2xl">
+            {bottomNavItems.map((item) => <BottomNavItem key={item.id} onClick={() => onNavClick(item.id as StudentView)} label={item.label} icon={item.icon} isActive={activeView === item.id} />)}
+        </div>
+        {isMobileNavOpen && (
+          <div className="md:hidden fixed inset-0 z-[60]" role="dialog" aria-modal="true">
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setIsMobileNavOpen(false)}></div>
+            <div className="fixed inset-y-2 right-2 w-72 bg-[var(--bg-secondary)] border border-[var(--border-primary)] flex flex-col animate-slide-in-right rounded-2xl overflow-hidden">
+              <div className="h-20 flex items-center justify-between px-6 flex-shrink-0">
+                 <div className="flex items-center">
+                     <img src="https://j.top4top.io/p_3584uziv73.png" alt="Gstudent Logo" className="w-10 h-10" />
+                 </div>
+                <button onClick={() => setIsMobileNavOpen(false)} className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"><XIcon className="w-6 h-6" /></button>
+              </div>
+              <NavContent navItems={navItems} activeView={activeView} onNavClick={(v) => { onNavClick(v); setIsMobileNavOpen(false); }} onLogout={() => { onLogout(); setIsMobileNavOpen(false); }} subscription={subscription} />
+            </div>
+          </div>
+        )}
+      </div>
+    </>
   );
 };
 

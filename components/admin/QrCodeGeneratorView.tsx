@@ -31,8 +31,7 @@ const durationOptions = [
 const QrCodeGeneratorView: React.FC = () => {
     const [selectedTeacherId, setSelectedTeacherId] = useState('');
     const [durationDays, setDurationDays] = useState('30');
-    const [codeCount, setCodeCount] = useState(1);
-    const [maxUses, setMaxUses] = useState(1);
+    const [codeCount, setCodeCount] = useState<number | string>(1);
     const [generatedCodes, setGeneratedCodes] = useState<SubscriptionCode[]>([]);
     const [isGenerating, setIsGenerating] = useState(false);
     const printRef = useRef<HTMLDivElement>(null);
@@ -54,7 +53,9 @@ const QrCodeGeneratorView: React.FC = () => {
     ], [teachers]);
 
     const handleGenerate = async () => {
-        if (!selectedTeacherId || !durationDays || codeCount < 1 || maxUses < 1) {
+        const count = parseInt(String(codeCount), 10);
+        if (!selectedTeacherId || !durationDays || !count || count < 1) {
+            addToast('الرجاء ملء جميع الحقول بشكل صحيح.', ToastType.ERROR);
             return;
         }
         setIsGenerating(true);
@@ -63,8 +64,8 @@ const QrCodeGeneratorView: React.FC = () => {
         const codes = await generateSubscriptionCodes({
             teacherId: isComprehensive ? undefined : selectedTeacherId,
             durationDays: parseInt(durationDays),
-            count: codeCount,
-            maxUses: maxUses,
+            count: count,
+            maxUses: 1, // Always one use
         });
         setGeneratedCodes(codes);
         setIsGenerating(false);
@@ -169,11 +170,18 @@ const QrCodeGeneratorView: React.FC = () => {
                         />
                          <div>
                             <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">عدد الأكواد</label>
-                            <input type="number" value={codeCount} onChange={e => setCodeCount(Math.max(1, parseInt(e.target.value) || 1))} min="1" className="w-full p-3 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg"/>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">عدد مرات الاستخدام (لكل كود)</label>
-                            <input type="number" value={maxUses} onChange={e => setMaxUses(Math.max(1, parseInt(e.target.value) || 1))} min="1" className="w-full p-3 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg"/>
+                            <input
+                                type="text"
+                                inputMode="numeric"
+                                value={codeCount}
+                                onChange={e => {
+                                    const arabicNumerals = /[\u0660-\u0669]/g;
+                                    const westernNumerals = e.target.value.replace(arabicNumerals, char => (char.charCodeAt(0) - 0x0660).toString());
+                                    const sanitizedValue = westernNumerals.replace(/[^0-9]/g, '');
+                                    setCodeCount(sanitizedValue);
+                                }}
+                                className="w-full p-3 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg"
+                            />
                         </div>
                     </div>
                     <div className="mt-8 pt-6 border-t border-[var(--border-primary)]">

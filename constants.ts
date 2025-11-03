@@ -1,5 +1,5 @@
 import React from 'react';
-import { CrownIcon, MoonIcon, SunIcon, CocktailIcon, SakuraIcon, ScrollIcon, SunsetIcon, TreeIcon, WaveIcon, SynthwaveIcon, MatrixIcon } from './components/common/Icons';
+import { CrownIcon, MoonIcon, SunIcon, CocktailIcon, SakuraIcon, ScrollIcon, SunsetIcon, TreeIcon, WaveIcon, SynthwaveIcon, MatrixIcon, GhostIcon } from './components/common/Icons';
 
 // Demo User Credentials
 export const DEMO_STUDENT_IDENTIFIER = 'student@demo.com';
@@ -15,7 +15,7 @@ export const THEMES: {
 }[] = [
   { id: 'light', name: 'فاتح', icon: SunIcon, colors: { bg: '#F9F9FB', accent: '#007AFF', text: '#1D1D1F', gradient: 'linear-gradient(135deg, #A8C6FD, #C2E9FB)' } },
   { id: 'dark', name: 'داكن', icon: MoonIcon, colors: { bg: '#141414', accent: '#4F46E5', text: '#EDEDED', gradient: 'linear-gradient(135deg, #1e293b, #0f172a)' } },
-  { id: 'royal', name: 'ملكي', icon: CrownIcon, colors: { bg: '#1C162C', accent: '#D4AF37', text: '#EAE6F5', gradient: 'linear-gradient(135deg, #432E72, #1C162C)' } },
+  { id: 'ghost', name: 'الشبح', icon: GhostIcon, colors: { bg: '#101418', accent: '#38bdf8', text: '#e1e8f0', gradient: 'linear-gradient(135deg, #7dd3fc, #38bdf8)' } },
   { id: 'gold', name: 'ذهبي', icon: CrownIcon, colors: { bg: '#1F1C19', accent: '#D4AF37', text: '#F0E6D8', gradient: 'linear-gradient(135deg, #4b3821, #1F1C19)' } },
   { id: 'pink', name: 'وردي', icon: SakuraIcon, colors: { bg: '#421D34', accent: '#F472B6', text: '#FDECF5', gradient: 'linear-gradient(135deg, #c2185b, #f06292)' } },
   { id: 'sunset', name: 'غروب', icon: SunsetIcon, colors: { bg: '#211E3B', accent: '#FF8C42', text: '#E6E0FF', gradient: 'linear-gradient(135deg, #4a148c, #ff6f00)' } },
