@@ -1,0 +1,160 @@
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { SupervisorProfile, Teacher, ToastType } from '../../types';
+import { getSupervisorsWithTeachers, getAllTeachers, deleteSupervisor } from '../../services/storageService';
+import { useToast } from '../../useToast';
+import { PlusIcon, UsersSolidIcon, SearchIcon } from '../common/Icons';
+import Loader from '../common/Loader';
+import SupervisorModal from './SupervisorModal';
+import Modal from '../common/Modal';
+
+const SupervisorCard: React.FC<{ supervisor: SupervisorProfile; onEdit: () => void; onDelete: () => void; }> = ({ supervisor, onEdit, onDelete }) => {
+    const teacherCount = supervisor.supervisor_teachers?.length || 0;
+    return (
+        <div className="bg-[var(--bg-secondary)] rounded-xl shadow-md border border-[var(--border-primary)] p-5 transition-all duration-300 hover:border-purple-400">
+            <div className="flex justify-between items-start">
+                <div>
+                    <h3 className="font-bold text-lg text-[var(--text-primary)]">{supervisor.name}</h3>
+                    <p className="text-sm text-[var(--text-secondary)]">{supervisor.email}</p>
+                </div>
+                <div className="flex gap-2">
+                    <button onClick={onEdit} className="p-2 text-sm font-semibold text-yellow-400 bg-yellow-500/10 hover:bg-yellow-500/20 rounded-md">تعديل</button>
+                    <button onClick={onDelete} className="p-2 text-sm font-semibold text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-md">حذف</button>
+                </div>
+            </div>
+            <div className="mt-4 pt-4 border-t border-[var(--border-primary)] text-sm text-[var(--text-secondary)]">
+                مرتبط بـ <span className="font-bold text-[var(--text-primary)]">{teacherCount}</span> مدرسين
+            </div>
+        </div>
+    );
+};
+
+const SupervisorsManagementView: React.FC = () => {
+    const [supervisors, setSupervisors] = useState<SupervisorProfile[]>([]);
+    const [allTeachers, setAllTeachers] = useState<Teacher[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isActionLoading, setIsActionLoading] = useState(false);
+    const [modalState, setModalState] = useState<{ type: 'add' | 'edit' | null, supervisor: SupervisorProfile | null }>({ type: null, supervisor: null });
+    const [deletingSupervisor, setDeletingSupervisor] = useState<SupervisorProfile | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const { addToast } = useToast();
+    
+    const fetchData = useCallback(async () => {
+        setIsLoading(true);
+        const [supervisorsData, teachersData] = await Promise.all([
+            getSupervisorsWithTeachers(),
+            getAllTeachers()
+        ]);
+        setSupervisors(supervisorsData);
+        setAllTeachers(teachersData);
+        setIsLoading(false);
+    }, []);
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
+
+    const filteredSupervisors = useMemo(() => {
+        if (!searchQuery.trim()) {
+            return supervisors;
+        }
+        const lowercasedQuery = searchQuery.toLowerCase();
+        return supervisors.filter(supervisor =>
+            supervisor.name.toLowerCase().includes(lowercasedQuery) ||
+            (supervisor.email && supervisor.email.toLowerCase().includes(lowercasedQuery))
+        );
+    }, [supervisors, searchQuery]);
+
+    const openModal = (type: 'add' | 'edit', supervisor: SupervisorProfile | null = null) => {
+        setModalState({ type, supervisor });
+    };
+    const closeModal = () => setModalState({ type: null, supervisor: null });
+
+    const handleDelete = async () => {
+        if (!deletingSupervisor) return;
+        setIsActionLoading(true);
+        const { success, error } = await deleteSupervisor(deletingSupervisor.id);
+        if (success) {
+            addToast('تم حذف المشرف بنجاح.', ToastType.SUCCESS);
+            fetchData();
+        } else {
+            addToast(`فشل حذف المشرف: ${error?.message}`, ToastType.ERROR);
+        }
+        setDeletingSupervisor(null);
+        setIsActionLoading(false);
+    };
+
+    return (
+        <div className="fade-in">
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-8 gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold text-[var(--text-primary)]">إدارة المشرفين</h1>
+                    <p className="text-[var(--text-secondary)] mt-1">إضافة وتعديل حسابات المشرفين وربطهم بالمدرسين.</p>
+                </div>
+                <button onClick={() => openModal('add')} className="flex items-center justify-center space-x-2 space-x-reverse px-5 py-2.5 font-semibold bg-purple-600 hover:bg-purple-700 rounded-lg text-white transition-all shadow-lg shadow-purple-500/20 transform hover:scale-105">
+                    <PlusIcon className="w-5 h-5"/> 
+                    <span>إضافة مشرف جديد</span>
+                </button>
+            </div>
+
+            <div className="relative mb-6">
+                <input
+                    type="text"
+                    placeholder="ابحث بالاسم أو البريد الإلكتروني..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg py-2.5 pr-10 pl-4 transition-colors focus:ring-2 focus:ring-purple-400"
+                />
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                    <SearchIcon className="w-5 h-5 text-[var(--text-secondary)]" />
+                </div>
+            </div>
+
+            {isLoading ? (
+                <div className="flex justify-center items-center py-20"><Loader /></div>
+            ) : filteredSupervisors.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {filteredSupervisors.map(supervisor => (
+                        <SupervisorCard key={supervisor.id} supervisor={supervisor} onEdit={() => openModal('edit', supervisor)} onDelete={() => setDeletingSupervisor(supervisor)} />
+                    ))}
+                </div>
+            ) : (
+                <div className="text-center py-20 bg-[var(--bg-secondary)] rounded-xl border-2 border-dashed border-[var(--border-primary)]">
+                    <UsersSolidIcon className="w-20 h-20 mx-auto text-[var(--text-secondary)] opacity-20 mb-4" />
+                    <h3 className="font-bold text-lg text-[var(--text-primary)]">
+                        {searchQuery ? 'لا توجد نتائج مطابقة' : 'لا يوجد مشرفون بعد'}
+                    </h3>
+                    <p className="text-[var(--text-secondary)] mt-1">
+                        {searchQuery ? 'جرّب البحث بكلمة أخرى.' : 'ابدأ بإضافة أول مشرف إلى المنصة.'}
+                    </p>
+                </div>
+            )}
+
+            {(modalState.type === 'add' || modalState.type === 'edit') && (
+                <SupervisorModal 
+                    isOpen={true}
+                    onClose={closeModal}
+                    onSaveSuccess={() => {
+                        closeModal();
+                        fetchData();
+                    }}
+                    supervisor={modalState.supervisor}
+                    allTeachers={allTeachers}
+                />
+            )}
+
+            {deletingSupervisor && (
+                <Modal isOpen={true} onClose={() => setDeletingSupervisor(null)} title="تأكيد الحذف">
+                    <p className="text-[var(--text-secondary)] mb-6">هل أنت متأكد من رغبتك في حذف المشرف "{deletingSupervisor.name}"؟ سيتم حذف حسابه نهائياً.</p>
+                    <div className="flex justify-end space-x-3 space-x-reverse">
+                        <button onClick={() => setDeletingSupervisor(null)} className="px-4 py-2 rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] transition-colors">إلغاء</button>
+                        <button onClick={handleDelete} disabled={isActionLoading} className="px-4 py-2 rounded-md bg-red-600 hover:bg-red-700 transition-colors text-white disabled:opacity-50">
+                            {isActionLoading ? 'جاري الحذف...' : 'نعم، قم بالحذف'}
+                        </button>
+                    </div>
+                </Modal>
+            )}
+        </div>
+    );
+};
+
+export default SupervisorsManagementView;

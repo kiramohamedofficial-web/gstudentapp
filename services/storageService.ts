@@ -1,13 +1,10 @@
-
-
-
-
 import React from 'react';
 import { createClient, Session, User as SupabaseUser } from '@supabase/supabase-js';
 import {
   User, Role, Subscription, Grade, Teacher, Lesson, Unit, SubscriptionRequest,
   SubscriptionCode, Semester, QuizAttempt, ActivityLog, LessonType, PlatformSettings, Course, Book, StudentQuestion,
-  CartoonMovie
+  CartoonMovie,
+  SupervisorProfile
 } from '../types';
 
 // =================================================================
@@ -196,12 +193,102 @@ export async function getTeachersWithStudentCount() { return supabase.from('teac
 export async function getAllAdmins() { return supabase.from('profiles').select('*').eq('role', 'admin').order('created_at', { ascending: false }); }
 export async function getUsersByRole(role: Role) { return supabase.from('profiles').select('*').eq('role', role); }
 export async function getSupervisors() { return getUsersByRole(Role.SUPERVISOR); }
+export async function getSupervisorsWithTeachers(): Promise<SupervisorProfile[]> {
+    // 1. Fetch all supervisor profiles
+    const { data: supervisors, error: supervisorsError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('role', 'supervisor')
+        .order("created_at", { ascending: false });
+
+    if (supervisorsError) {
+        console.error("Error fetching supervisors:", supervisorsError.message);
+        return [];
+    }
+    if (!supervisors || supervisors.length === 0) {
+        return [];
+    }
+
+    const supervisorIds = supervisors.map(s => s.id);
+
+    // 2. Fetch all relevant supervisor-teacher links
+    const { data: links, error: linksError } = await supabase
+        .from('supervisor_teachers')
+        .select('supervisor_id, teacher_id')
+        .in('supervisor_id', supervisorIds);
+
+    if (linksError) {
+        console.error("Error fetching supervisor-teacher links:", linksError.message);
+        // Return supervisors without teachers as a fallback
+        return supervisors.map(s => ({
+            ...(s as any),
+            guardianPhone: s.guardian_phone,
+            grade: s.grade_id,
+            subscriptionId: s.subscription_id,
+            teacherId: s.teacher_id,
+            supervisor_teachers: []
+        }));
+    }
+
+    const teacherIds = [...new Set(links.map(link => link.teacher_id))];
+
+    // 3. Fetch all relevant teachers if there are any
+    let teachersMap = new Map<string, Teacher>();
+    if (teacherIds.length > 0) {
+        const { data: teachers, error: teachersError } = await supabase
+            .from('teachers')
+            .select('*')
+            .in('id', teacherIds);
+
+        if (teachersError) {
+            console.error("Error fetching teachers for supervisors:", teachersError.message);
+            // Fallback: continue without teacher data
+        } else {
+            teachersMap = new Map(teachers.map(t => [t.id, {
+                id: t.id,
+                name: t.name,
+                subject: t.subject,
+                imageUrl: t.image_url,
+                teachingLevels: t.teaching_levels,
+                teachingGrades: t.teaching_grades,
+            }]));
+        }
+    }
+
+    // 4. Stitch the data together
+    const result: SupervisorProfile[] = supervisors.map(supervisor => {
+        const relevantLinks = links.filter(link => link.supervisor_id === supervisor.id);
+        const supervisorTeachers = relevantLinks
+            .map(link => {
+                const teacher = teachersMap.get(link.teacher_id);
+                return teacher ? { teachers: teacher } : null;
+            })
+            .filter((item): item is { teachers: Teacher } => item !== null);
+
+        return {
+            id: supervisor.id,
+            name: supervisor.name,
+            email: supervisor.email,
+            phone: supervisor.phone,
+            role: supervisor.role,
+            guardianPhone: supervisor.guardian_phone,
+            grade: supervisor.grade_id,
+            track: supervisor.track,
+            subscriptionId: supervisor.subscription_id,
+            teacherId: supervisor.teacher_id,
+            supervisor_teachers: supervisorTeachers
+        };
+    });
+
+    return result;
+}
+
 
 // --- 4️⃣ Grades & Levels ---
 export async function getAllGrades(): Promise<Grade[]> {
     const { data, error } = await supabase.from('grades').select('*, semesters(*, units(*, lessons(*)))').order('id');
     if (error) {
-        console.error('Error fetching all grades:', error);
+        console.error('Error fetching all grades:', JSON.stringify(error, null, 2));
         return [];
     }
     if (!data) return [];
@@ -596,7 +683,7 @@ export async function deleteCartoonMovie(id: string) {
 // =================================================================
 // EXISTING FUNCTIONS (Kept for App Integrity or No Guide Equivalent)
 // =================================================================
-let curriculumCache: { grades: Grade[] } | null = null;
+export let curriculumCache: { grades: Grade[] } | null = null;
 const defaultGrades: Grade[] = [{ id: 1, name: 'الصف الأول الإعدادي', level: 'Middle', levelAr: 'الإعدادي', semesters: [{ id: 's1-1', title: 'الفصل الدراسي الأول', units: [] }, { id: 's1-2', title: 'الفصل الدراسي الثاني', units: [] }] }];
 
 // initData is crucial for app startup and synchronous grade access
@@ -745,6 +832,105 @@ export async function createTeacher(params: any) {
         return { success: false, error, data: null };
     }
 }
+
+export async function createSupervisor(params: any) {
+    try {
+        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+            email: params.email,
+            password: params.password,
+            phone: params.phone ? `+20${params.phone.replace(/^0/, '')}` : undefined,
+            email_confirm: true,
+            user_metadata: { name: params.name }, // Trigger will use this
+        });
+
+        if (authError) {
+            if (authError.message.toLowerCase().includes('service_role key required')) {
+                throw new Error(`فشل المصادقة كمسؤول (Admin). لا يمكن إنشاء حسابات من طرف العميل مباشرةً.`);
+            }
+            throw new Error(`فشل إنشاء حساب المصادقة: ${authError.message}`);
+        }
+        
+        const newUserId = authData.user.id;
+        
+        await new Promise(res => setTimeout(res, 1000)); // wait for trigger
+        
+        const { error: profileUpdateError } = await supabase
+            .from('profiles')
+            .update({ role: 'supervisor', phone: params.phone ? `+20${params.phone.replace(/^0/, '')}` : undefined })
+            .eq('id', newUserId);
+
+        if (profileUpdateError) {
+            await supabase.auth.admin.deleteUser(newUserId); // Rollback
+            throw new Error(`Failed to update profile to supervisor role: ${profileUpdateError.message}`);
+        }
+        
+        if (params.teacherIds && params.teacherIds.length > 0) {
+            const links = params.teacherIds.map((teacher_id: string) => ({ supervisor_id: newUserId, teacher_id }));
+            const { error: linkError } = await supabase.from('supervisor_teachers').insert(links);
+            if (linkError) {
+                console.warn(`Supervisor created, but failed to link teachers: ${linkError.message}`);
+            }
+        }
+        
+        return { success: true, data: { user_id: newUserId }, error: null };
+
+    } catch (error: any) {
+        return { success: false, error, data: null };
+    }
+}
+
+export async function updateSupervisor(supervisorId: string, updates: any) {
+    try {
+        const authUpdates: any = {};
+        if (updates.email) authUpdates.email = updates.email;
+        if (updates.password && updates.password.trim()) authUpdates.password = updates.password;
+        
+        if (Object.keys(authUpdates).length > 0) {
+            const { error: authError } = await supabase.auth.admin.updateUserById(supervisorId, authUpdates);
+            if (authError) throw new Error(`Failed to update auth user: ${authError.message}`);
+        }
+        
+        const profileUpdates: any = {};
+        if (updates.name) profileUpdates.name = updates.name;
+        if (updates.phone) profileUpdates.phone = `+20${updates.phone.replace(/^0/, '')}`;
+        
+        if (Object.keys(profileUpdates).length > 0) {
+            const { error: profileError } = await supabase.from('profiles').update(profileUpdates).eq('id', supervisorId);
+            if (profileError) throw new Error(`Failed to update profile: ${profileError.message}`);
+        }
+
+        // Resync teacher links
+        const { error: deleteLinkError } = await supabase.from('supervisor_teachers').delete().eq('supervisor_id', supervisorId);
+        if (deleteLinkError) throw new Error(`Failed to clear old teacher links: ${deleteLinkError.message}`);
+        
+        if (updates.teacherIds && updates.teacherIds.length > 0) {
+            const newLinks = updates.teacherIds.map((teacher_id: string) => ({ supervisor_id: supervisorId, teacher_id }));
+            const { error: newLinkError } = await supabase.from('supervisor_teachers').insert(newLinks);
+            if (newLinkError) throw new Error(`Failed to add new teacher links: ${newLinkError.message}`);
+        }
+
+        return { success: true, error: null };
+    } catch (error: any) {
+        return { success: false, error };
+    }
+}
+
+export async function deleteSupervisor(supervisorId: string) {
+    try {
+        // Deleting the user from auth will cascade delete the profile, which will cascade delete the supervisor_teachers entries.
+        const { error: authError } = await supabase.auth.admin.deleteUser(supervisorId);
+        if (authError) {
+            if (authError.message.toLowerCase().includes('service_role key required')) {
+                throw new Error(`فشل المصادقة كمسؤول (Admin). لا يمكن حذف حسابات من طرف العميل مباشرةً.`);
+            }
+            throw authError;
+        }
+        return { success: true, error: null };
+    } catch(error: any) {
+        return { success: false, error };
+    }
+}
+
 
 export async function updateTeacher(teacherId: string, updates: any) {
     try {

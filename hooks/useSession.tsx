@@ -6,15 +6,14 @@ import {
     signUp,
     signOut,
     onAuthStateChange,
-    getUserById,
     getSession,
-    addActivityLog,
     updateUser,
     deleteUser,
     sendPasswordResetEmail,
     updateUserPassword,
-    getOrCreateDeviceId,
-    supabase
+    supabase,
+    getGradeByIdSync,
+    initData,
 } from '../services/storageService';
 import { useToast } from '../useToast';
 
@@ -38,29 +37,6 @@ interface SessionContextType {
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
-const mapGradeData = (grade: any): Grade | undefined => {
-    if (!grade) return undefined;
-    return {
-        ...grade,
-        semesters: (grade.semesters || []).map((semester: any) => ({
-            ...semester,
-            units: (semester.units || []).map((unit: any) => ({
-                ...unit,
-                teacherId: unit.teacher_id, // Map snake_case to camelCase
-                lessons: (unit.lessons || []).map((lesson: any) => ({
-                    ...lesson,
-                    quizType: lesson.quiz_type,
-                    correctAnswers: lesson.correct_answers,
-                    timeLimit: lesson.time_limit,
-                    passingScore: lesson.passing_score,
-                    dueDate: lesson.due_date,
-                }))
-            }))
-        }))
-    };
-};
-
-
 export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [authError, setAuthError] = useState<string>('');
@@ -82,7 +58,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 let profile: any = null;
                 let attempts = 0;
                 while (!profile && attempts < 5) {
-                    const { data: profileData } = await supabase.from('profiles').select('*, grades(*, semesters(*, units(*, lessons(*))))').eq('id', session.user.id).single();
+                    const { data: profileData } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
                     profile = profileData;
                     if (!profile) {
                         attempts++;
@@ -91,14 +67,19 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 }
 
                 if (profile) {
-                    const mappedGradeData = mapGradeData(profile.grades);
+                    const gradeData = getGradeByIdSync(profile.grade_id);
                     const mergedUser: User = {
-                        ...(profile as any),
                         id: session.user.id,
+                        name: profile.name,
                         email: session.user.email || profile.email,
-                        grade: profile.grade_id,
+                        phone: profile.phone,
                         guardianPhone: profile.guardian_phone,
-                        gradeData: mappedGradeData as Grade,
+                        grade: profile.grade_id,
+                        track: profile.track,
+                        role: profile.role,
+                        subscriptionId: profile.subscription_id,
+                        teacherId: profile.teacher_id,
+                        gradeData: gradeData,
                     };
                     setCurrentUser(mergedUser);
                 } else {
@@ -125,6 +106,72 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         };
     }, [addToast]);
     
+    const refetchUserAndGradeData = useCallback(async (shouldRefetchCurriculum = false) => {
+        if (!currentUser) return;
+
+        if (shouldRefetchCurriculum) {
+            await initData();
+        }
+        
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', currentUser.id)
+            .single();
+        
+        if (profile) {
+            const gradeData = getGradeByIdSync(profile.grade_id);
+            const mergedUser: User = {
+                id: currentUser.id,
+                name: profile.name,
+                email: currentUser.email,
+                phone: profile.phone,
+                guardianPhone: profile.guardian_phone,
+                grade: profile.grade_id,
+                track: profile.track,
+                role: profile.role,
+                subscriptionId: profile.subscription_id,
+                teacherId: profile.teacher_id,
+                gradeData: gradeData,
+            };
+            setCurrentUser(mergedUser);
+        }
+    }, [currentUser]);
+
+    useEffect(() => {
+        if (!currentUser) return;
+
+        const profileChannel = supabase
+            .channel(`profile-update-${currentUser.id}`)
+            .on('postgres_changes', {
+                event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${currentUser.id}`
+            }, (payload) => {
+                addToast('تم تحديث ملفك الشخصي.', ToastType.INFO);
+                refetchUserAndGradeData(false);
+            }).subscribe();
+            
+        const curriculumChannel = supabase
+            .channel('curriculum-updates')
+            .on('postgres_changes', {
+                event: '*', schema: 'public', table: 'units'
+            }, payload => {
+                addToast('تم تحديث محتوى المنهج!', ToastType.INFO);
+                refetchUserAndGradeData(true);
+            })
+            .on('postgres_changes', {
+                event: '*', schema: 'public', table: 'lessons'
+            }, payload => {
+                addToast('تم تحديث محتوى المنهج!', ToastType.INFO);
+                refetchUserAndGradeData(true);
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(profileChannel);
+            supabase.removeChannel(curriculumChannel);
+        };
+    }, [currentUser, addToast, refetchUserAndGradeData]);
+
     const closePostRegistrationModal = useCallback(() => {
         setIsPostRegistrationModalOpen(false);
     }, []);

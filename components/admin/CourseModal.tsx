@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Course, CourseVideo, Teacher, ToastType } from '../../types';
 import { createCourse, updateCourse } from '../../services/storageService';
@@ -90,43 +91,53 @@ const CourseModal: React.FC<CourseModalProps> = ({ isOpen, onClose, onSave, cour
     return (
         <>
             <Modal isOpen={isOpen} onClose={onClose} title={course ? 'تعديل الكورس' : 'إضافة كورس جديد'}>
-                <div className="space-y-4 max-h-[75vh] overflow-y-auto p-1">
-                    <input type="text" name="title" placeholder="عنوان الكورس" value={formData.title || ''} onChange={handleChange} className="w-full p-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md" required />
-                    <textarea name="description" placeholder="وصف الكورس" value={formData.description || ''} onChange={handleChange} className="w-full p-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md" rows={3}></textarea>
-                    <select name="teacherId" value={formData.teacherId || ''} onChange={handleChange} required className="w-full p-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md">
-                        <option value="">-- اختر المدرس --</option>
-                        {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                    </select>
-                    <ImageUpload label="صورة الغلاف" value={formData.coverImage || ''} onChange={value => setFormData(prev => ({...prev, coverImage: value}))} />
-                    <input type="text" name="pdfUrl" placeholder="رابط ملف PDF (اختياري)" value={formData.pdfUrl || ''} onChange={handleChange} className="w-full p-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md" />
-                    
-                    <div className="flex items-center gap-4 pt-4 border-t border-[var(--border-primary)]">
-                         <label className="flex items-center cursor-pointer">
-                            <input type="checkbox" name="isFree" checked={formData.isFree} onChange={handleChange} className="h-4 w-4 rounded text-purple-600" />
-                            <span className="ml-2 text-[var(--text-secondary)]">كورس مجاني</span>
-                        </label>
-                        {!formData.isFree && (
-                             <div className="relative flex-1">
-                                <input type="number" name="price" placeholder="السعر" value={formData.price} onChange={handleChange} className="w-full p-2 pr-10 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md" />
-                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-[var(--text-secondary)]">ج.م</span>
-                            </div>
-                        )}
+                <div className="space-y-6 max-h-[75vh] sm:max-h-[60vh] overflow-y-auto p-2 pr-4 -mr-2">
+                    <div className="bg-[var(--bg-tertiary)] p-4 rounded-lg border border-[var(--border-primary)] space-y-4">
+                        <h3 className="font-semibold text-lg border-b border-[var(--border-primary)] pb-2">المعلومات الأساسية</h3>
+                        <input type="text" name="title" placeholder="عنوان الكورس" value={formData.title || ''} onChange={handleChange} className="w-full p-2 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-md" required />
+                        <textarea name="description" placeholder="وصف الكورس" value={formData.description || ''} onChange={handleChange} className="w-full p-2 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-md" rows={3}></textarea>
+                        <select name="teacherId" value={formData.teacherId || ''} onChange={handleChange} required className="w-full p-2 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-md">
+                            <option value="">-- اختر المدرس --</option>
+                            {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                        </select>
+                    </div>
+
+                    <div className="bg-[var(--bg-tertiary)] p-4 rounded-lg border border-[var(--border-primary)] space-y-4">
+                        <h3 className="font-semibold text-lg border-b border-[var(--border-primary)] pb-2">الوسائط والمرفقات</h3>
+                        <ImageUpload label="صورة الغلاف" value={formData.coverImage || ''} onChange={value => setFormData(prev => ({...prev, coverImage: value}))} />
+                        <input type="text" name="pdfUrl" placeholder="رابط ملف PDF (اختياري)" value={formData.pdfUrl || ''} onChange={handleChange} className="w-full p-2 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-md" />
+                    </div>
+
+                    <div className="bg-[var(--bg-tertiary)] p-4 rounded-lg border border-[var(--border-primary)] space-y-4">
+                        <h3 className="font-semibold text-lg border-b border-[var(--border-primary)] pb-2">التسعير</h3>
+                        <div className="flex items-center gap-4">
+                             <label className="flex items-center cursor-pointer">
+                                <input type="checkbox" name="isFree" checked={formData.isFree} onChange={handleChange} className="h-4 w-4 rounded text-purple-600" />
+                                <span className="ml-2 text-[var(--text-secondary)]">كورس مجاني</span>
+                            </label>
+                            {!formData.isFree && (
+                                 <div className="relative flex-1">
+                                    <input type="number" name="price" placeholder="السعر" value={formData.price} onChange={handleChange} className="w-full p-2 pr-10 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-md" />
+                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-[var(--text-secondary)]">ج.م</span>
+                                </div>
+                            )}
+                        </div>
                     </div>
                     
-                    <div className="pt-4 border-t border-[var(--border-primary)]">
-                        <div className="flex justify-between items-center mb-2">
+                    <div className="bg-[var(--bg-tertiary)] p-4 rounded-lg border border-[var(--border-primary)]">
+                        <div className="flex justify-between items-center mb-4">
                             <h3 className="font-semibold text-lg">فيديوهات الكورس</h3>
                             <button type="button" onClick={() => { setEditingVideo(null); setIsVideoModalOpen(true); }} className="flex items-center gap-1 text-sm text-purple-400 font-semibold"><PlusIcon className="w-4 h-4"/> إضافة فيديو</button>
                         </div>
                         <div className="space-y-2">
                             {(formData.videos || []).map((video, index) => (
-                                <div key={video.id || index} className="flex items-center justify-between p-2 bg-[var(--bg-tertiary)] rounded-md">
-                                    <div className="flex items-center gap-2">
-                                        <VideoCameraIcon className="w-5 h-5 text-[var(--text-secondary)]"/>
-                                        <span className="text-sm">{video.title}</span>
-                                        {video.isFree && <span className="text-xs px-2 py-0.5 bg-green-500/20 text-green-400 rounded-full">مجاني</span>}
+                                <div key={video.id || index} className="flex items-center justify-between p-2 bg-[var(--bg-secondary)] rounded-md">
+                                    <div className="flex items-center gap-2 overflow-hidden">
+                                        <VideoCameraIcon className="w-5 h-5 text-[var(--text-secondary)] flex-shrink-0"/>
+                                        <span className="text-sm truncate">{video.title}</span>
+                                        {video.isFree && <span className="text-xs px-2 py-0.5 bg-green-500/20 text-green-400 rounded-full flex-shrink-0">مجاني</span>}
                                     </div>
-                                    <div className="flex gap-1">
+                                    <div className="flex gap-1 flex-shrink-0">
                                         <button type="button" onClick={() => { setEditingVideo({video, index}); setIsVideoModalOpen(true); }} className="p-1 text-[var(--text-secondary)] hover:text-yellow-400"><PencilIcon className="w-4 h-4"/></button>
                                         <button type="button" onClick={() => handleVideoDelete(index)} className="p-1 text-[var(--text-secondary)] hover:text-red-500"><TrashIcon className="w-4 h-4"/></button>
                                     </div>

@@ -1,12 +1,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { User, Theme, TeacherView, Teacher, Grade } from '../../types';
-import { getTeacherById, getSubscriptionsByTeacherId, getAllGrades } from '../../services/storageService';
+import { User, Theme, TeacherView, Teacher, Grade, Role } from '../../types';
+import { getTeacherById, getSubscriptionsByTeacherId, getAllGrades, supabase } from '../../services/storageService';
 import TeacherLayout from './TeacherLayout';
 import TeacherContentManagement from './TeacherContentManagement';
 import TeacherSubscriptionsView from './TeacherSubscriptionsView';
 import TeacherProfileView from './TeacherProfileView';
-import { CollectionIcon, UsersIcon } from '../common/Icons';
+import { CollectionIcon, UsersIcon, InformationCircleIcon } from '../common/Icons';
 import { useSession } from '../../hooks/useSession';
+import Loader from '../common/Loader';
 
 interface TeacherDashboardProps {
   theme: Theme;
@@ -67,14 +68,53 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = (props) => {
   const { currentUser: user, handleLogout: onLogout } = useSession();
   const [activeView, setActiveView] = useState<TeacherView>('dashboard');
   const [teacherProfile, setTeacherProfile] = useState<Teacher | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchTeacherProfile = async () => {
-        if(user?.teacherId) {
-            const profile = await getTeacherById(user.teacherId);
+        if (!user) {
+            setIsLoading(false);
+            return;
+        }
+
+        setIsLoading(true);
+        setTeacherProfile(null);
+        
+        const linkedIdOnProfile = user.teacherId;
+
+        if (!linkedIdOnProfile) {
+            setIsLoading(false);
+            return;
+        }
+
+        let teacherRecordId: string | undefined = undefined;
+
+        if (user.role === Role.SUPERVISOR) {
+            // Supervisor logic: The ID on their profile is the *user ID* of the teacher.
+            const { data: teacherUserProfile, error } = await supabase
+                .from('profiles')
+                .select('teacher_id')
+                .eq('id', linkedIdOnProfile)
+                .single();
+
+            if (error) {
+                console.error(`Supervisor is linked to user ${linkedIdOnProfile}, but fetching profile failed: ${error.message}`);
+            } else if (teacherUserProfile && teacherUserProfile.teacher_id) {
+                teacherRecordId = teacherUserProfile.teacher_id;
+            }
+        } else {
+            // Teacher logic: The ID on their profile is their own teacher record ID.
+            teacherRecordId = linkedIdOnProfile;
+        }
+
+        if (teacherRecordId) {
+            const profile = await getTeacherById(teacherRecordId);
             setTeacherProfile(profile);
         }
+
+        setIsLoading(false);
     };
+
     fetchTeacherProfile();
   }, [user]);
 
@@ -87,7 +127,8 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = (props) => {
 
   const renderContent = () => {
       if (!teacherProfile) {
-          return <div className="p-8 text-center text-red-500">جاري تحميل ملف المدرس...</div>;
+          // This is handled by the check below, after isLoading.
+          return null;
       }
 
       switch (activeView) {
@@ -102,13 +143,25 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = (props) => {
             return <MainDashboard teacher={teacherProfile} />;
       }
   };
+  
+  if (isLoading) {
+    return (
+        <div className="h-screen w-screen flex flex-col items-center justify-center bg-[var(--bg-primary)] text-[var(--text-primary)]">
+            <Loader />
+            <p className="mt-4 text-lg text-[var(--text-secondary)]">جاري تحميل بيانات المدرس...</p>
+        </div>
+    );
+  }
 
   if (!teacherProfile) {
       return (
-           <div className="h-screen w-screen flex flex-col items-center justify-center bg-red-900/50 text-white p-8">
-               <h1 className="text-3xl font-bold">خطأ في الحساب</h1>
-               <p className="mt-4">حساب المدرس هذا غير مكتمل. يرجى التواصل مع مسؤول المنصة.</p>
-               <button onClick={onLogout} className="mt-8 px-6 py-2 bg-red-500 rounded-lg">تسجيل الخروج</button>
+           <div className="h-screen w-screen flex flex-col items-center justify-center bg-[var(--bg-primary)] text-[var(--text-primary)] p-8 text-center">
+                <InformationCircleIcon className="mx-auto h-20 w-20 text-yellow-500" />
+                <h1 className="text-3xl font-bold mt-6">الحساب غير مربوط</h1>
+                <p className="mt-4 text-lg text-[var(--text-secondary)] max-w-md">
+                    للوصول إلى لوحة التحكم، يجب أن يكون حساب المشرف الخاص بك مربوطًا بملف مدرس. يرجى التواصل مع مسؤول المنصة لإتمام عملية الربط.
+                </p>
+                <button onClick={onLogout} className="mt-8 px-8 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg transition-colors">تسجيل الخروج</button>
            </div>
       );
   }

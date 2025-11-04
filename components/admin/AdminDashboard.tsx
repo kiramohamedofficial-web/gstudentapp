@@ -35,6 +35,7 @@ const FinancialReportsView = lazy(() => import('./FinancialReportsView'));
 const CurriculumDiagnosticsView = lazy(() => import('./CurriculumDiagnosticsView'));
 const SubscriptionCodeDiagnosticsView = lazy(() => import('./SubscriptionCodeDiagnosticsView'));
 const CartoonMoviesManagementView = lazy(() => import('./CartoonMoviesManagementView'));
+const SupervisorsManagementView = lazy(() => import('./SupervisorsManagementView'));
 
 
 interface AdminDashboardProps {
@@ -460,6 +461,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
       case 'subscriptionPrices': return <Suspense fallback={suspenseLoader}><SubscriptionPriceControlView /></Suspense>;
       case 'students': return <StudentManagementView key={studentDataVersion} onViewDetails={handleViewStudentDetails} />;
       case 'teachers': return <TeacherManagementView />;
+      case 'supervisors': return <Suspense fallback={suspenseLoader}><SupervisorsManagementView /></Suspense>;
       case 'homeManagement': return <HomeManagementView />;
       case 'cartoonMoviesManagement': return <Suspense fallback={suspenseLoader}><CartoonMoviesManagementView /></Suspense>;
       case 'courseManagement': return <Suspense fallback={suspenseLoader}><CourseManagementView /></Suspense>;

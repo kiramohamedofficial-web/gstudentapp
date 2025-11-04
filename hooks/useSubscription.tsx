@@ -1,7 +1,8 @@
 import React, { createContext, useState, useEffect, useCallback, useContext, useMemo } from 'react';
-import { getSubscriptionsByUserId } from '../services/storageService';
-import { Subscription, AppNotification } from '../types';
+import { getSubscriptionsByUserId, supabase } from '../services/storageService';
+import { Subscription, AppNotification, ToastType } from '../types';
 import { useSession } from './useSession';
+import { useToast } from '../useToast';
 
 interface SubscriptionContextType {
     subscriptions: Subscription[];
@@ -21,6 +22,7 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
+    const { addToast } = useToast();
 
     const fetchSubscription = useCallback(async () => {
         if (currentUser) {
@@ -53,6 +55,27 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
     useEffect(() => {
         fetchSubscription();
     }, [fetchSubscription]);
+
+    useEffect(() => {
+        if (!currentUser) return;
+
+        const subscriptionChannel = supabase
+            .channel(`user-subscriptions-${currentUser.id}`)
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'subscriptions',
+                filter: `user_id=eq.${currentUser.id}`
+            }, payload => {
+                addToast('تم تحديث حالة اشتراكك!', ToastType.INFO);
+                fetchSubscription();
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(subscriptionChannel);
+        };
+    }, [currentUser, fetchSubscription, addToast]);
 
     useEffect(() => {
         if (subscriptions.length > 0) {

@@ -1,8 +1,9 @@
-import React, { useMemo, useState, useEffect } from 'react';
-import { Teacher, Subscription, User } from '../../types';
-import { getSubscriptionsByTeacherId, getAllUsers } from '../../services/storageService';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import { Teacher, Subscription, User, ToastType } from '../../types';
+import { getSubscriptionsByTeacherId, getAllUsers, supabase } from '../../services/storageService';
 import { CreditCardIcon } from '../common/Icons';
 import Loader from '../common/Loader';
+import { useToast } from '../../useToast';
 
 interface TeacherSubscriptionsViewProps {
     teacher: Teacher;
@@ -12,21 +13,42 @@ const TeacherSubscriptionsView: React.FC<TeacherSubscriptionsViewProps> = ({ tea
     const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
     const [users, setUsers] = useState<Map<string, User>>(new Map());
     const [isLoading, setIsLoading] = useState(true);
+    const { addToast } = useToast();
+
+    const fetchData = useCallback(async () => {
+        setIsLoading(true);
+        const subsPromise = getSubscriptionsByTeacherId(teacher.id);
+        const usersPromise = getAllUsers();
+        
+        const [subsData, userList] = await Promise.all([subsPromise, usersPromise]);
+
+        setSubscriptions(subsData);
+        setUsers(new Map(userList.map(u => [u.id, u])));
+        setIsLoading(false);
+    }, [teacher.id]);
 
     useEffect(() => {
-        const fetchData = async () => {
-            setIsLoading(true);
-            const subsPromise = getSubscriptionsByTeacherId(teacher.id);
-            const usersPromise = getAllUsers();
-            
-            const [subsData, userList] = await Promise.all([subsPromise, usersPromise]);
-
-            setSubscriptions(subsData);
-            setUsers(new Map(userList.map(u => [u.id, u])));
-            setIsLoading(false);
-        };
         fetchData();
-    }, [teacher.id]);
+    }, [fetchData]);
+
+    useEffect(() => {
+        const channel = supabase
+            .channel(`teacher-subs-changes-${teacher.id}`)
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'subscriptions',
+                filter: `teacher_id=eq.${teacher.id}`
+            }, (payload) => {
+                addToast('تم تحديث قائمة طلابك!', ToastType.INFO);
+                fetchData();
+            })
+            .subscribe();
+        
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [teacher.id, fetchData, addToast]);
 
     return (
         <div>

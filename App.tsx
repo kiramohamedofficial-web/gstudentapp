@@ -55,7 +55,7 @@ const App: React.FC = () => {
       <ScreenSecurity>
         {currentUser.role === Role.ADMIN
           ? <AdminDashboard theme={theme} setTheme={setTheme} />
-          : currentUser.role === Role.TEACHER
+          : currentUser.role === Role.TEACHER || currentUser.role === Role.SUPERVISOR
           ? <TeacherDashboard theme={theme} setTheme={setTheme} />
           : <StudentDashboard theme={theme} setTheme={setTheme} />
         }

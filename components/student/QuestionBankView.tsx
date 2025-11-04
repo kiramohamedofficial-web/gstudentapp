@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { useSession } from '../../hooks/useSession';
 import { Unit, Lesson, ToastType, QuizQuestion } from '../../types';
@@ -80,7 +81,6 @@ const QuestionBankView: React.FC = () => {
                 ['MCQ']
             );
             if (generatedQuestions.length === 0) {
-                // FIX: Changed ToastType.WARNING to ToastType.INFO as WARNING is not a valid enum member.
                 addToast('لم يتمكن المساعد الذكي من إنشاء أسئلة. حاول مرة أخرى بموضوع مختلف.', ToastType.INFO);
                 setIsLoading(false);
                 return;

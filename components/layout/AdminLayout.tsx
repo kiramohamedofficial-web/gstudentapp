@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { User } from '../../types';
-import { QrcodeIcon, CreditCardIcon, HomeIcon, XIcon, TemplateIcon, CogIcon, LogoutIcon, BellIcon, QuestionMarkCircleIcon, CurrencyDollarIcon, BookOpenIcon, HardDriveIcon, ChartBarIcon } from '../common/Icons';
-import { getPendingSubscriptionRequestCount } from '../../services/storageService';
+import { QrcodeIcon, CreditCardIcon, HomeIcon, XIcon, TemplateIcon, CogIcon, LogoutIcon, BellIcon, QuestionMarkCircleIcon, CurrencyDollarIcon, BookOpenIcon, HardDriveIcon, ChartBarIcon, UsersSolidIcon } from '../common/Icons';
+import { getPendingSubscriptionRequestCount, supabase } from '../../services/storageService';
 
-type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'courseManagement' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers' | 'subscriptionPrices' | 'deviceManagement' | 'content' | 'accountCreationDiagnostics' | 'teacherCreationDiagnostics' | 'financials' | 'cartoonMoviesManagement';
+type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'courseManagement' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers' | 'subscriptionPrices' | 'deviceManagement' | 'content' | 'accountCreationDiagnostics' | 'teacherCreationDiagnostics' | 'financials' | 'cartoonMoviesManagement' | 'supervisors';
 
 const ContentManagementIcon: React.FC<{ className?: string }> = ({ className }) => (
     <img src="https://a.top4top.io/p_3591fcsm53.png" alt="Content Management" className={className} />
@@ -38,6 +38,7 @@ const mainNavItems = [
     { id: 'dashboard', label: 'الرئيسية', icon: HomeIcon },
     { id: 'students', label: 'إدارة الطلاب', icon: StudentManagementIcon },
     { id: 'teachers', label: 'إدارة المدرسين', icon: TeacherManagementIcon },
+    { id: 'supervisors', label: 'إدارة المشرفين', icon: UsersSolidIcon },
     { id: 'content', label: 'إدارة المنهج الدراسي', icon: ContentManagementIcon },
     { id: 'courseManagement', label: 'إدارة الكورسات', icon: BookOpenIcon },
     { id: 'homeManagement', label: 'إدارة الرئيسية', icon: TemplateIcon },
@@ -132,14 +133,27 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ user, onLogout, children, onN
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-      const fetchPendingCount = async () => {
-          const count = await getPendingSubscriptionRequestCount();
-          setPendingRequestsCount(count);
-      };
-      fetchPendingCount();
-      const interval = setInterval(fetchPendingCount, 60000); // every minute
-      return () => clearInterval(interval);
-  }, [children]);
+    const fetchPendingCount = async () => {
+        const count = await getPendingSubscriptionRequestCount();
+        setPendingRequestsCount(count);
+    };
+    fetchPendingCount();
+
+    const channel = supabase
+        .channel('pending-requests-count')
+        .on('postgres_changes', {
+            event: '*',
+            schema: 'public',
+            table: 'subscription_requests'
+        }, payload => {
+            fetchPendingCount();
+        })
+        .subscribe();
+    
+    return () => {
+        supabase.removeChannel(channel);
+    };
+  }, []);
 
    useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {

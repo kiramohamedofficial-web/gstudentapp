@@ -9,7 +9,7 @@ export enum Role {
 
 export type StudentView = 'home' | 'grades' | 'subscription' | 'profile' | 'teachers' | 'courses' | 'singleSubjectSubscription' | 'comprehensiveSubscription' | 'results' | 'smartPlan' | 'chatbot' | 'adhkar' | 'cartoonMovies' | 'teacherProfile' | 'courseDetail' | 'questionBank';
 export type TeacherView = 'dashboard' | 'content' | 'subscriptions' | 'profile';
-export type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'courseManagement' | 'tools' | 'homeManagement' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers' | 'subscriptionPrices' | 'deviceManagement' | 'content' | 'accountCreationDiagnostics' | 'teacherCreationDiagnostics' | 'financials' | 'curriculumDiagnostics' | 'subscriptionCodeDiagnostics' | 'cartoonMoviesManagement' | 'questionBank';
+export type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'courseManagement' | 'tools' | 'homeManagement' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers' | 'subscriptionPrices' | 'deviceManagement' | 'content' | 'accountCreationDiagnostics' | 'teacherCreationDiagnostics' | 'financials' | 'curriculumDiagnostics' | 'subscriptionCodeDiagnostics' | 'cartoonMoviesManagement' | 'questionBank' | 'supervisors';
 
 
 export interface User {
@@ -282,6 +282,10 @@ export interface CartoonMovie {
   instructionsThumbnailUrl: string;
   isPublished: boolean;
   createdAt: string;
+}
+
+export interface SupervisorProfile extends User {
+    supervisor_teachers: { teachers: Teacher }[];
 }
 
 
