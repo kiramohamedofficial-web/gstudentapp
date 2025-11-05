@@ -1,13 +1,16 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, lazy, Suspense } from 'react';
 import { User, Theme, TeacherView, Teacher, Grade, Role } from '../../types';
 import { getTeacherById, getSubscriptionsByTeacherId, getAllGrades, supabase } from '../../services/storageService';
 import TeacherLayout from './TeacherLayout';
-import TeacherContentManagement from './TeacherContentManagement';
-import TeacherSubscriptionsView from './TeacherSubscriptionsView';
-import TeacherProfileView from './TeacherProfileView';
 import { CollectionIcon, UsersIcon, InformationCircleIcon } from '../common/Icons';
 import { useSession } from '../../hooks/useSession';
 import Loader from '../common/Loader';
+
+const TeacherContentManagement = lazy(() => import('./TeacherContentManagement'));
+const TeacherSubscriptionsView = lazy(() => import('./TeacherSubscriptionsView'));
+const TeacherProfileView = lazy(() => import('./TeacherProfileView'));
+const SupervisorStudentManagementView = lazy(() => import('./SupervisorStudentManagementView'));
+const SupervisorStudentDetailView = lazy(() => import('./SupervisorStudentDetailView'));
 
 interface TeacherDashboardProps {
   theme: Theme;
@@ -67,11 +70,14 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = (props) => {
   const { theme, setTheme } = props;
   const { currentUser: user, handleLogout: onLogout } = useSession();
   const [activeView, setActiveView] = useState<TeacherView>('dashboard');
+  const [viewingStudent, setViewingStudent] = useState<User | null>(null);
   const [teacherProfile, setTeacherProfile] = useState<Teacher | null>(null);
+  const [supervisedTeachers, setSupervisedTeachers] = useState<Teacher[]>([]);
+  const [selectedTeacherId, setSelectedTeacherId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchTeacherProfile = async () => {
+    const fetchProfile = async () => {
         if (!user) {
             setIsLoading(false);
             return;
@@ -79,68 +85,92 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = (props) => {
 
         setIsLoading(true);
         setTeacherProfile(null);
-        
-        const linkedIdOnProfile = user.teacherId;
-
-        if (!linkedIdOnProfile) {
-            setIsLoading(false);
-            return;
-        }
-
-        let teacherRecordId: string | undefined = undefined;
+        setSupervisedTeachers([]);
+        setSelectedTeacherId(null);
 
         if (user.role === Role.SUPERVISOR) {
-            // Supervisor logic: The ID on their profile is the *user ID* of the teacher.
-            const { data: teacherUserProfile, error } = await supabase
-                .from('profiles')
+             const { data: links, error: linkError } = await supabase
+                .from('supervisor_teachers')
                 .select('teacher_id')
-                .eq('id', linkedIdOnProfile)
-                .single();
+                .eq('supervisor_id', user.id);
 
-            if (error) {
-                console.error(`Supervisor is linked to user ${linkedIdOnProfile}, but fetching profile failed: ${error.message}`);
-            } else if (teacherUserProfile && teacherUserProfile.teacher_id) {
-                teacherRecordId = teacherUserProfile.teacher_id;
+            if (linkError || !links || links.length === 0) {
+                console.error("Supervisor has no linked teachers or failed to fetch them.", linkError);
+                setIsLoading(false);
+                return;
             }
+
+            const teacherIds = links.map(l => l.teacher_id);
+            const profiles = await Promise.all(teacherIds.map(id => getTeacherById(id)));
+            const validProfiles = profiles.filter((p): p is Teacher => p !== null);
+            
+            setSupervisedTeachers(validProfiles);
+            if (validProfiles.length > 0) {
+                setSelectedTeacherId(validProfiles[0].id);
+            }
+            setIsLoading(false);
+
+        } else if (user.role === Role.TEACHER) {
+            const teacherRecordId = user.teacherId;
+            if (teacherRecordId) {
+                const profile = await getTeacherById(teacherRecordId);
+                setTeacherProfile(profile);
+            }
+            setIsLoading(false);
         } else {
-            // Teacher logic: The ID on their profile is their own teacher record ID.
-            teacherRecordId = linkedIdOnProfile;
+            setIsLoading(false);
         }
-
-        if (teacherRecordId) {
-            const profile = await getTeacherById(teacherRecordId);
-            setTeacherProfile(profile);
-        }
-
-        setIsLoading(false);
     };
 
-    fetchTeacherProfile();
-  }, [user]);
+    fetchProfile();
+}, [user]);
 
+  const effectiveTeacherProfile = useMemo(() => {
+    if (user?.role === Role.SUPERVISOR) {
+        return supervisedTeachers.find(t => t.id === selectedTeacherId) || null;
+    }
+    return teacherProfile;
+  }, [user?.role, selectedTeacherId, supervisedTeachers, teacherProfile]);
 
   const handleNavClick = (view: TeacherView) => {
+    setViewingStudent(null);
     setActiveView(view);
   };
 
-  if (!user) return null;
-
   const renderContent = () => {
-      if (!teacherProfile) {
-          // This is handled by the check below, after isLoading.
+    if (viewingStudent) {
+        return (
+            <Suspense fallback={<Loader />}>
+                <SupervisorStudentDetailView user={viewingStudent} onBack={() => setViewingStudent(null)} />
+            </Suspense>
+        );
+    }
+    
+    if (!effectiveTeacherProfile) {
           return null;
-      }
+    }
+      
+      const isReadOnly = false; 
 
       switch (activeView) {
+        case 'students':
+            if (user?.role === Role.SUPERVISOR) {
+                return (
+                    <Suspense fallback={<Loader />}>
+                        <SupervisorStudentManagementView supervisedTeachers={supervisedTeachers} onViewDetails={setViewingStudent} />
+                    </Suspense>
+                );
+            }
+            return <MainDashboard teacher={effectiveTeacherProfile} />;
         case 'content':
-            return <TeacherContentManagement teacher={teacherProfile} />;
+            return <Suspense fallback={<Loader />}><TeacherContentManagement teacher={effectiveTeacherProfile} isReadOnly={isReadOnly} /></Suspense>;
         case 'subscriptions':
-            return <TeacherSubscriptionsView teacher={teacherProfile} />;
+            return <Suspense fallback={<Loader />}><TeacherSubscriptionsView teacher={effectiveTeacherProfile} /></Suspense>;
         case 'profile':
-            return <TeacherProfileView teacher={teacherProfile} />;
+            return <Suspense fallback={<Loader />}><TeacherProfileView teacher={effectiveTeacherProfile} /></Suspense>;
         case 'dashboard':
         default:
-            return <MainDashboard teacher={teacherProfile} />;
+            return <MainDashboard teacher={effectiveTeacherProfile} />;
       }
   };
   
@@ -148,18 +178,18 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = (props) => {
     return (
         <div className="h-screen w-screen flex flex-col items-center justify-center bg-[var(--bg-primary)] text-[var(--text-primary)]">
             <Loader />
-            <p className="mt-4 text-lg text-[var(--text-secondary)]">جاري تحميل بيانات المدرس...</p>
+            <p className="mt-4 text-lg text-[var(--text-secondary)]">جاري تحميل البيانات...</p>
         </div>
     );
   }
 
-  if (!teacherProfile) {
+  if (!user || !effectiveTeacherProfile) {
       return (
            <div className="h-screen w-screen flex flex-col items-center justify-center bg-[var(--bg-primary)] text-[var(--text-primary)] p-8 text-center">
                 <InformationCircleIcon className="mx-auto h-20 w-20 text-yellow-500" />
                 <h1 className="text-3xl font-bold mt-6">الحساب غير مربوط</h1>
                 <p className="mt-4 text-lg text-[var(--text-secondary)] max-w-md">
-                    للوصول إلى لوحة التحكم، يجب أن يكون حساب المشرف الخاص بك مربوطًا بملف مدرس. يرجى التواصل مع مسؤول المنصة لإتمام عملية الربط.
+                    للوصول إلى لوحة التحكم، يجب أن يكون حسابك مربوطًا بملف مدرس. يرجى التواصل مع مسؤول المنصة لإتمام عملية الربط.
                 </p>
                 <button onClick={onLogout} className="mt-8 px-8 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg transition-colors">تسجيل الخروج</button>
            </div>
@@ -169,10 +199,13 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = (props) => {
   return (
     <TeacherLayout 
         user={user}
-        teacher={teacherProfile}
+        teacher={effectiveTeacherProfile}
         onLogout={onLogout}
         activeView={activeView} 
         onNavClick={handleNavClick} 
+        supervisedTeachers={supervisedTeachers}
+        selectedTeacherId={selectedTeacherId}
+        onSelectTeacher={setSelectedTeacherId}
     >
       {renderContent()}
     </TeacherLayout>

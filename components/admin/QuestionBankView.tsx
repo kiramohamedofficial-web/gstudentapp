@@ -89,9 +89,10 @@ const QuestionBankView: React.FC = () => {
                     <button
                         key={tab}
                         onClick={() => setActiveTab(tab)}
-                        className={`px-4 py-2 text-sm font-semibold transition-colors duration-200 ${activeTab === tab ? 'border-b-2 border-purple-500 text-purple-600' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+                        className={`px-4 py-2 text-sm font-semibold transition-colors duration-200 relative ${activeTab === tab ? 'text-purple-400' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
                     >
                        {tabLabels[tab]}
+                       {activeTab === tab && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-purple-500 rounded-full"></div>}
                     </button>
                 ))}
             </div>

@@ -98,7 +98,7 @@ export async function signIn(identifier: string, password: string) {
     if (!signInData.user) return { data: null, error: { message: 'لم يتم العثور على المستخدم بعد تسجيل الدخول.' } };
 
     const { data: profile } = await supabase.from('profiles').select('role').eq('id', signInData.user.id).single();
-    if (profile?.role === 'admin' || profile?.role === 'teacher') return { data: signInData, error: null };
+    if (profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'supervisor') return { data: signInData, error: null };
 
     const userId = signInData.user.id;
     const deviceId = getOrCreateDeviceId();

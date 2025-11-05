@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { User, Teacher, TeacherView } from '../../types';
-import { CollectionIcon, CreditCardIcon, UserCircleIcon, LogoutIcon, MenuIcon, XIcon, HomeIcon } from '../common/Icons';
+import React, { useState, useMemo } from 'react';
+import { User, Teacher, TeacherView, Role } from '../../types';
+import { CollectionIcon, CreditCardIcon, UserCircleIcon, LogoutIcon, MenuIcon, XIcon, HomeIcon, UsersIcon } from '../common/Icons';
 
 interface TeacherLayoutProps {
   user: User;
@@ -9,14 +9,10 @@ interface TeacherLayoutProps {
   children: React.ReactNode;
   onNavClick: (view: TeacherView) => void;
   activeView: string;
+  supervisedTeachers?: Teacher[];
+  selectedTeacherId?: string | null;
+  onSelectTeacher?: (id: string) => void;
 }
-
-const navItems = [
-    { id: 'dashboard', label: 'الرئيسية', icon: HomeIcon },
-    { id: 'content', label: 'المحتوى الدراسي', icon: CollectionIcon },
-    { id: 'subscriptions', label: 'الاشتراكات', icon: CreditCardIcon },
-    { id: 'profile', label: 'الملف الشخصي', icon: UserCircleIcon },
-];
 
 const NavButton: React.FC<{ onClick: () => void; label: string; icon: React.FC<{className?: string}>; isActive: boolean; }> = ({ onClick, label, icon: Icon, isActive }) => (
     <button onClick={onClick} className={`w-full text-right flex items-center space-x-4 space-x-reverse group rounded-lg p-3 nav-btn ${isActive ? 'active' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'}`}>
@@ -25,14 +21,24 @@ const NavButton: React.FC<{ onClick: () => void; label: string; icon: React.FC<{
     </button>
 );
 
-const NavContent: React.FC<{ activeView: string; onNavClick: (view: TeacherView) => void; onLogout: () => void; }> = ({ activeView, onNavClick, onLogout }) => (
-    <div className="flex flex-col flex-1 overflow-y-auto">
-        <nav className="mt-2 flex-grow p-4 space-y-1.5">{navItems.map((item) => <NavButton key={item.id} onClick={() => onNavClick(item.id as TeacherView)} label={item.label} icon={item.icon} isActive={activeView === item.id} />)}</nav>
-        <div className="p-4 border-t border-[var(--border-primary)]"><button onClick={onLogout} className="w-full flex items-center p-3 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors duration-200 space-x-4 space-x-reverse"><LogoutIcon className="w-6 h-6" /><span className="text-md font-semibold">تسجيل الخروج</span></button></div>
-    </div>
-);
+const NavContent: React.FC<{ activeView: string; onNavClick: (view: TeacherView) => void; onLogout: () => void; isSupervisor: boolean; }> = ({ activeView, onNavClick, onLogout, isSupervisor }) => {
+    const navItems = useMemo(() => [
+        { id: 'dashboard', label: 'الرئيسية', icon: HomeIcon },
+        ...(isSupervisor ? [{ id: 'students', label: 'إدارة الطلاب', icon: UsersIcon }] : []),
+        { id: 'content', label: 'المحتوى الدراسي', icon: CollectionIcon },
+        { id: 'subscriptions', label: 'الاشتراكات', icon: CreditCardIcon },
+        { id: 'profile', label: 'الملف الشخصي', icon: UserCircleIcon },
+    ], [isSupervisor]);
 
-const TeacherLayout: React.FC<TeacherLayoutProps> = ({ user, teacher, onLogout, children, onNavClick, activeView }) => {
+    return (
+        <div className="flex flex-col flex-1 overflow-y-auto">
+            <nav className="mt-2 flex-grow p-4 space-y-1.5">{navItems.map((item) => <NavButton key={item.id} onClick={() => onNavClick(item.id as TeacherView)} label={item.label} icon={item.icon} isActive={activeView === item.id} />)}</nav>
+            <div className="p-4 border-t border-[var(--border-primary)]"><button onClick={onLogout} className="w-full flex items-center p-3 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors duration-200 space-x-4 space-x-reverse"><LogoutIcon className="w-6 h-6" /><span className="text-md font-semibold">تسجيل الخروج</span></button></div>
+        </div>
+    );
+};
+
+const TeacherLayout: React.FC<TeacherLayoutProps> = ({ user, teacher, onLogout, children, onNavClick, activeView, supervisedTeachers, selectedTeacherId, onSelectTeacher }) => {
     const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   
     return (
@@ -44,13 +50,28 @@ const TeacherLayout: React.FC<TeacherLayoutProps> = ({ user, teacher, onLogout, 
                 <div className="flex items-center space-x-3 space-x-reverse">
                     <img src={teacher.imageUrl} alt={teacher.name} className="w-12 h-12 rounded-full object-cover" />
                     <div>
-                        <h1 className="text-lg font-bold text-[var(--text-primary)]">{teacher.name}</h1>
-                        <p className="text-sm text-[var(--text-secondary)]">مدرس</p>
+                        <h1 className="text-lg font-bold text-[var(--text-primary)]">{user.name}</h1>
+                        <p className="text-sm text-[var(--text-secondary)]">
+                            {user.role === Role.SUPERVISOR ? `مشرف على: ${teacher.name}` : 'مدرس'}
+                        </p>
                     </div>
                 </div>
             </div>
             <div className="w-full h-px bg-[var(--border-primary)] flex-shrink-0"></div>
-            <NavContent activeView={activeView} onNavClick={onNavClick} onLogout={onLogout} />
+            {user.role === Role.SUPERVISOR && supervisedTeachers && supervisedTeachers.length > 1 && (
+                <div className="p-4 border-b border-[var(--border-primary)]">
+                    <label htmlFor="teacher-select" className="block text-xs font-semibold text-[var(--text-secondary)] mb-2">عرض محتوى المدرس:</label>
+                    <select
+                        id="teacher-select"
+                        value={selectedTeacherId || ''}
+                        onChange={(e) => onSelectTeacher?.(e.target.value)}
+                        className="w-full p-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg text-sm text-[var(--text-primary)]"
+                    >
+                        {supervisedTeachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                </div>
+            )}
+            <NavContent activeView={activeView} onNavClick={onNavClick} onLogout={onLogout} isSupervisor={user.role === Role.SUPERVISOR} />
         </aside>
 
         <div className="flex-1 flex flex-col overflow-hidden md:rounded-2xl">
@@ -85,7 +106,20 @@ const TeacherLayout: React.FC<TeacherLayoutProps> = ({ user, teacher, onLogout, 
                <span className="text-lg font-bold">{teacher.name}</span>
               <button onClick={() => setIsMobileNavOpen(false)} className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"><XIcon className="w-6 h-6" /></button>
             </div>
-            <NavContent activeView={activeView} onNavClick={(v) => { onNavClick(v); setIsMobileNavOpen(false); }} onLogout={() => { onLogout(); setIsMobileNavOpen(false); }} />
+            {user.role === Role.SUPERVISOR && supervisedTeachers && supervisedTeachers.length > 1 && (
+                <div className="p-4 border-b border-[var(--border-primary)]">
+                    <label htmlFor="teacher-select-mobile" className="block text-xs font-semibold text-[var(--text-secondary)] mb-2">عرض محتوى المدرس:</label>
+                    <select
+                        id="teacher-select-mobile"
+                        value={selectedTeacherId || ''}
+                        onChange={(e) => onSelectTeacher?.(e.target.value)}
+                        className="w-full p-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg text-sm text-[var(--text-primary)]"
+                    >
+                        {supervisedTeachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                </div>
+            )}
+            <NavContent activeView={activeView} onNavClick={(v) => { onNavClick(v); setIsMobileNavOpen(false); }} onLogout={() => { onLogout(); setIsMobileNavOpen(false); }} isSupervisor={user.role === Role.SUPERVISOR} />
           </div>
         </div>
       )}
