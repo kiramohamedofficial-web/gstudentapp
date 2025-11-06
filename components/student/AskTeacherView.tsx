@@ -7,6 +7,7 @@ import { getAllTeachers, supabase } from '../../services/storageService';
 import { Teacher, ToastType, User } from '../../types';
 import { ArrowRightIcon, InformationCircleIcon, PaperAirplaneIcon } from '../common/Icons';
 import Loader from '../common/Loader';
+import { useToast } from '../../useToast';
 
 interface TeacherChatMessage {
   id: string;
@@ -22,6 +23,7 @@ const TeacherChatView: React.FC<{ student: User, teacher: Teacher, onBack: () =>
     const [newMessage, setNewMessage] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const chatEndRef = useRef<HTMLDivElement>(null);
+    const { addToast } = useToast();
 
     const fetchMessages = useCallback(async () => {
         const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
@@ -47,7 +49,21 @@ const TeacherChatView: React.FC<{ student: User, teacher: Teacher, onBack: () =>
                 table: 'teacher_chats',
                 filter: `student_id=eq.${student.id},teacher_id=eq.${teacher.id}`
             }, payload => {
-                setMessages(prev => [...prev, payload.new as TeacherChatMessage]);
+                const newMessage = payload.new as TeacherChatMessage;
+                setMessages(prev => {
+                    if (newMessage.sender_id === student.id) {
+                        const tempMessageIndex = prev.findIndex(m => m.id.startsWith('temp-') && m.content === newMessage.content);
+                        if (tempMessageIndex > -1) {
+                            const newMessages = [...prev];
+                            newMessages[tempMessageIndex] = newMessage;
+                            return newMessages;
+                        }
+                    }
+                    if (!prev.some(m => m.id === newMessage.id)) {
+                        return [...prev, newMessage];
+                    }
+                    return prev;
+                });
             })
             .subscribe();
         
@@ -60,20 +76,32 @@ const TeacherChatView: React.FC<{ student: User, teacher: Teacher, onBack: () =>
 
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newMessage.trim()) return;
+        const content = newMessage.trim();
+        if (!content) return;
 
-        const messageData = {
+        const optimisticMessage: TeacherChatMessage = {
+            id: `temp-${Date.now()}`,
+            created_at: new Date().toISOString(),
             student_id: student.id,
             teacher_id: teacher.id,
             sender_id: student.id,
-            content: newMessage.trim(),
+            content: content,
         };
 
-        const { error } = await supabase.from('teacher_chats').insert(messageData);
+        setMessages(prev => [...prev, optimisticMessage]);
+        setNewMessage('');
+
+        const { error } = await supabase.from('teacher_chats').insert({
+            student_id: student.id,
+            teacher_id: teacher.id,
+            sender_id: student.id,
+            content: content,
+        });
+        
         if (error) {
-            // Handle error, maybe show a toast
-        } else {
-            setNewMessage('');
+            addToast('فشل إرسال الرسالة.', ToastType.ERROR);
+            setMessages(prev => prev.filter(m => m.id !== optimisticMessage.id));
+            setNewMessage(content);
         }
     };
 

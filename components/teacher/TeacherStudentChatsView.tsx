@@ -27,6 +27,7 @@ const ChatModal: React.FC<{ conversation: Conversation | null; teacher: Teacher;
     const [newMessage, setNewMessage] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const chatEndRef = useRef<HTMLDivElement>(null);
+    const { addToast } = useToast();
 
     const fetchMessages = useCallback(async () => {
         if (!conversation) return;
@@ -56,12 +57,26 @@ const ChatModal: React.FC<{ conversation: Conversation | null; teacher: Teacher;
                 table: 'teacher_chats',
                 filter: `student_id=eq.${conversation.student.id},teacher_id=eq.${teacher.id}`
             }, payload => {
-                setMessages(prev => [...prev, payload.new as TeacherChatMessage]);
+                const newMessage = payload.new as TeacherChatMessage;
+                 setMessages(prev => {
+                    if (newMessage.sender_id === teacherId) {
+                        const tempMessageIndex = prev.findIndex(m => m.id.startsWith('temp-') && m.content === newMessage.content);
+                        if (tempMessageIndex > -1) {
+                            const newMessages = [...prev];
+                            newMessages[tempMessageIndex] = newMessage;
+                            return newMessages;
+                        }
+                    }
+                    if (!prev.some(m => m.id === newMessage.id)) {
+                        return [...prev, newMessage];
+                    }
+                    return prev;
+                });
             })
             .subscribe();
         
         return () => { supabase.removeChannel(channel); };
-    }, [fetchMessages, conversation, teacher.id]);
+    }, [fetchMessages, conversation, teacher.id, teacherId]);
     
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -69,15 +84,33 @@ const ChatModal: React.FC<{ conversation: Conversation | null; teacher: Teacher;
 
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newMessage.trim() || !conversation) return;
-        const messageData = {
+        const content = newMessage.trim();
+        if (!content || !conversation) return;
+        
+        const optimisticMessage: TeacherChatMessage = {
+            id: `temp-${Date.now()}`,
+            created_at: new Date().toISOString(),
             student_id: conversation.student.id,
             teacher_id: teacher.id,
             sender_id: teacherId,
-            content: newMessage.trim(),
+            content: content,
         };
-        await supabase.from('teacher_chats').insert(messageData);
+
+        setMessages(prev => [...prev, optimisticMessage]);
         setNewMessage('');
+        
+        const { error } = await supabase.from('teacher_chats').insert({
+            student_id: conversation.student.id,
+            teacher_id: teacher.id,
+            sender_id: teacherId,
+            content: content,
+        });
+
+        if (error) {
+            addToast('فشل إرسال الرسالة.', ToastType.ERROR);
+            setMessages(prev => prev.filter(m => m.id !== optimisticMessage.id));
+            setNewMessage(content);
+        }
     };
     
     if (!conversation) return null;

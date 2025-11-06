@@ -28,6 +28,7 @@ const ChatModal: React.FC<{ conversation: Conversation | null; supervisorId: str
     const [newMessage, setNewMessage] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const chatEndRef = useRef<HTMLDivElement>(null);
+    const { addToast } = useToast();
 
     const fetchMessages = useCallback(async () => {
         if (!conversation) return;
@@ -57,12 +58,26 @@ const ChatModal: React.FC<{ conversation: Conversation | null; supervisorId: str
                 table: 'teacher_chats',
                 filter: `student_id=eq.${conversation.student.id},teacher_id=eq.${conversation.teacher.id}`
             }, payload => {
-                setMessages(prev => [...prev, payload.new as TeacherChatMessage]);
+                const newMessage = payload.new as TeacherChatMessage;
+                setMessages(prev => {
+                    if (newMessage.sender_id === supervisorId) {
+                        const tempMessageIndex = prev.findIndex(m => m.id.startsWith('temp-') && m.content === newMessage.content);
+                        if (tempMessageIndex > -1) {
+                            const newMessages = [...prev];
+                            newMessages[tempMessageIndex] = newMessage;
+                            return newMessages;
+                        }
+                    }
+                    if (!prev.some(m => m.id === newMessage.id)) {
+                        return [...prev, newMessage];
+                    }
+                    return prev;
+                });
             })
             .subscribe();
         
         return () => { supabase.removeChannel(channel); };
-    }, [fetchMessages, conversation]);
+    }, [fetchMessages, conversation, supervisorId]);
     
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -70,15 +85,33 @@ const ChatModal: React.FC<{ conversation: Conversation | null; supervisorId: str
 
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newMessage.trim() || !conversation) return;
-        const messageData = {
+        const content = newMessage.trim();
+        if (!content || !conversation) return;
+
+        const optimisticMessage: TeacherChatMessage = {
+            id: `temp-${Date.now()}`,
+            created_at: new Date().toISOString(),
             student_id: conversation.student.id,
             teacher_id: conversation.teacher.id,
             sender_id: supervisorId,
-            content: newMessage.trim(),
+            content: content,
         };
-        await supabase.from('teacher_chats').insert(messageData);
+        
+        setMessages(prev => [...prev, optimisticMessage]);
         setNewMessage('');
+
+        const { error } = await supabase.from('teacher_chats').insert({
+            student_id: conversation.student.id,
+            teacher_id: conversation.teacher.id,
+            sender_id: supervisorId,
+            content: content,
+        });
+
+        if (error) {
+            addToast('فشل إرسال الرسالة.', ToastType.ERROR);
+            setMessages(prev => prev.filter(m => m.id !== optimisticMessage.id));
+            setNewMessage(content);
+        }
     };
     
     if (!conversation) return null;
@@ -97,9 +130,9 @@ const ChatModal: React.FC<{ conversation: Conversation | null; supervisorId: str
                 <div className="flex-1 p-4 space-y-4 overflow-y-auto">
                     {isLoading && <div className="flex justify-center items-center h-full"><Loader /></div>}
                     {!isLoading && messages.map(msg => (
-                        <div key={msg.id} className={`flex items-end gap-2.5 ${msg.sender_id !== supervisorId ? 'justify-start' : 'justify-end'}`}>
+                        <div key={msg.id} className={`flex items-end gap-2.5 ${msg.sender_id === supervisorId ? 'justify-end' : 'justify-start'}`}>
                              {msg.sender_id !== supervisorId && <div className="w-8 h-8 rounded-full bg-gray-700 flex-shrink-0"></div>}
-                            <div className={`max-w-md p-3 px-4 rounded-2xl ${msg.sender_id !== supervisorId ? 'bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-bl-lg' : 'bg-purple-600 text-white rounded-br-lg'}`}>
+                            <div className={`max-w-md p-3 px-4 rounded-2xl ${msg.sender_id === supervisorId ? 'bg-purple-600 text-white rounded-br-lg' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-bl-lg'}`}>
                                 <p className="whitespace-pre-wrap text-sm leading-relaxed">{msg.content}</p>
                                 <p className="text-xs opacity-70 mt-1.5 text-right">{new Date(msg.created_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</p>
                             </div>

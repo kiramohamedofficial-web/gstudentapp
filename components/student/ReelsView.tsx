@@ -39,7 +39,7 @@ const ReelsView: React.FC = () => {
         );
     }
     
-    // The parent <main> has padding. Use negative margins to fill the space for an immersive experience, matching other components like AskTeacherView.
+    // The parent <main> has padding. Use negative margins to fill the space for an immersive experience.
     return (
         <div className="h-full -m-4 md:-m-6">
             {reels.length === 0 ? (
