@@ -10,11 +10,10 @@ interface ThemeCardProps {
 }
 
 const ThemeCard: React.FC<ThemeCardProps> = ({ theme, isActive, onClick }) => {
-  const Icon = theme.icon;
   return (
     <button
       onClick={onClick}
-      className="relative w-full aspect-square rounded-xl flex flex-col items-center justify-center text-white transition-all duration-300 transform group focus:outline-none"
+      className="relative w-full h-24 rounded-xl flex items-center justify-center text-white p-4 transition-all duration-300 transform group focus:outline-none"
     >
       <div className={`absolute inset-0 rounded-xl transition-all duration-300 border-4 ${isActive ? 'border-blue-500 scale-105' : 'border-transparent group-hover:scale-105'}`} style={{ background: theme.colors.gradient || theme.colors.bg }}></div>
       {isActive && (
@@ -22,13 +21,16 @@ const ThemeCard: React.FC<ThemeCardProps> = ({ theme, isActive, onClick }) => {
           <CheckCircleIcon className="w-5 h-5 text-white" />
         </div>
       )}
-      <div className="relative z-10 flex flex-col items-center p-2 bg-black/20 rounded-lg backdrop-blur-sm">
-        <Icon className="w-8 h-8 md:w-10 md:h-10 mb-2" />
-        <span className="font-bold text-sm md:text-base">{theme.name}</span>
-      </div>
+      <span
+        className="relative z-10 font-bold text-xl md:text-2xl"
+        style={{ textShadow: `0 0 15px ${theme.colors.accent}, 0 0 5px ${theme.colors.accent}` }}
+      >
+        {theme.name}
+      </span>
     </button>
   );
 };
+
 
 interface ThemeSelectionModalProps {
   isOpen: boolean;
@@ -56,7 +58,7 @@ const ThemeSelectionModal: React.FC<ThemeSelectionModalProps> = ({ isOpen, onClo
             <XIcon className="h-6 w-6" />
           </button>
         </div>
-        <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 md:gap-4 max-h-[60vh] overflow-y-auto pr-2 -mr-2">
+        <div className="grid grid-cols-2 gap-3 md:gap-4 max-h-[60vh] overflow-y-auto pr-2 -mr-2">
           {THEMES.map(theme => (
             <ThemeCard
               key={theme.id}

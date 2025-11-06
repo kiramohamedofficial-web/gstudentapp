@@ -24,6 +24,8 @@ const CartoonMoviesView = lazy(() => import('./CartoonMoviesView'));
 const CourseDetailView = lazy(() => import('./CourseDetailView'));
 const SmartPlanView = lazy(() => import('./SmartPlanView'));
 const QuestionBankView = lazy(() => import('./QuestionBankView'));
+const AskTeacherView = lazy(() => import('./AskTeacherView'));
+const ReelsView = lazy(() => import('./ReelsView'));
 
 
 interface StudentDashboardProps {
@@ -174,6 +176,10 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
         return <CartoonMoviesView onBack={() => setActiveView('home')} />;
       case 'chatbot':
         return <ChatbotView onNavigate={setActiveView} />;
+      case 'askTeacher':
+        return <AskTeacherView />;
+      case 'reels':
+        return <ReelsView />;
       case 'questionBank':
         return <QuestionBankView />;
       case 'adhkar':

@@ -1,6 +1,7 @@
+
 import React, { useState, useMemo } from 'react';
 import { User, Teacher, TeacherView, Role } from '../../types';
-import { CollectionIcon, CreditCardIcon, UserCircleIcon, LogoutIcon, MenuIcon, XIcon, HomeIcon, UsersIcon } from '../common/Icons';
+import { CollectionIcon, CreditCardIcon, UserCircleIcon, LogoutIcon, MenuIcon, XIcon, HomeIcon, UsersIcon, ChatBubbleOvalLeftEllipsisIcon } from '../common/Icons';
 
 interface TeacherLayoutProps {
   user: User;
@@ -25,6 +26,7 @@ const NavContent: React.FC<{ activeView: string; onNavClick: (view: TeacherView)
     const navItems = useMemo(() => [
         { id: 'dashboard', label: 'الرئيسية', icon: HomeIcon },
         ...(isSupervisor ? [{ id: 'students', label: 'إدارة الطلاب', icon: UsersIcon }] : []),
+        { id: 'studentChats', label: 'رسائل الطلاب', icon: ChatBubbleOvalLeftEllipsisIcon },
         { id: 'content', label: 'المحتوى الدراسي', icon: CollectionIcon },
         { id: 'subscriptions', label: 'الاشتراكات', icon: CreditCardIcon },
         { id: 'profile', label: 'الملف الشخصي', icon: UserCircleIcon },

@@ -7,9 +7,9 @@ export enum Role {
   SUPERVISOR = 'supervisor',
 }
 
-export type StudentView = 'home' | 'grades' | 'subscription' | 'profile' | 'teachers' | 'courses' | 'singleSubjectSubscription' | 'comprehensiveSubscription' | 'results' | 'smartPlan' | 'chatbot' | 'adhkar' | 'cartoonMovies' | 'teacherProfile' | 'courseDetail' | 'questionBank';
-export type TeacherView = 'dashboard' | 'content' | 'subscriptions' | 'profile' | 'students';
-export type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'courseManagement' | 'tools' | 'homeManagement' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers' | 'subscriptionPrices' | 'deviceManagement' | 'content' | 'accountCreationDiagnostics' | 'teacherCreationDiagnostics' | 'financials' | 'curriculumDiagnostics' | 'subscriptionCodeDiagnostics' | 'cartoonMoviesManagement' | 'questionBank' | 'supervisors';
+export type StudentView = 'home' | 'grades' | 'subscription' | 'profile' | 'teachers' | 'courses' | 'singleSubjectSubscription' | 'comprehensiveSubscription' | 'results' | 'smartPlan' | 'chatbot' | 'adhkar' | 'cartoonMovies' | 'teacherProfile' | 'courseDetail' | 'questionBank' | 'askTeacher' | 'reels';
+export type TeacherView = 'dashboard' | 'content' | 'subscriptions' | 'profile' | 'students' | 'studentChats';
+export type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'courseManagement' | 'tools' | 'homeManagement' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers' | 'subscriptionPrices' | 'deviceManagement' | 'content' | 'accountCreationDiagnostics' | 'teacherCreationDiagnostics' | 'financials' | 'curriculumDiagnostics' | 'subscriptionCodeDiagnostics' | 'cartoonMoviesManagement' | 'questionBank' | 'supervisors' | 'reelsManagement';
 
 
 export interface User {
@@ -236,7 +236,7 @@ export interface PlatformSettings {
   };
 }
 
-export type Theme = 'dark' | 'light' | 'ghost' | 'gold' | 'pink' | 'sunset' | 'forest' | 'ocean' | 'wave' | 'matrix';
+export type Theme = 'dark' | 'light' | 'ghost' | 'gold' | 'pink' | 'sunset' | 'forest' | 'ocean' | 'wave' | 'matrix' | 'aurora' | 'crystal' | 'aquatic' | 'glass' | 'neumorphism' | 'claymorphism';
 
 export interface SubscriptionCode {
     code: string;
@@ -284,6 +284,14 @@ export interface CartoonMovie {
   createdAt: string;
 }
 
+export interface Reel {
+  id: string;
+  title: string;
+  youtubeUrl: string;
+  isPublished: boolean;
+  createdAt: string;
+}
+
 export interface SupervisorProfile extends User {
     supervisor_teachers: { teachers: Teacher }[];
 }
@@ -294,7 +302,6 @@ declare global {
     onYouTubeIframeAPIReady?: () => void;
     // YT is the global object for the YouTube IFrame API
     YT?: {
-      // FIX: Allow YT.Player to accept an HTMLElement as its first argument, not just an ID string.
       Player: new (element: string | HTMLElement, options: any) => any;
       PlayerState?: {
         ENDED: number;

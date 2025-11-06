@@ -36,6 +36,7 @@ const CurriculumDiagnosticsView = lazy(() => import('./CurriculumDiagnosticsView
 const SubscriptionCodeDiagnosticsView = lazy(() => import('./SubscriptionCodeDiagnosticsView'));
 const CartoonMoviesManagementView = lazy(() => import('./CartoonMoviesManagementView'));
 const SupervisorsManagementView = lazy(() => import('./SupervisorsManagementView'));
+const ReelsManagementView = lazy(() => import('./ReelsManagementView'));
 
 
 interface AdminDashboardProps {
@@ -301,188 +302,157 @@ const StudentManagementView: React.FC<{ onViewDetails: (user: User) => void }> =
     );
 };
 
-interface TeacherPerformanceData {
-    id: string;
-    name: string;
-    imageUrl: string;
-    studentCount: number;
-}
-
-const MainDashboard: React.FC<{ onNavigate: (view: AdminView) => void }> = ({ onNavigate }) => {
-    const [stats, setStats] = useState({ students: 0, teachers: 0, activeSubs: 0, pendingRequests: 0 });
-    const [latestUsers, setLatestUsers] = useState<User[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [allGrades, setAllGrades] = useState<Grade[]>([]);
-    const [revenueData, setRevenueData] = useState<{ month: string; revenue: number }[]>([]);
-    const [teacherPerformance, setTeacherPerformance] = useState<TeacherPerformanceData[]>([]);
-
-    useEffect(() => {
-        const fetchData = async () => {
-            setIsLoading(true);
-            const [users, teacherData, subscriptions, pendingCount, grades, settings] = await Promise.all([
-                getAllUsers(),
-                getAllTeachers(),
-                getAllSubscriptions(),
-                getPendingSubscriptionRequestCount(),
-                getAllGrades(),
-                getPlatformSettings()
-            ]);
-
-            setAllGrades(grades);
-            const students = users.filter(u => u.role === 'student');
-            setStats({
-                students: students.length,
-                teachers: teacherData.length,
-                activeSubs: subscriptions.filter(s => s.status === 'Active' && new Date(s.endDate) >= new Date()).length,
-                pendingRequests: pendingCount,
-            });
-            setLatestUsers([...students].reverse().slice(0, 5));
-            
-            // Revenue calculation
-            if (settings) {
-                const prices: Record<string, number> = {
-                    Monthly: settings.monthlyPrice,
-                    Quarterly: settings.quarterlyPrice,
-                    SemiAnnually: settings.semiAnnuallyPrice,
-                    Annual: settings.annualPrice
-                };
-                const monthlyRevenue: { [key: string]: { revenue: number, date: Date } } = {};
-                subscriptions.forEach(sub => {
-                    const date = new Date(sub.startDate);
-                    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-                    const price = prices[sub.plan] || 0;
-                    if (!monthlyRevenue[monthKey]) {
-                        monthlyRevenue[monthKey] = { revenue: 0, date };
-                    }
-                    monthlyRevenue[monthKey].revenue += price;
-                });
-
-                const sortedMonths = Object.keys(monthlyRevenue).sort((a,b) => monthlyRevenue[a].date.getTime() - monthlyRevenue[b].date.getTime());
-                const last6Months = sortedMonths.slice(-6);
-
-                const revenueForChart = last6Months.map(monthKey => ({
-                    month: monthlyRevenue[monthKey].date.toLocaleString('ar-EG', { month: 'short' }),
-                    revenue: monthlyRevenue[monthKey].revenue
-                }));
-                setRevenueData(revenueForChart);
-            }
-
-            // Teacher performance
-            const performance = teacherData.map(teacher => {
-                const teacherSubs = subscriptions.filter(s => s.teacherId === teacher.id);
-                const studentCount = new Set(teacherSubs.map(s => s.userId)).size;
-                return { id: teacher.id, name: teacher.name, imageUrl: teacher.imageUrl, studentCount };
-            });
-            performance.sort((a, b) => b.studentCount - a.studentCount);
-            setTeacherPerformance(performance.slice(0, 5));
-
-            setIsLoading(false);
-        };
-        fetchData();
-    }, []);
-    
-    if (isLoading) {
-        return <div className="flex justify-center items-center h-64"><Loader /></div>;
-    }
-
-    return (
-        <div className="fade-in">
-            <h1 className="text-3xl font-bold mb-6 text-[var(--text-primary)]">لوحة التحكم الرئيسية</h1>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <StatCard title="إجمالي الطلاب" value={stats.students.toString()} icon={UsersIcon} delay={100} onClick={() => onNavigate('students')} />
-                <StatCard title="إجمالي المدرسين" value={stats.teachers.toString()} icon={UserCircleIcon} delay={200} onClick={() => onNavigate('teachers')} />
-                <StatCard title="الاشتراكات النشطة" value={stats.activeSubs.toString()} icon={ChartBarIcon} delay={300} onClick={() => onNavigate('subscriptions')} />
-                <div className="relative">
-                     <StatCard title="طلبات جديدة" value={stats.pendingRequests.toString()} icon={InformationCircleIcon} delay={400} onClick={() => onNavigate('subscriptions')} />
-                     {stats.pendingRequests > 0 && <span className="absolute top-4 right-4 flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span></span>}
-                </div>
-            </div>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 bg-[var(--bg-secondary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)] fade-in" style={{animationDelay: '500ms'}}>
-                    <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4">نظرة عامة على الإيرادات</h2>
-                    <RevenueChart data={revenueData} />
-                </div>
-                <div className="space-y-6">
-                    <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)] fade-in" style={{animationDelay: '600ms'}}>
-                        <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4 flex items-center"><UsersIcon className="w-6 h-6 ml-2 text-purple-400"/> أفضل المدرسين</h2>
-                        <div className="space-y-3">
-                            {teacherPerformance.map(teacher => (
-                                <div key={teacher.id} className="flex items-center justify-between text-sm">
-                                    <div className="flex items-center gap-3">
-                                        <img src={teacher.imageUrl} alt={teacher.name} className="w-9 h-9 rounded-full object-cover" />
-                                        <p className="font-semibold text-[var(--text-primary)]">{teacher.name}</p>
-                                    </div>
-                                    <p className="font-bold text-purple-400">{teacher.studentCount} طالب</p>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-}
-
 const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
   const { theme, setTheme } = props;
   const { currentUser: user, handleLogout: onLogout } = useSession();
   const [activeView, setActiveView] = useState<AdminView>('dashboard');
-  const [selectedStudent, setSelectedStudent] = useState<User | null>(null);
-  const [studentDataVersion, setStudentDataVersion] = useState(0);
+  const [viewingUser, setViewingUser] = useState<User | null>(null);
 
-  const handleViewStudentDetails = useCallback((student: User) => {
-    setSelectedStudent(student);
-    setActiveView('students'); // Keep the view logical
-  }, []);
-
-  const handleBackToStudents = useCallback(() => {
-    setSelectedStudent(null);
-    setStudentDataVersion(v => v + 1); // Force refresh of student list
-  }, []);
-
+  const [totalStudents, setTotalStudents] = useState<number | null>(null);
+  const [totalTeachers, setTotalTeachers] = useState<number | null>(null);
+  const [activeSubscriptions, setActiveSubscriptions] = useState<number | null>(null);
+  const [pendingRequestsCount, setPendingRequestsCount] = useState<number | null>(null);
+  const [monthlyRevenue, setMonthlyRevenue] = useState<{ month: string, revenue: number }[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [settings, setSettings] = useState<PlatformSettings | null>(null);
+  
   const handleNavClick = useCallback((view: AdminView) => {
-    setSelectedStudent(null);
+    setViewingUser(null); // Reset detail view when navigating
     setActiveView(view);
   }, []);
+  
+  useEffect(() => {
+    const fetchData = async () => {
+        setIsLoading(true);
 
-  if (!user) return null;
+        const [users, teachers, subs, requests, platformSettings] = await Promise.all([
+            getAllUsers(),
+            getAllTeachers(),
+            getAllSubscriptions(),
+            getPendingSubscriptionRequestCount(),
+            getPlatformSettings()
+        ]);
+        
+        setSettings(platformSettings);
+
+        setTotalStudents(users.filter(u => u.role === 'student').length);
+        setTotalTeachers(teachers.length);
+        setActiveSubscriptions(subs.filter(s => s.status === 'Active' && new Date(s.endDate) >= new Date()).length);
+        setPendingRequestsCount(requests);
+
+        if (platformSettings) {
+            const prices: Record<string, number> = {
+                Monthly: platformSettings.monthlyPrice,
+                Quarterly: platformSettings.quarterlyPrice,
+                SemiAnnually: platformSettings.semiAnnuallyPrice,
+                Annual: platformSettings.annualPrice
+            };
+            const revenue: Record<string, number> = {};
+            subs.forEach(sub => {
+                const date = new Date(sub.startDate);
+                const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                const price = prices[sub.plan] || 0;
+                if (!revenue[monthKey]) revenue[monthKey] = 0;
+                revenue[monthKey] += price;
+            });
+            const revenueData = Object.entries(revenue)
+                .map(([month, rev]) => ({ month: new Date(month + '-02').toLocaleString('ar-EG', {month: 'short'}), revenue: rev }))
+                .slice(-6);
+            setMonthlyRevenue(revenueData);
+        }
+
+        setIsLoading(false);
+    };
+
+    if (activeView === 'dashboard') {
+        fetchData();
+    } else {
+        setIsLoading(false);
+    }
+  }, [activeView]);
 
   const renderContent = () => {
-    if (selectedStudent) {
-      return <StudentDetailView user={selectedStudent} onBack={handleBackToStudents} />;
+    if (viewingUser) {
+        return <StudentDetailView user={viewingUser} onBack={() => setViewingUser(null)} />;
     }
-    
-    const suspenseLoader = <div className="flex justify-center items-center h-64"><Loader /></div>;
 
+    const SuspenseLoader: React.FC = () => (
+        <div className="w-full h-full flex items-center justify-center"><Loader /></div>
+    );
+    
     switch (activeView) {
-      case 'subscriptions': return <SubscriptionManagementView />;
-      case 'financials': return <Suspense fallback={suspenseLoader}><FinancialReportsView /></Suspense>;
-      case 'subscriptionPrices': return <Suspense fallback={suspenseLoader}><SubscriptionPriceControlView /></Suspense>;
-      case 'students': return <StudentManagementView key={studentDataVersion} onViewDetails={handleViewStudentDetails} />;
-      case 'teachers': return <TeacherManagementView />;
-      case 'supervisors': return <Suspense fallback={suspenseLoader}><SupervisorsManagementView /></Suspense>;
-      case 'homeManagement': return <HomeManagementView />;
-      case 'cartoonMoviesManagement': return <Suspense fallback={suspenseLoader}><CartoonMoviesManagementView /></Suspense>;
-      case 'courseManagement': return <Suspense fallback={suspenseLoader}><CourseManagementView /></Suspense>;
-      case 'content': return <Suspense fallback={suspenseLoader}><ContentManagementView /></Suspense>;
-      case 'tools': return <QrCodeGeneratorView />;
-      case 'deviceManagement': return <Suspense fallback={suspenseLoader}><DeviceManagementView /></Suspense>;
-      case 'platformSettings': return <PlatformSettingsView user={user} />;
-      case 'systemHealth': return <SystemHealthView onNavigate={setActiveView} />;
-      case 'accountSettings': return <AdminSettingsView theme={theme} setTheme={setTheme} />;
-      case 'accountCreationDiagnostics': return <Suspense fallback={suspenseLoader}><AccountCreationDiagnosticsView /></Suspense>;
-      case 'teacherCreationDiagnostics': return <Suspense fallback={suspenseLoader}><TeacherCreationDiagnosticsView onBack={() => setActiveView('systemHealth')} /></Suspense>;
-      case 'curriculumDiagnostics': return <Suspense fallback={suspenseLoader}><CurriculumDiagnosticsView onBack={() => setActiveView('systemHealth')} /></Suspense>;
-      case 'subscriptionCodeDiagnostics': return <Suspense fallback={suspenseLoader}><SubscriptionCodeDiagnosticsView onBack={() => setActiveView('systemHealth')} /></Suspense>;
       case 'dashboard':
+        if(isLoading) return <SuspenseLoader />;
+        return (
+            <div className="space-y-8 fade-in">
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <StatCard title="إجمالي الطلاب" value={totalStudents?.toString() || '0'} icon={UsersIcon} delay={100} onClick={() => handleNavClick('students')} />
+                    <StatCard title="الاشتراكات النشطة" value={activeSubscriptions?.toString() || '0'} icon={BellIcon} delay={200} onClick={() => handleNavClick('subscriptions')} />
+                    <StatCard title="طلبات جديدة" value={pendingRequestsCount?.toString() || '0'} icon={InformationCircleIcon} delay={300} onClick={() => handleNavClick('subscriptions')} />
+                    <StatCard title="إجمالي المدرسين" value={totalTeachers?.toString() || '0'} icon={UserCircleIcon} delay={400} onClick={() => handleNavClick('teachers')} />
+                </div>
+                 <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)]">
+                    <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4">نظرة عامة على الإيرادات (آخر 6 أشهر)</h2>
+                    <RevenueChart data={monthlyRevenue} />
+                </div>
+            </div>
+        );
+      case 'students':
+        return <StudentManagementView onViewDetails={setViewingUser} />;
+      case 'subscriptions':
+        return <SubscriptionManagementView />;
+      case 'tools':
+        return <QrCodeGeneratorView />;
+      case 'homeManagement':
+        return <HomeManagementView />;
+      case 'platformSettings':
+        return user ? <PlatformSettingsView user={user} /> : null;
+      case 'accountSettings':
+        return <AdminSettingsView theme={theme} setTheme={setTheme} />;
+      case 'teachers':
+        return <TeacherManagementView />;
+      case 'systemHealth':
+        return <SystemHealthView onNavigate={handleNavClick} />;
+       case 'deviceManagement':
+        return <Suspense fallback={<SuspenseLoader />}><DeviceManagementView /></Suspense>;
+      case 'content':
+        return <Suspense fallback={<SuspenseLoader />}><ContentManagementView /></Suspense>;
+       case 'courseManagement':
+        return <Suspense fallback={<SuspenseLoader />}><CourseManagementView /></Suspense>;
+       case 'subscriptionPrices':
+        return <Suspense fallback={<SuspenseLoader />}><SubscriptionPriceControlView /></Suspense>;
+      case 'accountCreationDiagnostics':
+        return <Suspense fallback={<SuspenseLoader />}><AccountCreationDiagnosticsView /></Suspense>;
+      case 'teacherCreationDiagnostics':
+        return <Suspense fallback={<SuspenseLoader />}><TeacherCreationDiagnosticsView onBack={() => handleNavClick('systemHealth')} /></Suspense>;
+      case 'curriculumDiagnostics':
+        return <Suspense fallback={<SuspenseLoader />}><CurriculumDiagnosticsView onBack={() => handleNavClick('systemHealth')} /></Suspense>;
+      case 'subscriptionCodeDiagnostics':
+        return <Suspense fallback={<SuspenseLoader />}><SubscriptionCodeDiagnosticsView onBack={() => handleNavClick('systemHealth')} /></Suspense>;
+      case 'financials':
+        return <Suspense fallback={<SuspenseLoader />}><FinancialReportsView /></Suspense>;
+      case 'cartoonMoviesManagement':
+        return <Suspense fallback={<SuspenseLoader />}><CartoonMoviesManagementView /></Suspense>;
+      case 'reelsManagement':
+        return <Suspense fallback={<SuspenseLoader />}><ReelsManagementView /></Suspense>;
+      case 'supervisors':
+        return <Suspense fallback={<SuspenseLoader />}><SupervisorsManagementView /></Suspense>;
       default:
-        return <MainDashboard onNavigate={setActiveView} />;
+        return <div>View not found</div>;
     }
   };
 
+  if (!user) {
+    return <div>Loading user...</div>;
+  }
+  
   return (
-    <AdminLayout user={user} onLogout={onLogout} activeView={activeView} onNavClick={handleNavClick}>
+    <AdminLayout 
+        user={user} 
+        onLogout={onLogout} 
+        activeView={activeView} 
+        onNavClick={handleNavClick}
+    >
       {renderContent()}
     </AdminLayout>
   );

@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect, lazy, Suspense } from 'react';
 import { User, Theme, TeacherView, Teacher, Grade, Role } from '../../types';
 import { getTeacherById, getSubscriptionsByTeacherId, getAllGrades, supabase } from '../../services/storageService';
@@ -11,6 +12,9 @@ const TeacherSubscriptionsView = lazy(() => import('./TeacherSubscriptionsView')
 const TeacherProfileView = lazy(() => import('./TeacherProfileView'));
 const SupervisorStudentManagementView = lazy(() => import('./SupervisorStudentManagementView'));
 const SupervisorStudentDetailView = lazy(() => import('./SupervisorStudentDetailView'));
+const StudentChatsView = lazy(() => import('./StudentChatsView'));
+const TeacherStudentChatsView = lazy(() => import('./TeacherStudentChatsView'));
+
 
 interface TeacherDashboardProps {
   theme: Theme;
@@ -153,6 +157,22 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = (props) => {
       const isReadOnly = false; 
 
       switch (activeView) {
+        case 'studentChats':
+             if (user?.role === Role.SUPERVISOR) {
+                return (
+                    <Suspense fallback={<Loader />}>
+                        <StudentChatsView supervisedTeachers={supervisedTeachers} supervisorId={user.id} />
+                    </Suspense>
+                );
+            }
+            if (user?.role === Role.TEACHER) {
+                return (
+                    <Suspense fallback={<Loader />}>
+                        <TeacherStudentChatsView teacher={effectiveTeacherProfile} teacherId={user.id} />
+                    </Suspense>
+                );
+            }
+            return <MainDashboard teacher={effectiveTeacherProfile} />;
         case 'students':
             if (user?.role === Role.SUPERVISOR) {
                 return (

@@ -4,7 +4,8 @@ import {
   User, Role, Subscription, Grade, Teacher, Lesson, Unit, SubscriptionRequest,
   SubscriptionCode, Semester, QuizAttempt, ActivityLog, LessonType, PlatformSettings, Course, Book, StudentQuestion,
   CartoonMovie,
-  SupervisorProfile
+  SupervisorProfile,
+  Reel
 } from '../types';
 
 // =================================================================
@@ -166,7 +167,8 @@ export async function getAllTeachers(): Promise<Teacher[]> {
         id: teacher.id,
         name: teacher.name,
         subject: teacher.subject,
-        imageUrl: teacher.image_url,
+// FIX: Ensure imageUrl is always a string to conform to the Teacher type, preventing type errors downstream.
+        imageUrl: teacher.image_url || '',
         teachingLevels: teacher.teaching_levels,
         teachingGrades: teacher.teaching_grades,
     }));
@@ -181,10 +183,11 @@ export async function getTeacherById(teacherId: string): Promise<Teacher | null>
         id: data.id,
         name: data.name,
         subject: data.subject,
-        imageUrl: data.image_url,
+// FIX: Ensure imageUrl is always a string to conform to the Teacher type, preventing type errors downstream.
+        imageUrl: data.image_url || '',
         teachingLevels: data.teaching_levels,
         teachingGrades: data.teaching_grades,
-    } as Teacher;
+    };
 }
 export async function getTeachersBySubject(subject: string) { return supabase.from('teachers').select('*').eq('subject', subject); }
 export async function getTeachersWithStudentCount() { return supabase.from('teachers').select('*, students:profiles!teacher_id(count)'); }
@@ -248,7 +251,8 @@ export async function getSupervisorsWithTeachers(): Promise<SupervisorProfile[]>
                 id: t.id,
                 name: t.name,
                 subject: t.subject,
-                imageUrl: t.image_url,
+// FIX: Ensure imageUrl is always a string to conform to the Teacher type, preventing type errors downstream.
+                imageUrl: t.image_url || '',
                 teachingLevels: t.teaching_levels,
                 teachingGrades: t.teaching_grades,
             }]));
@@ -677,6 +681,53 @@ export async function updateCartoonMovie(id: string, updates: Partial<CartoonMov
 
 export async function deleteCartoonMovie(id: string) {
     return supabase.from('cartoon_movies').delete().eq('id', id);
+}
+
+// --- REELS ---
+export async function getPublishedReels(): Promise<Reel[]> {
+    const { data, error } = await supabase.from('reels').select('*').eq('is_published', true).order('created_at', { ascending: false });
+    if (error) { console.error(error); return []; }
+    return (data?.map(reel => ({
+        id: reel.id,
+        title: reel.title,
+        youtubeUrl: reel.youtube_url,
+        isPublished: reel.is_published,
+        createdAt: reel.created_at,
+    })) as Reel[]) || [];
+}
+
+export async function getAllReels(): Promise<Reel[]> {
+    const { data, error } = await supabase.from('reels').select('*').order('created_at', { ascending: false });
+    if (error) { console.error(error); return []; }
+    return (data?.map(reel => ({
+        id: reel.id,
+        title: reel.title,
+        youtubeUrl: reel.youtube_url,
+        isPublished: reel.is_published,
+        createdAt: reel.created_at,
+    })) as Reel[]) || [];
+}
+
+export async function addReel(reel: Partial<Omit<Reel, 'id' | 'createdAt'>>) {
+    const payload = {
+        title: reel.title,
+        youtube_url: reel.youtubeUrl,
+        is_published: reel.isPublished,
+    };
+    return supabase.from('reels').insert(payload);
+}
+
+export async function updateReel(id: string, updates: Partial<Reel>) {
+    const payload: Record<string, any> = {};
+    if (updates.title !== undefined) payload.title = updates.title;
+    if (updates.youtubeUrl !== undefined) payload.youtube_url = updates.youtubeUrl;
+    if (updates.isPublished !== undefined) payload.is_published = updates.isPublished;
+    
+    return supabase.from('reels').update(payload).eq('id', id);
+}
+
+export async function deleteReel(id: string) {
+    return supabase.from('reels').delete().eq('id', id);
 }
 
 

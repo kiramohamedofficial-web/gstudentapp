@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { StudentView, Subscription, Theme, AppNotification } from '../../types';
-import { UserCircleIcon, CreditCardIcon, UsersIcon, LogoutIcon, TemplateIcon, XIcon, SparklesIcon, BrainIcon, BellIcon, CogIcon, MoonIcon, ShieldCheckIcon, ShieldExclamationIcon, QuestionMarkCircleIcon } from '../common/Icons';
+import { UserCircleIcon, CreditCardIcon, UsersIcon, LogoutIcon, TemplateIcon, XIcon, SparklesIcon, BrainIcon, BellIcon, CogIcon, MoonIcon, ShieldCheckIcon, ShieldExclamationIcon, QuestionMarkCircleIcon, ChatBubbleOvalLeftEllipsisIcon } from '../common/Icons';
 import { useSession } from '../../hooks/useSession';
 import { useSubscription } from '../../hooks/useSubscription';
 
@@ -49,10 +49,15 @@ const QuestionBankIcon: React.FC<{ className?: string }> = ({ className }) => (
     <img src="https://www2.0zz0.com/2025/11/02/17/635761079.png" alt="بنك الأسئلة" className={className} />
 );
 
+const ReelsIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <img src="https://f.top4top.io/p_3597znq510.png" alt="ريلز" className={className} />
+);
+
 
 const bottomNavItems = [
     { id: 'home', label: 'الرئيسية', icon: HomeBottomNavIcon },
     { id: 'grades', label: 'المنهج', icon: CurriculumIcon },
+    { id: 'reels', label: 'ريلز', icon: ReelsIcon },
     { id: 'subscription', label: 'الاشتراك', icon: SubscriptionBottomNavIcon },
     { id: 'profile', label: 'ملفي', icon: ProfileBottomNavIcon },
 ];
@@ -114,6 +119,7 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ children, onNavClick, act
         { id: 'home', label: 'الرئيسية', icon: HomeBottomNavIcon },
         { id: 'smartPlan', label: 'الخطة الذكية', icon: SparklesIcon },
         { id: 'chatbot', label: 'المساعد الذكي', icon: ChatbotIcon },
+        { id: 'askTeacher', label: 'اسأل مدرسك', icon: ChatBubbleOvalLeftEllipsisIcon },
         { id: 'questionBank', label: 'بنك الأسئلة', icon: QuestionBankIcon },
         { id: 'adhkar', label: 'أذكار الصباح والمساء', icon: MoonIcon },
         { id: 'cartoonMovies', label: 'افلام كرتون', icon: CartoonMoviesIcon },
