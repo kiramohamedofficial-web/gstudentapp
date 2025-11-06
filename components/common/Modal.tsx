@@ -6,15 +6,16 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   children: React.ReactNode;
+  maxWidth?: string;
 }
 
-const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
+const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, maxWidth }) => {
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in" onClick={onClose}>
       <div 
-        className="relative w-full max-w-lg m-4 p-4 sm:p-6 rounded-2xl shadow-2xl bg-[rgba(var(--bg-secondary-rgb),0.8)] backdrop-blur-xl border border-[var(--border-primary)] text-[var(--text-primary)] fade-in" 
+        className={`relative w-full ${maxWidth || 'max-w-lg'} m-4 p-4 sm:p-6 rounded-2xl shadow-2xl bg-[rgba(var(--bg-secondary-rgb),0.8)] backdrop-blur-xl border border-[var(--border-primary)] text-[var(--text-primary)] fade-in`} 
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center pb-3 border-b border-[var(--border-primary)]">

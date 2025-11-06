@@ -41,7 +41,8 @@ const CourseModal: React.FC<CourseModalProps> = ({ isOpen, onClose, onSave, cour
         }
     };
     
-    const handleSave = async () => {
+    const handleFormSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
         if (!formData.title || !formData.teacherId) {
             addToast('الرجاء ملء العنوان واختيار المدرس.', ToastType.ERROR);
             return;
@@ -90,71 +91,84 @@ const CourseModal: React.FC<CourseModalProps> = ({ isOpen, onClose, onSave, cour
 
     return (
         <>
-            <Modal isOpen={isOpen} onClose={onClose} title={course ? 'تعديل الكورس' : 'إضافة كورس جديد'}>
-                <div className="space-y-6 max-h-[75vh] sm:max-h-[60vh] overflow-y-auto p-2 pr-4 -mr-2">
-                    <div className="bg-[var(--bg-tertiary)] p-4 rounded-lg border border-[var(--border-primary)] space-y-4">
-                        <h3 className="font-semibold text-lg border-b border-[var(--border-primary)] pb-2">المعلومات الأساسية</h3>
-                        <input type="text" name="title" placeholder="عنوان الكورس" value={formData.title || ''} onChange={handleChange} className="w-full p-2 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-md" required />
-                        <textarea name="description" placeholder="وصف الكورس" value={formData.description || ''} onChange={handleChange} className="w-full p-2 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-md" rows={3}></textarea>
-                        <select name="teacherId" value={formData.teacherId || ''} onChange={handleChange} required className="w-full p-2 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-md">
-                            <option value="">-- اختر المدرس --</option>
-                            {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                        </select>
-                    </div>
+            <Modal isOpen={isOpen} onClose={onClose} title={course ? 'تعديل الكورس' : 'إضافة كورس جديد'} maxWidth="max-w-4xl">
+                <form onSubmit={handleFormSubmit}>
+                    <div className="max-h-[65vh] overflow-y-auto p-1 -m-1 pr-2 -mr-2">
+                        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
 
-                    <div className="bg-[var(--bg-tertiary)] p-4 rounded-lg border border-[var(--border-primary)] space-y-4">
-                        <h3 className="font-semibold text-lg border-b border-[var(--border-primary)] pb-2">الوسائط والمرفقات</h3>
-                        <ImageUpload label="صورة الغلاف" value={formData.coverImage || ''} onChange={value => setFormData(prev => ({...prev, coverImage: value}))} />
-                        <input type="text" name="pdfUrl" placeholder="رابط ملف PDF (اختياري)" value={formData.pdfUrl || ''} onChange={handleChange} className="w-full p-2 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-md" />
-                    </div>
-
-                    <div className="bg-[var(--bg-tertiary)] p-4 rounded-lg border border-[var(--border-primary)] space-y-4">
-                        <h3 className="font-semibold text-lg border-b border-[var(--border-primary)] pb-2">التسعير</h3>
-                        <div className="flex items-center gap-4">
-                             <label className="flex items-center cursor-pointer">
-                                <input type="checkbox" name="isFree" checked={formData.isFree} onChange={handleChange} className="h-4 w-4 rounded text-purple-600" />
-                                <span className="ml-2 text-[var(--text-secondary)]">كورس مجاني</span>
-                            </label>
-                            {!formData.isFree && (
-                                 <div className="relative flex-1">
-                                    <input type="number" name="price" placeholder="السعر" value={formData.price} onChange={handleChange} className="w-full p-2 pr-10 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-md" />
-                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-[var(--text-secondary)]">ج.م</span>
+                            {/* Left Column */}
+                            <div className="lg:col-span-3 space-y-6">
+                                <div className="bg-[var(--bg-tertiary)] p-4 rounded-lg border border-[var(--border-primary)] space-y-4">
+                                    <h3 className="font-semibold text-lg">المعلومات الأساسية</h3>
+                                    <input type="text" name="title" placeholder="عنوان الكورس" value={formData.title || ''} onChange={handleChange} className="w-full p-2 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-md" required />
+                                    <textarea name="description" placeholder="وصف الكورس" value={formData.description || ''} onChange={handleChange} className="w-full p-2 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-md" rows={3}></textarea>
+                                    <select name="teacherId" value={formData.teacherId || ''} onChange={handleChange} required className="w-full p-2 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-md">
+                                        <option value="">-- اختر المدرس --</option>
+                                        {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                    </select>
                                 </div>
-                            )}
-                        </div>
-                    </div>
-                    
-                    <div className="bg-[var(--bg-tertiary)] p-4 rounded-lg border border-[var(--border-primary)]">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="font-semibold text-lg">فيديوهات الكورس</h3>
-                            <button type="button" onClick={() => { setEditingVideo(null); setIsVideoModalOpen(true); }} className="flex items-center gap-1 text-sm text-purple-400 font-semibold"><PlusIcon className="w-4 h-4"/> إضافة فيديو</button>
-                        </div>
-                        <div className="space-y-2">
-                            {(formData.videos || []).map((video, index) => (
-                                <div key={video.id || index} className="flex items-center justify-between p-2 bg-[var(--bg-secondary)] rounded-md">
-                                    <div className="flex items-center gap-2 overflow-hidden">
-                                        <VideoCameraIcon className="w-5 h-5 text-[var(--text-secondary)] flex-shrink-0"/>
-                                        <span className="text-sm truncate">{video.title}</span>
-                                        {video.isFree && <span className="text-xs px-2 py-0.5 bg-green-500/20 text-green-400 rounded-full flex-shrink-0">مجاني</span>}
-                                    </div>
-                                    <div className="flex gap-1 flex-shrink-0">
-                                        <button type="button" onClick={() => { setEditingVideo({video, index}); setIsVideoModalOpen(true); }} className="p-1 text-[var(--text-secondary)] hover:text-yellow-400"><PencilIcon className="w-4 h-4"/></button>
-                                        <button type="button" onClick={() => handleVideoDelete(index)} className="p-1 text-[var(--text-secondary)] hover:text-red-500"><TrashIcon className="w-4 h-4"/></button>
+                                <div className="bg-[var(--bg-tertiary)] p-4 rounded-lg border border-[var(--border-primary)] space-y-4">
+                                    <h3 className="font-semibold text-lg">التسعير</h3>
+                                    <div className="flex items-center gap-4">
+                                        <label className="flex items-center cursor-pointer p-2 rounded-md hover:bg-white/5">
+                                            <input type="checkbox" name="isFree" checked={formData.isFree} onChange={handleChange} className="h-4 w-4 rounded text-purple-600" />
+                                            <span className="mr-2 text-sm text-[var(--text-secondary)]">كورس مجاني</span>
+                                        </label>
+                                        {!formData.isFree && (
+                                            <div className="relative flex-1">
+                                                <input type="number" name="price" placeholder="السعر" value={formData.price} onChange={handleChange} className="w-full p-2 pr-10 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-md" />
+                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-[var(--text-secondary)]">ج.م</span>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
-                            ))}
-                             {(formData.videos || []).length === 0 && (
-                                <p className="text-center text-sm text-[var(--text-secondary)] py-4">لم يتم إضافة فيديوهات بعد.</p>
-                            )}
+                                <div className="bg-[var(--bg-tertiary)] p-4 rounded-lg border border-[var(--border-primary)]">
+                                     <h3 className="font-semibold text-lg">المرفقات</h3>
+                                     <input type="text" name="pdfUrl" placeholder="رابط ملف PDF (اختياري)" value={formData.pdfUrl || ''} onChange={handleChange} className="w-full p-2 mt-2 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-md" />
+                                </div>
+                            </div>
+
+                            {/* Right Column */}
+                            <div className="lg:col-span-2 space-y-6">
+                                <div className="bg-[var(--bg-tertiary)] p-4 rounded-lg border border-[var(--border-primary)]">
+                                    <h3 className="font-semibold text-lg mb-2">صورة الغلاف</h3>
+                                    <ImageUpload label="" value={formData.coverImage || ''} onChange={value => setFormData(prev => ({...prev, coverImage: value}))} />
+                                </div>
+
+                                <div className="bg-[var(--bg-tertiary)] p-4 rounded-lg border border-[var(--border-primary)]">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h3 className="font-semibold text-lg">فيديوهات الكورس</h3>
+                                        <button type="button" onClick={() => { setEditingVideo(null); setIsVideoModalOpen(true); }} className="flex items-center gap-1 text-sm text-purple-400 font-semibold"><PlusIcon className="w-4 h-4"/> إضافة</button>
+                                    </div>
+                                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                                        {(formData.videos || []).map((video, index) => (
+                                            <div key={video.id || index} className="flex items-center justify-between p-2 bg-[var(--bg-secondary)] rounded-md">
+                                                <div className="flex items-center gap-2 overflow-hidden">
+                                                    <VideoCameraIcon className="w-5 h-5 text-[var(--text-secondary)] flex-shrink-0"/>
+                                                    <span className="text-sm truncate">{video.title}</span>
+                                                    {video.isFree && <span className="text-xs px-2 py-0.5 bg-green-500/20 text-green-400 rounded-full flex-shrink-0">مجاني</span>}
+                                                </div>
+                                                <div className="flex gap-1 flex-shrink-0">
+                                                    <button type="button" onClick={() => { setEditingVideo({video, index}); setIsVideoModalOpen(true); }} className="p-1 text-[var(--text-secondary)] hover:text-yellow-400"><PencilIcon className="w-4 h-4"/></button>
+                                                    <button type="button" onClick={() => handleVideoDelete(index)} className="p-1 text-[var(--text-secondary)] hover:text-red-500"><TrashIcon className="w-4 h-4"/></button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {(formData.videos || []).length === 0 && (
+                                            <p className="text-center text-sm text-[var(--text-secondary)] py-4">لم يتم إضافة فيديوهات بعد.</p>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
-                </div>
-
-                <div className="flex justify-end pt-4 mt-4 border-t border-[var(--border-primary)]">
-                    <button onClick={handleSave} disabled={isSaving} className="px-6 py-2 font-semibold text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:opacity-60">
-                        {isSaving ? 'جاري الحفظ...' : 'حفظ الكورس'}
-                    </button>
-                </div>
+                    <div className="flex justify-end pt-4 mt-4 border-t border-[var(--border-primary)]">
+                        <button type="submit" disabled={isSaving} className="px-6 py-2 font-semibold text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:opacity-60">
+                            {isSaving ? 'جاري الحفظ...' : 'حفظ الكورس'}
+                        </button>
+                    </div>
+                </form>
             </Modal>
             
             <VideoModal

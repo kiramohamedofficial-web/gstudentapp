@@ -58,7 +58,7 @@ const ReelsView: React.FC = () => {
                             <div key={reel.id} className="h-full w-full snap-center flex items-center justify-center relative">
                                 <iframe
                                     className="w-auto h-full max-w-full aspect-[9/16]"
-                                    src={`https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&controls=0&showinfo=0&rel=0&iv_load_policy=3`}
+                                    src={`https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&controls=1&showinfo=0&rel=0&iv_load_policy=3`}
                                     title={reel.title}
                                     frameBorder="0"
                                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
