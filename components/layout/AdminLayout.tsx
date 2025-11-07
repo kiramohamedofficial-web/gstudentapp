@@ -195,7 +195,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ user, onLogout, children, onN
 
         <div className="flex-1 flex flex-col overflow-hidden md:rounded-2xl">
           {/* Header */}
-          <header className="app-header">
+          <header className="app-header relative">
                 <div className="header-logo" style={{ cursor: 'pointer' }} onClick={() => onNavClick('dashboard')}>
                     <div className="header-logo-icon" style={{background: 'linear-gradient(135deg, #a855f7, #ec4899)'}}>
                         <i className="fa-solid fa-gear text-white"></i>

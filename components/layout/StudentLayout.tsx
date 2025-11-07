@@ -160,7 +160,7 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ children, onNavClick, act
 
           <div className="flex-1 flex flex-col overflow-hidden md:rounded-2xl">
             {/* Header */}
-             <header className="app-header">
+             <header className="app-header relative">
                   {/* Right Side (in RTL) */}
                   <div className="menu-toggle md:hidden" onClick={() => setIsMobileNavOpen(true)}>
                       <span></span>

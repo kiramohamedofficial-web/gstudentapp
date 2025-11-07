@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+
+
+import React, { useState, useEffect, useRef } from 'react';
 import { Role, Theme } from './types';
 import { useSession } from './hooks/useSession';
 import StudentDashboard from './components/student/StudentDashboard';
@@ -11,10 +13,14 @@ import AuthScreen from './components/auth/AuthScreen';
 import ScreenSecurity from './components/common/ScreenSecurity';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import Modal from './components/common/Modal';
+import { curriculumCache, initData, supabase } from './services/storageService';
 
 const App: React.FC = () => {
   const { currentUser, isLoading, authView, setAuthView, isPostRegistrationModalOpen, closePostRegistrationModal } = useSession();
   const [theme, setTheme] = useState<Theme>('light');
+  // State to force re-render when app state is re-initialized
+  const [appKey, setAppKey] = useState(0);
+  const backgroundRefreshIntervalRef = useRef<number | undefined>();
 
   useEffect(() => {
     const storedTheme = localStorage.getItem('theme') as Theme | null;
@@ -27,6 +33,87 @@ const App: React.FC = () => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
   }, [theme]);
+  
+  // This useEffect manages the app's lifecycle, especially when the tab is backgrounded or restored.
+  // It ensures data and user sessions remain fresh to prevent a "broken" state upon returning to the app.
+  useEffect(() => {
+    // This handler is for tab visibility changes (e.g., switching tabs, minimizing the browser).
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible') {
+        console.log("App became visible. Performing soft reload to ensure data freshness.");
+        
+        // 1. Stop any background refresh timers.
+        if (backgroundRefreshIntervalRef.current) {
+          clearInterval(backgroundRefreshIntervalRef.current);
+          backgroundRefreshIntervalRef.current = undefined;
+        }
+        
+        // 2. Re-initialize core app data (like the curriculum) which might be stale.
+        await initData();
+        
+        // 3. Check for an active session and refresh it to get a new, valid auth token.
+        // This is crucial because the token might have expired while the tab was in the background.
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          const { error: refreshError } = await supabase.auth.refreshSession();
+          if (refreshError) {
+            console.error("Session refresh failed on visibility change:", refreshError.message);
+            // If the token is invalid (e.g., expired, revoked), the Supabase client might
+            // sign the user out automatically. We add an extra check to force it if needed.
+            if (refreshError.message.includes('invalid') && refreshError.message.includes('token')) {
+                console.warn('Invalid token detected. Forcing sign out.');
+                await supabase.auth.signOut();
+            }
+          } else {
+            console.log("Session successfully refreshed.");
+          }
+        }
+        
+        // 4. Force a complete re-render of the app by changing the 'key' prop on the main container.
+        // This ensures all components unmount and remount, picking up the fresh data and session state.
+        setAppKey(key => key + 1);
+
+      } else {
+        console.log("App is hidden. Starting background refresh timer.");
+        
+        // 5. When the tab is backgrounded, start a periodic timer to silently refresh the session.
+        // This helps prevent the session from expiring during long periods of inactivity.
+        if (backgroundRefreshIntervalRef.current) {
+            clearInterval(backgroundRefreshIntervalRef.current);
+        }
+        backgroundRefreshIntervalRef.current = window.setInterval(async () => {
+          console.log("Performing silent background session refresh...");
+          // We don't need to re-render here, just keep the session alive.
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            await supabase.auth.refreshSession();
+          }
+        }, 30000); // Refresh every 30 seconds.
+      }
+    };
+
+    // This handler is specifically for pages restored from the browser's back-forward cache (bfcache).
+    // Bfcache freezes the page's state entirely, so a full reload is the most reliable way to fix it.
+    const handlePageShow = (event: PageTransitionEvent) => {
+        if (event.persisted) {
+            console.log("Page was restored from bfcache. Forcing a full reload to ensure correct state.");
+            window.location.reload();
+        }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pageshow', handlePageShow);
+
+    // Cleanup listeners and timers when the component unmounts.
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pageshow', handlePageShow);
+      if (backgroundRefreshIntervalRef.current) {
+        clearInterval(backgroundRefreshIntervalRef.current);
+      }
+    };
+  }, []); // The empty dependency array ensures this effect runs only once on mount.
+
 
   const renderContent = () => {
     if (isLoading) {
@@ -65,7 +152,7 @@ const App: React.FC = () => {
 
   return (
     <>
-      <div className={`transition-all duration-300`}>
+      <div key={appKey} className={`transition-all duration-300`}>
         <ErrorBoundary>
           {renderContent()}
         </ErrorBoundary>
