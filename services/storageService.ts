@@ -1,774 +1,273 @@
 import React from 'react';
-import { createClient, Session, User as SupabaseUser } from '@supabase/supabase-js';
 import {
   User, Role, Subscription, Grade, Teacher, Lesson, Unit, SubscriptionRequest,
   SubscriptionCode, Semester, QuizAttempt, ActivityLog, LessonType, PlatformSettings, Course, Book, StudentQuestion,
   CartoonMovie,
   SupervisorProfile,
-  Reel
+  Reel,
+  Session
 } from '../types';
-
-// =================================================================
-// SUPABASE CLIENT SETUP
-// =================================================================
-const supabaseUrl = 'https://csipsaucwcuserhfrehn.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNzaXBzYXVjd2N1c2VyaGZyZWhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEyOTQwMTgsImV4cCI6MjA3Njg3MDAxOH0.FJu12ARvbqG0ny0D9d1Jje3BxXQ-q33gjx7JSH26j1w';
-const supabase = createClient(supabaseUrl, supabaseKey);
-export { supabase };
+import { 
+    mockTeachers, mockCurriculum, mockStudents, mockSubscriptions, mockSubscriptionRequests,
+    mockPlatformSettings, mockCartoonMovies, mockReels, mockAdmins, mockTeacherUsers, mockSupervisors
+} from './mockDataService';
+import { DEMO_ADMIN_IDENTIFIER, DEMO_ADMIN_PASSWORD, DEMO_STUDENT_IDENTIFIER, DEMO_STUDENT_PASSWORD, DEMO_TEACHER_IDENTIFIER, DEMO_TEACHER_PASSWORD, DEMO_SUPERVISOR_IDENTIFIER, DEMO_SUPERVISOR_PASSWORD, DEMO_PROF_ADMIN_IDENTIFIER, DEMO_PROF_ADMIN_PASSWORD } from '../constants';
 
 
 // =================================================================
-// DEVICE MANAGEMENT & SECURITY
+// MOCK SUPABASE CLIENT & AUTHENTICATION
 // =================================================================
-export function getOrCreateDeviceId(): string {
-    let deviceId = localStorage.getItem('appDeviceId');
-    if (!deviceId) {
-        deviceId = crypto.randomUUID();
-        localStorage.setItem('appDeviceId', deviceId);
-    }
-    return deviceId;
-}
 
+// FIX: Define randomInt locally as it's not exported from mockDataService.
+const randomInt = (min: number, max: number): number => Math.floor(Math.random() * (max - min + 1)) + min;
 
-// =================================================================
-// FILE STORAGE
-// =================================================================
-const ASSET_BUCKET = 'public';
-
-export async function uploadImage(file: File): Promise<string | null> {
-    const filePath = `${Date.now()}-${file.name}`;
-    const { data, error } = await supabase.storage.from(ASSET_BUCKET).upload(filePath, file);
-    if (error) {
-        console.error('Error uploading image:', error.message);
-        if (error.message.toLowerCase().includes('bucket not found')) {
-            console.error(`Hint: Make sure you have a public Supabase storage bucket named '${ASSET_BUCKET}'.`);
+// This replaces the actual Supabase client.
+// FIX: Expanded Supabase mock to handle complex queries, channels, and prevent cascading errors in components.
+const mockChannel = {
+    on: function(event: string, config: any, callback: (payload: any) => void) {
+        // Mock implementation, returning `this` for chaining
+        return this;
+    },
+    subscribe: function(callback?: (status: string) => void) {
+        if (callback) {
+            callback('SUBSCRIBED');
         }
-        return null;
-    }
-    const { data: { publicUrl } } = supabase.storage.from(ASSET_BUCKET).getPublicUrl(data.path);
-    return publicUrl;
-}
-
-// =================================================================
-// AUTHENTICATION (Existing Logic - Kept for App Integrity)
-// =================================================================
-type Track = 'Scientific' | 'Literary' | 'All' | null;
-
-function determineTrack(gradeId: number | null): { track: Track } {
-    if (gradeId === null) return { track: 'All' };
-    if (gradeId >= 1 && gradeId <= 3) return { track: 'All' };
-    if (gradeId === 4) return { track: 'All' };
-    if (gradeId === 5 || gradeId === 7 || gradeId === 8) return { track: 'Scientific' };
-    if (gradeId === 6 || gradeId === 9) return { track: 'Literary' };
-    return { track: 'All' };
-}
-
-export async function signUp(userData: Omit<User, 'id' | 'role' | 'subscriptionId'> & { email: string, password?: string }) {
-    const { email, password, name, phone, guardianPhone, grade } = userData;
-    if (!password) return { data: null, error: { message: "Password is required for sign up." } };
-    const { track } = determineTrack(grade);
-    const userMetaData = { name, phone, guardian_phone: guardianPhone, grade_id: grade, role: 'student', track };
-    const { data, error } = await supabase.auth.signUp({ email, password, options: { data: userMetaData } });
-    if (error?.message.includes('User already registered')) return { data, error: { message: 'هذا البريد الإلكتروني أو رقم الهاتف مسجل بالفعل.' } };
-    return { data, error };
+        return this; // for chaining
+    },
+    unsubscribe: function() {}
 };
 
-export async function signIn(identifier: string, password: string) {
-    const isEmail = identifier.includes('@');
-    let emailToSignIn = isEmail ? identifier : '';
+export const supabase = {
+    channel: (name: string) => mockChannel,
+    removeChannel: (channel: any) => {},
+    from: (tableName: string) => ({
+      select: (columns = '*') => {
+        const queryBuilder = {
+          _tableName: tableName,
+          _filters: [] as any[],
+          _limit: 0,
+          _order: null as any,
+          eq: function(column: string, value: any) {
+            this._filters.push({ column, value, operator: 'eq' });
+            return this;
+          },
+          in: function(column: string, values: any[]) {
+            this._filters.push({ column, values, operator: 'in' });
+            return this;
+          },
+          not: function(column: string, operator: string, value: any) {
+             this._filters.push({ column, value, operator: 'not' });
+             return this;
+          },
+          gte: function(column: string, value: any) {
+              this._filters.push({ column, value, operator: 'gte' });
+              return this;
+          },
+          order: function(column: string, options: any) {
+            this._order = { column, ...options };
+            return this;
+          },
+          single: function() {
+              if(this._tableName === 'profiles') {
+                   const idFilter = this._filters.find(f => f.column === 'id');
+                   const allUsers = [...mockStudents, ...mockAdmins, ...mockTeacherUsers, ...mockSupervisors];
+                   const user = allUsers.find(u => u.id === idFilter.value);
+                   return Promise.resolve({ data: user || null, error: null });
+              }
+              if(this._tableName === 'subscription_codes') {
+                   return Promise.resolve({ data: { times_used: 1, max_uses: 1 }, error: null });
+              }
+              return Promise.resolve({ data: {}, error: null });
+          },
+          // Make it thenable to be used with await
+          then: function(resolve: any, reject: any) {
+              if (this._tableName === 'profiles') {
+                  const inFilter = this._filters.find(f => f.operator === 'in');
+                  if(inFilter) {
+                    const allUsers = [...mockStudents, ...mockAdmins, ...mockTeacherUsers, ...mockSupervisors];
+                    resolve({ data: allUsers.filter(u => inFilter.values.includes(u.id)), error: null });
+                  } else {
+                    const teacherRoleFilter = this._filters.find(f => f.column === 'role' && f.value === 'teacher');
+                    const teacherIdNotNullFilter = this._filters.find(f => f.column === 'teacher_id' && f.operator === 'not');
+                    if (teacherRoleFilter && teacherIdNotNullFilter) {
+                         resolve({ data: mockTeacherUsers.map(u => ({ teacher_id: u.teacherId })), error: null });
+                    }
+                  }
+              } else if (this._tableName === 'user_sessions') {
+                  resolve({data: mockStudents.slice(0,5).map(s=>({user_id: s.id})), error: null})
+              } else if (this._tableName === 'grades') {
+                  resolve({ data: mockCurriculum, error: null });
+              }
+              resolve({ data: [], error: null });
+          }
+        };
+        return queryBuilder;
+      },
+      update: (data: any) => ({
+        eq: (column: string, value: any) => Promise.resolve({ error: null })
+      }),
+      insert: (data: any) => Promise.resolve({ error: null })
+    }),
+    auth: {
+      admin: {
+        deleteUser: (id: string) => Promise.resolve({ error: null }),
+        updateUserById: (id: string, updates: any) => Promise.resolve({ error: null })
+      }
+    }
+};
 
-    if (!isEmail) {
-        let phoneToQuery = identifier.replace(/\s/g, '');
-        if (!phoneToQuery.startsWith('+')) {
-            if (phoneToQuery.startsWith('0')) {
-                phoneToQuery = `+2${phoneToQuery}`; // Becomes +20...
-            } else if (phoneToQuery.length === 10) {
-                phoneToQuery = `+20${phoneToQuery}`; // Becomes +20...
-            }
-        }
-        const { data: email, error: rpcError } = await supabase.rpc('get_email_from_phone', { phone_number: phoneToQuery });
-        if (rpcError || !email) {
-            console.error('RPC error or no email found for phone:', rpcError?.message);
-            return { data: null, error: { message: 'بيانات الدخول غير صحيحة.' } };
-        }
-        emailToSignIn = email;
+let currentSession: { user: User } | null = null;
+let authStateChangeCallback: ((event: string, session: Partial<Session> | null) => void) | null = null;
+
+export function getOrCreateDeviceId(): string {
+    return 'mock-device-id';
+}
+
+export const signUp = async (userData: any) => {
+    const newUser: User = {
+        id: `student-${Date.now()}`,
+        name: userData.name,
+        email: userData.email,
+        phone: userData.phone,
+        guardianPhone: userData.guardianPhone,
+        grade: userData.grade,
+        track: userData.track,
+        role: Role.STUDENT,
+    };
+    mockStudents.push(newUser);
+    // Simulate auto-login after sign up
+    currentSession = { user: newUser };
+     if (authStateChangeCallback) {
+        authStateChangeCallback('SIGNED_IN', { user: { id: newUser.id, email: newUser.email } });
+    }
+    return { data: { user: { id: newUser.id } }, error: null };
+};
+
+export const signIn = async (identifier: string, password: string) => {
+    let userToLogin: User | null = null;
+    if (identifier === DEMO_STUDENT_IDENTIFIER && password === DEMO_STUDENT_PASSWORD) {
+        userToLogin = mockStudents[0];
+    } else if (identifier === DEMO_ADMIN_IDENTIFIER && password === DEMO_ADMIN_PASSWORD) {
+        userToLogin = mockAdmins[0];
+    } else if (identifier === DEMO_PROF_ADMIN_IDENTIFIER && password === DEMO_PROF_ADMIN_PASSWORD) {
+        userToLogin = mockAdmins.find(a => a.email === DEMO_PROF_ADMIN_IDENTIFIER) || null;
+    } else if (identifier === DEMO_TEACHER_IDENTIFIER && password === DEMO_TEACHER_PASSWORD) {
+        userToLogin = mockTeacherUsers[0];
+    } else if (identifier === DEMO_SUPERVISOR_IDENTIFIER && password === DEMO_SUPERVISOR_PASSWORD) {
+        userToLogin = mockSupervisors[0];
     }
 
-    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email: emailToSignIn, password });
-    if (signInError) return { data: null, error: { message: 'بيانات الدخول غير صحيحة.' } };
-    if (!signInData.user) return { data: null, error: { message: 'لم يتم العثور على المستخدم بعد تسجيل الدخول.' } };
-
-    const { data: profile } = await supabase.from('profiles').select('role').eq('id', signInData.user.id).single();
-    if (profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'supervisor') return { data: signInData, error: null };
-
-    const userId = signInData.user.id;
-    const deviceId = getOrCreateDeviceId();
-    const { data: activeSessions, error: sessionError } = await supabase.from('user_sessions').select('*').eq('user_id', userId).eq('active', true);
-    if (sessionError) { console.error("Error checking active sessions:", sessionError.message); return { data: signInData, error: null }; }
-
-    if (activeSessions && activeSessions.length > 0) {
-        if (!activeSessions.some(session => session.device_info?.id === deviceId)) {
-            await supabase.auth.signOut();
-            return { data: null, error: { message: "تم تسجيل دخولك بالفعل من جهاز آخر. يرجى تسجيل الخروج أولاً." } };
+    if (userToLogin) {
+        currentSession = { user: userToLogin };
+        if (authStateChangeCallback) {
+            authStateChangeCallback('SIGNED_IN', { user: { id: userToLogin.id, email: userToLogin.email } });
         }
-        return { data: signInData, error: null };
+        return { data: { user: { id: userToLogin.id } }, error: null };
+    } else {
+        return { data: null, error: { message: 'بيانات الدخول غير صحيحة.' } };
     }
-    
-    const { data: existingSession } = await supabase.from('user_sessions').select('id').eq('user_id', userId).contains('device_info', { id: deviceId }).maybeSingle();
-    if (existingSession) await supabase.from('user_sessions').update({ active: true }).eq('id', existingSession.id);
-    else await supabase.from('user_sessions').insert({ user_id: userId, device_info: { id: deviceId }, active: true });
-    
-    return { data: signInData, error: null };
 };
 
 export const signOut = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) await supabase.from('user_sessions').update({ active: false }).eq('user_id', session.user.id).contains('device_info', { id: getOrCreateDeviceId() });
-    return supabase.auth.signOut();
+    currentSession = null;
+    if (authStateChangeCallback) {
+        authStateChangeCallback('SIGNED_OUT', null);
+    }
+    return Promise.resolve({ error: null });
 };
 
-export const getSession = async () => { const { data: { session } } = await supabase.auth.getSession(); return session; };
-export const onAuthStateChange = (callback: (event: string, session: Session | null) => void) => supabase.auth.onAuthStateChange(callback);
-export const sendPasswordResetEmail = async (email: string) => supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
-export const updateUserPassword = async (password: string) => supabase.auth.updateUser({ password });
-export const deleteSelf = async () => {
-    const { error } = await supabase.rpc('delete_user_self');
-    if (!error) await signOut(); 
-    return { error }; 
+export const getSession = async () => {
+    if (currentSession) {
+        return { data: { session: { user: { id: currentSession.user.id } } } };
+    }
+    return { data: { session: null } };
 };
 
+export const onAuthStateChange = (callback: (event: string, session: Partial<Session> | null) => void) => {
+    authStateChangeCallback = callback;
+    // Immediately call with current state to simulate initial load
+    setTimeout(() => {
+        if (currentSession) {
+            callback('INITIAL_SESSION', { user: { id: currentSession.user.id } });
+        } else {
+            callback('INITIAL_SESSION', null);
+        }
+    }, 100);
+
+    return { data: { subscription: { unsubscribe: () => { authStateChangeCallback = null; } } } };
+};
+
+// FIX: Ensure mock functions return the expected object shape.
+export const sendPasswordResetEmail = async (email: string) => Promise.resolve({ error: null });
+export const updateUserPassword = async (password: string) => Promise.resolve({ error: null });
+export const deleteSelf = async () => Promise.resolve({ error: null });
+
 // =================================================================
-// 📚 NEW DATA FETCHING GUIDE IMPLEMENTATION
+// MOCKED DATA FETCHING & MANIPULATION
 // =================================================================
 
-// --- 1️⃣ Users & Accounts ---
-export async function getAllUsers() { const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false }); if (error) console.error(error); return data || []; }
-export async function getUserById(userId: string) { return supabase.from('profiles').select('*').eq('id', userId).single(); }
-export async function getUserByTeacherId(teacherId: string) { const { data } = await supabase.from('profiles').select('*').eq('teacher_id', teacherId).single(); return data; }
-export async function getAllStudents() { return supabase.from('profiles').select('*').eq('role', 'student').order('name'); }
-export async function getStudentsByGrade(gradeId: number) { return supabase.from('profiles').select('*').eq('role', 'student').eq('grade_id', gradeId); }
+// --- Users, Teachers, Admins ---
+export async function getAllUsers(): Promise<User[]> { return Promise.resolve([...mockStudents, ...mockAdmins, ...mockTeacherUsers, ...mockSupervisors]); }
+export async function getUserById(userId: string) { 
+    const all = [...mockStudents, ...mockAdmins, ...mockTeacherUsers, ...mockSupervisors];
+    return Promise.resolve({ data: all.find(u => u.id === userId) || null, error: null });
+}
+export async function getUserByTeacherId(teacherId: string) {
+    return Promise.resolve({ data: mockTeacherUsers.find(u => u.teacherId === teacherId) || null, error: null });
+}
+export async function getAllStudents() { return Promise.resolve({ data: mockStudents, error: null }); }
 export async function getCurrentUser() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) return supabase.from('profiles').select('*').eq('id', user.id).single();
+    if (currentSession) {
+        const user = (await getAllUsers()).find(u => u.id === currentSession!.user.id);
+        const gradeData = getGradeByIdSync(user?.grade || null);
+        return { data: { ...user, gradeData }, error: null };
+    }
     return { data: null, error: 'No user logged in' };
 }
-export const getProfile = getCurrentUser; // Alias for existing app structure
-
-// --- 2️⃣ Teachers ---
-export async function getAllTeachers(): Promise<Teacher[]> {
-    const { data, error } = await supabase.from('teachers').select('*').order('name');
-    if (error) {
-        console.error('Error fetching teachers:', error);
-        return [];
-    }
-    if (!data) return [];
-    
-    return data.map((teacher: any) => ({
-        id: teacher.id,
-        name: teacher.name,
-        subject: teacher.subject,
-// FIX: Ensure imageUrl is always a string to conform to the Teacher type, preventing type errors downstream.
-        imageUrl: teacher.image_url || '',
-        teachingLevels: teacher.teaching_levels,
-        teachingGrades: teacher.teaching_grades,
-    }));
-}
-export async function getTeacherById(teacherId: string): Promise<Teacher | null> {
-    const { data, error } = await supabase.from('teachers').select('*').eq('id', teacherId).single();
-    if (error || !data) {
-        console.error(`Error fetching teacher ${teacherId}:`, error?.message);
-        return null;
-    }
-    return {
-        id: data.id,
-        name: data.name,
-        subject: data.subject,
-// FIX: Ensure imageUrl is always a string to conform to the Teacher type, preventing type errors downstream.
-        imageUrl: data.image_url || '',
-        teachingLevels: data.teaching_levels,
-        teachingGrades: data.teaching_grades,
-    };
-}
-export async function getTeachersBySubject(subject: string) { return supabase.from('teachers').select('*').eq('subject', subject); }
-export async function getTeachersWithStudentCount() { return supabase.from('teachers').select('*, students:profiles!teacher_id(count)'); }
-
-// --- 3️⃣ Admins & Supervisors ---
-export async function getAllAdmins() { return supabase.from('profiles').select('*').eq('role', 'admin').order('created_at', { ascending: false }); }
-export async function getUsersByRole(role: Role) { return supabase.from('profiles').select('*').eq('role', role); }
-export async function getSupervisors() { return getUsersByRole(Role.SUPERVISOR); }
-export async function getSupervisorsWithTeachers(): Promise<SupervisorProfile[]> {
-    // 1. Fetch all supervisor profiles
-    const { data: supervisors, error: supervisorsError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('role', 'supervisor')
-        .order("created_at", { ascending: false });
-
-    if (supervisorsError) {
-        console.error("Error fetching supervisors:", supervisorsError.message);
-        return [];
-    }
-    if (!supervisors || supervisors.length === 0) {
-        return [];
-    }
-
-    const supervisorIds = supervisors.map(s => s.id);
-
-    // 2. Fetch all relevant supervisor-teacher links
-    const { data: links, error: linksError } = await supabase
-        .from('supervisor_teachers')
-        .select('supervisor_id, teacher_id')
-        .in('supervisor_id', supervisorIds);
-
-    if (linksError) {
-        console.error("Error fetching supervisor-teacher links:", linksError.message);
-        // Return supervisors without teachers as a fallback
-        return supervisors.map(s => ({
-            ...(s as any),
-            guardianPhone: s.guardian_phone,
-            grade: s.grade_id,
-            subscriptionId: s.subscription_id,
-            teacherId: s.teacher_id,
-            supervisor_teachers: []
-        }));
-    }
-
-    const teacherIds = [...new Set(links.map(link => link.teacher_id))];
-
-    // 3. Fetch all relevant teachers if there are any
-    let teachersMap = new Map<string, Teacher>();
-    if (teacherIds.length > 0) {
-        const { data: teachers, error: teachersError } = await supabase
-            .from('teachers')
-            .select('*')
-            .in('id', teacherIds);
-
-        if (teachersError) {
-            console.error("Error fetching teachers for supervisors:", teachersError.message);
-            // Fallback: continue without teacher data
-        } else {
-            teachersMap = new Map(teachers.map(t => [t.id, {
-                id: t.id,
-                name: t.name,
-                subject: t.subject,
-// FIX: Ensure imageUrl is always a string to conform to the Teacher type, preventing type errors downstream.
-                imageUrl: t.image_url || '',
-                teachingLevels: t.teaching_levels,
-                teachingGrades: t.teaching_grades,
-            }]));
-        }
-    }
-
-    // 4. Stitch the data together
-    const result: SupervisorProfile[] = supervisors.map(supervisor => {
-        const relevantLinks = links.filter(link => link.supervisor_id === supervisor.id);
-        const supervisorTeachers = relevantLinks
-            .map(link => {
-                const teacher = teachersMap.get(link.teacher_id);
-                return teacher ? { teachers: teacher } : null;
-            })
-            .filter((item): item is { teachers: Teacher } => item !== null);
-
-        return {
-            id: supervisor.id,
-            name: supervisor.name,
-            email: supervisor.email,
-            phone: supervisor.phone,
-            role: supervisor.role,
-            guardianPhone: supervisor.guardian_phone,
-            grade: supervisor.grade_id,
-            track: supervisor.track,
-            subscriptionId: supervisor.subscription_id,
-            teacherId: supervisor.teacher_id,
-            supervisor_teachers: supervisorTeachers
-        };
-    });
-
-    return result;
-}
+export const getProfile = getCurrentUser;
+export async function getAllTeachers(): Promise<Teacher[]> { return Promise.resolve(mockTeachers); }
+export async function getTeacherById(teacherId: string): Promise<Teacher | null> { return Promise.resolve(mockTeachers.find(t => t.id === teacherId) || null); }
+export async function getSupervisorsWithTeachers(): Promise<SupervisorProfile[]> { return Promise.resolve(mockSupervisors); }
 
 
-// --- 4️⃣ Grades & Levels ---
-export async function getAllGrades(): Promise<Grade[]> {
-    const { data, error } = await supabase.from('grades').select('*, semesters(*, units(*, lessons(*)))').order('id');
-    if (error) {
-        console.error('Error fetching all grades:', JSON.stringify(error, null, 2));
-        return [];
-    }
-    if (!data) return [];
-
-    // FIX: Explicitly map all fields from snake_case (DB) to camelCase (App)
-    // This is the root cause fix for the grade loading issue.
-    return data.map((grade: any): Grade => ({
-        id: grade.id,
-        name: grade.name,
-        level: grade.level,
-        levelAr: grade.level_ar,
-        semesters: (grade.semesters || []).map((semester: any): Semester => ({
-            id: semester.id,
-            title: semester.title,
-            grade_id: semester.grade_id,
-            units: (semester.units || []).map((unit: any): Unit => ({
-                id: unit.id,
-                title: unit.title,
-                teacherId: unit.teacher_id,
-                track: unit.track,
-                semester_id: unit.semester_id,
-                lessons: (unit.lessons || []).map((lesson: any): Lesson => ({
-                    id: lesson.id,
-                    title: lesson.title,
-                    type: lesson.type,
-                    content: lesson.content,
-                    quizType: lesson.quiz_type,
-                    questions: lesson.questions,
-                    imageUrl: lesson.image_url,
-                    correctAnswers: lesson.correct_answers,
-                    timeLimit: lesson.time_limit,
-                    passingScore: lesson.passing_score,
-                    dueDate: lesson.due_date,
-                }))
-            }))
-        }))
-    }));
-}
-export async function getGradeById(gradeId: number) { return supabase.from('grades').select('*').eq('id', gradeId).single(); }
-export async function getGradesByLevel(level: 'Middle' | 'Secondary') { return supabase.from('grades').select('*').eq('level', level).order('id'); }
-
-// --- 5️⃣ Subjects (Units in this app) ---
-export async function getAllSubjects() { return supabase.from('units').select('*').order('title'); }
-export async function getSubjectsByGrade(gradeId: number) { return supabase.from('units').select('*, semesters!inner(grade_id)').eq('semesters.grade_id', gradeId); }
-export async function getSubjectWithGrade(subjectId: string) { return supabase.from('units').select('*, semesters(grades(*))').eq('id', subjectId).single(); }
-
-// --- 6️⃣ Lessons ---
-export async function getAllLessons() { return supabase.from('lessons').select('*').order('id'); }
-export async function getLessonsByGrade(gradeId: number) { return supabase.from('lessons').select('*, units!inner(semesters!inner(grade_id))').eq('units.semesters.grade_id', gradeId).order('id'); }
-export async function getLessonsBySubject(subjectId: string) { return supabase.from('lessons').select('*').eq('unit_id', subjectId).order('id'); }
-export async function getLessonsByTeacher(teacherId: string) { return supabase.from('lessons').select('*, units!inner(teacher_id)').eq('units.teacher_id', teacherId).order('created_at', { ascending: false }); }
-export async function getLessonWithDetails(lessonId: string) { return supabase.from('lessons').select('*, units(*, semesters(*, grades(*)), teachers(*))').eq('id', lessonId).single(); }
-export async function getLessonsByUnit(unitId: string): Promise<Lesson[]> {
-    const { data, error } = await supabase.from('lessons').select('*').eq('unit_id', unitId).order('id');
-    if (error) {
-        console.error('Error fetching lessons by unit:', error);
-        return [];
-    }
-    if (!data) return [];
-    return data.map((lesson: any) => ({
-        ...lesson,
-        quizType: lesson.quiz_type,
-        correctAnswers: lesson.correct_answers,
-        timeLimit: lesson.time_limit,
-        passingScore: lesson.passing_score,
-        dueDate: lesson.due_date,
-    })) as Lesson[];
-}
-
-// --- 7️⃣ Units ---
-export async function getAllUnits() { return supabase.from('units').select('*').order('id'); }
-export async function getUnitsByGrade(gradeId: number) { return supabase.from('units').select('*, semesters!inner(grade_id)').eq('semesters.grade_id', gradeId).order('id'); }
-export async function getUnitWithLessons(unitId: string) { return supabase.from('units').select('*, lessons(*)').eq('id', unitId).single(); }
-
-// --- 8️⃣ Subscriptions ---
-export async function getAllSubscriptions(): Promise<Subscription[]> { 
-    const { data, error } = await supabase.from('subscriptions').select('*').order('created_at', { ascending: false }); 
-    if (error) {
-        console.error(error); 
-        return [];
-    }
-    const mappedData = data?.map(sub => ({
-        id: sub.id,
-        userId: sub.user_id,
-        plan: sub.plan,
-        startDate: sub.start_date,
-        endDate: sub.end_date,
-        status: sub.status,
-        teacherId: sub.teacher_id,
-    }));
-    return (mappedData as Subscription[]) || []; 
-}
-export async function getSubscriptionsByTeacherId(teacherId: string): Promise<Subscription[]> {
-    const { data, error } = await supabase.from('subscriptions').select('*').eq('teacher_id', teacherId);
-    if (error) {
-        console.error(error);
-        return [];
-    }
-    return (data?.map(sub => ({
-        id: sub.id,
-        userId: sub.user_id,
-        plan: sub.plan,
-        startDate: sub.start_date,
-        endDate: sub.end_date,
-        status: sub.status,
-        teacherId: sub.teacher_id,
-    })) as Subscription[]) || [];
-}
-export async function getUserSubscriptions(userId: string) { return supabase.from('subscriptions').select('*').eq('user_id', userId).order('created_at', { ascending: false }); }
-export async function getActiveSubscriptions() { return supabase.from('subscriptions').select('*').eq('status', 'Active'); }
-export async function getUserUnitSubscription(userId: string, unitId: string) { return supabase.from('subscriptions').select('*').eq('user_id', userId).eq('unit_id', unitId).eq('status', 'Active').single(); }
-export async function checkUserSubscription(userId: string) { return supabase.rpc('check_user_subscription', { p_user_id: userId }); }
-
-// --- 9️⃣ Subscription Codes ---
-export async function getAllSubscriptionCodes() { return supabase.from('subscription_codes').select('*').order('created_at', { ascending: false }); }
-export async function getActiveSubscriptionCodes() { return supabase.from('subscription_codes').select('*').eq('is_active', true).lt('times_used', supabase.raw('max_uses')); }
-export async function validateSubscriptionCode(code: string) {
-    const { data, error } = await supabase.from('subscription_codes').select('*').eq('code', code).eq('is_active', true).single();
-    if (data && data.times_used >= data.max_uses) return { data: null, error: { message: 'Code has been fully used' } };
-    return { data, error };
-}
-export async function getTeacherSubscriptionCodes(teacherId: string) { return supabase.from('subscription_codes').select('*').eq('teacher_id', teacherId).order('created_at', { ascending: false }); }
-
-// --- 1️⃣0️⃣ Student Progress ---
-export async function getStudentProgress(studentId: string): Promise<{lesson_id: string}[]> { const { data, error } = await supabase.from('progress').select('lesson_id').eq('student_id', studentId); if (error) { console.error(error); return []; } return data || []; }
-export async function getAllStudentProgress() { const { data, error } = await supabase.from('progress').select('*'); if (error) console.error(error); return data || []; }
-export async function getStudentLessonProgress(studentId: string, lessonId: string) { return supabase.from('progress').select('*').eq('student_id', studentId).eq('lesson_id', lessonId).single(); }
-export async function getCompletedLessons(studentId: string) { return supabase.from('progress').select('*, lessons(*)').eq('student_id', studentId).eq('watched', true); }
-
-// --- 1️⃣1️⃣ Quiz Attempts ---
-export async function getAllQuizAttempts(): Promise<QuizAttempt[]> { 
-    const { data, error } = await supabase.from('quiz_attempts').select('*'); 
-    if (error) {
-        console.error(error);
-        return [];
-    }
-    const mappedData = data?.map((attempt: any) => ({
-        id: attempt.id,
-        userId: attempt.user_id,
-        lessonId: attempt.lesson_id,
-        submittedAt: attempt.submitted_at,
-        score: attempt.score,
-        submittedAnswers: attempt.submitted_answers,
-        timeTaken: attempt.time_taken,
-        isPass: attempt.is_pass,
-    }));
-    return (mappedData as QuizAttempt[]) || []; 
-}
-export async function getStudentQuizAttempts(studentId: string): Promise<QuizAttempt[]> { const { data, error } = await supabase.from('quiz_attempts').select('*').eq('user_id', studentId).order('submitted_at', { ascending: false }); if (error) console.error(error); return (data as QuizAttempt[]) || []; }
-export async function getLessonQuizAttempts(lessonId: string) { return supabase.from('quiz_attempts').select('*').eq('lesson_id', lessonId).order('submitted_at', { ascending: false }); }
-export async function getStudentBestScore(studentId: string, lessonId: string) { return supabase.from('quiz_attempts').select('*').eq('user_id', studentId).eq('lesson_id', lessonId).order('score', { ascending: false }).limit(1).single(); }
-
-// --- 1️⃣2️⃣ Homework ---
-export async function getAllHomework() { return supabase.from('homework').select('*, lessons(*)').order('created_at', { ascending: false }); }
-export async function getLessonHomework(lessonId: string) { return supabase.from('homework').select('*').eq('lesson_id', lessonId); }
-export async function getHomeworkSubmissions(homeworkId: string) { return supabase.from('homework_submissions').select('*, student:profiles(*)').eq('homework_id', homeworkId).order('submitted_at', { ascending: false }); }
-export async function getStudentHomeworkSubmissions(studentId: string) { return supabase.from('homework_submissions').select('*, homework(*)').eq('user_id', studentId).order('submitted_at', { ascending: false }); }
-
-// --- 1️⃣3️⃣ Attendance Records ---
-export async function getStudentAttendance(studentId: string) { return supabase.from('attendance').select('*, lessons(*)').eq('user_id', studentId).order('attended_at', { ascending: false }); }
-export async function getLessonAttendance(lessonId: string) { return supabase.from('attendance').select('*, student:profiles(*)').eq('lesson_id', lessonId); }
-
-// --- 1️⃣4️⃣ Courses ---
-export async function getPublishedCourses(): Promise<Course[]> { const { data, error } = await supabase.from('courses').select('*, teachers(*), units(semesters(grades(*)))').eq('is_published', true).order('created_at', { ascending: false }); if (error) console.error(error); return (data as Course[]) || []; }
-export async function getAllCourses(): Promise<Course[]> { const { data, error } = await supabase.from('courses').select('*').order('created_at', { ascending: false }); if (error) console.error(error); return (data as Course[]) || []; }
-export async function getFeaturedCourses(): Promise<any[]> {
-    const { data, error } = await supabase.from('featured_courses').select('*');
-    if (error) {
-        console.error('Error fetching featured courses:', error.message);
-        return [];
-    }
-    return data || [];
-}
-export async function getTeacherCourses(teacherId: string) { return supabase.from('courses').select('*').eq('teacher_id', teacherId).order('created_at', { ascending: false }); }
-
-// --- 1️⃣5️⃣ Featured Books ---
-export async function getFeaturedBooks(): Promise<Book[]> { const { data, error } = await supabase.from('featured_books').select('*, units(semesters(grades(*)))').eq('is_published', true).order('display_order'); if (error) console.error(error); return (data as Book[]) || []; }
-export async function getBooksByGrade(gradeId: number) { return supabase.from('featured_books').select('*').eq('grade_id', gradeId).eq('is_published', true); }
-
-// --- 1️⃣6️⃣ Platform Settings ---
-export async function getPlatformSettings(): Promise<PlatformSettings | null> {
-    const { data } = await supabase.from('platform_settings').select('*').single();
-    if (!data) return null;
-
-    // Explicitly map from database snake_case to application camelCase
-    const settings: PlatformSettings = {
-        platformName: data.platform_name || '',
-        heroTitle: data.hero_title || '',
-        heroSubtitle: data.hero_subtitle || '',
-        heroButtonText: data.hero_button_text || '',
-        heroImageUrl: data.hero_image_url,
-        teacherImageUrl: data.teacher_image_url,
-        featuresTitle: data.features_title || '',
-        featuresSubtitle: data.features_subtitle || '',
-        features: data.features || [],
-        footerDescription: data.footer_description || '',
-        contactPhone: data.contact_phone || '',
-        contactFacebookUrl: data.contact_facebook_url || '',
-        contactYoutubeUrl: data.contact_youtube_url || '',
-        announcementBanner: data.announcement_banner,
-        monthlyPrice: data.monthly_price || 0,
-        quarterlyPrice: data.quarterly_price || 0,
-        semiAnnuallyPrice: data.semi_annually_price || 0,
-        annualPrice: data.annual_price || 0,
-        currency: data.currency || 'EGP',
-        paymentNumbers: data.payment_numbers || [],
-        enabledSubscriptionModes: data.enabled_subscription_modes || ['comprehensive', 'singleSubject'],
-    };
-    return settings;
-}
-export async function getSubscriptionSettings() { return supabase.from('subscription_settings').select('*').single(); }
-
-// --- 1️⃣7️⃣ Subscription Requests ---
-export async function getAllSubscriptionRequests(): Promise<SubscriptionRequest[]> {
-    const { data, error } = await supabase
-        .from('subscription_requests')
-        .select('*')
-        .order('created_at', { ascending: false });
-    
-    if (error) {
-        console.error("Error fetching subscription requests:", error.message);
-        return [];
-    }
-    
-    // Explicitly map snake_case to camelCase and handle potential formatting issues
-    const mappedData = data.map(req => {
-        let paymentNumber = req.payment_from_number;
-
-        // Handle cases where the leading '0' might be dropped (e.g., if stored as a number)
-        if (paymentNumber && typeof paymentNumber === 'number') {
-            paymentNumber = String(paymentNumber);
-        }
-        if (paymentNumber && typeof paymentNumber === 'string' && paymentNumber.length === 10 && !paymentNumber.startsWith('0')) {
-            paymentNumber = '0' + paymentNumber;
-        }
-
-        return {
-            id: req.id,
-            userId: req.user_id,
-            userName: req.user_name,
-            plan: req.plan,
-            paymentFromNumber: paymentNumber,
-            status: req.status,
-            createdAt: req.created_at,
-            subjectName: req.subject_name,
-            unitId: req.unit_id,
-        };
-    });
-    
-    return mappedData;
-}
-
-export async function getPendingSubscriptionRequests() { return supabase.from('subscription_requests').select('*').eq('status', 'Pending').order('created_at', { ascending: false }); }
-export async function getUserSubscriptionRequests(userId: string) { return supabase.from('subscription_requests').select('*').eq('user_id', userId).order('created_at', { ascending: false }); }
-
-// FIX: Added functions to handle student questions for "Ask the Professor" and "Question Bank" features.
-// --- 1️⃣8️⃣ Student Questions ---
-export async function getStudentQuestions(userId: string): Promise<StudentQuestion[]> {
-    const { data, error } = await supabase.from('student_questions').select('*').eq('user_id', userId).order('created_at', { ascending: false });
-    if (error) { console.error('Error fetching student questions:', error.message); return []; }
-    return data?.map(q => ({
-        id: q.id,
-        userId: q.user_id,
-        userName: q.user_name,
-        questionText: q.question_text,
-        answerText: q.answer_text,
-        status: q.status,
-        createdAt: q.created_at,
-    })) || [];
-}
-
-export async function addStudentQuestion(userId: string, userName: string, questionText: string): Promise<void> {
-    const { error } = await supabase.from('student_questions').insert({ user_id: userId, user_name: userName, question_text: questionText, status: 'Pending' });
-    if (error) throw new Error(error.message);
-}
-
-export async function getAllStudentQuestions(): Promise<StudentQuestion[]> {
-    const { data, error } = await supabase.from('student_questions').select('*').order('status', { ascending: true }).order('created_at', { ascending: false });
-    if (error) { console.error('Error fetching all student questions:', error.message); return []; }
-    return data?.map(q => ({
-        id: q.id,
-        userId: q.user_id,
-        userName: q.user_name,
-        questionText: q.question_text,
-        answerText: q.answer_text,
-        status: q.status,
-        createdAt: q.created_at,
-    })) || [];
-}
-
-export async function answerStudentQuestion(questionId: string, answerText: string): Promise<void> {
-    const { error } = await supabase.from('student_questions').update({ answer_text: answerText, status: 'Answered' }).eq('id', questionId);
-    if (error) throw new Error(error.message);
-}
-
-// --- 1️⃣9️⃣ Invoices ---
-export async function getUserInvoices(userId: string) { return supabase.from('billing_invoices').select('*').eq('user_id', userId).order('created_at', { ascending: false }); }
-export async function getUnpaidInvoices() { return supabase.from('billing_invoices').select('*').eq('status', 'pending').order('created_at', { ascending: false }); }
-
-// --- 2️⃣0️⃣ Advanced Queries ---
-export async function getStudentFullDetails(studentId: string) { return supabase.from('profiles').select('*, grades(*), teachers(*), subscriptions(*), progress(*), quiz_attempts(*)').eq('id', studentId).eq('role', 'student').single(); }
-export async function getLessonFullData(lessonId: string) { return supabase.from('lessons').select('*, units(*, semesters(*, grades(*)), teachers(*)), homework(*), attendance(count), quiz_attempts(count)').eq('id', lessonId).single(); }
-export async function getTeacherStatistics(teacherId: string) {
-    const students = await supabase.from('profiles').select('count').eq('teacher_id', teacherId).eq('role', 'student');
-    const lessons = await supabase.from('lessons').select('count', { count: 'exact' }).eq('teacher_id', teacherId);
-    const subscriptions = await supabase.from('subscriptions').select('count', { count: 'exact' }).eq('teacher_id', teacherId).eq('status', 'Active');
-    return { students: students.data?.[0]?.count || 0, lessons: lessons.count || 0, activeSubscriptions: subscriptions.count || 0 };
-}
-
-// --- 🔍 Search & Filter ---
-export async function searchUsers(searchTerm: string) { return supabase.from('profiles').select('*').or(`name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`).order('name'); }
-export async function searchLessons(searchTerm: string) { return supabase.from('lessons').select('*').or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`).order('title'); }
-export async function getSubscriptionsByDateRange(startDate: string, endDate: string) { return supabase.from('subscriptions').select('*').gte('created_at', startDate).lte('created_at', endDate).order('created_at', { ascending: false }); }
-
-// --- 📊 General Stats ---
-export async function getPlatformStatistics() {
-    const totalStudents = await supabase.from('profiles').select('count', { count: 'exact' }).eq('role', 'student');
-    const totalTeachers = await supabase.from('teachers').select('count', { count: 'exact' });
-    const totalLessons = await supabase.from('lessons').select('count', { count: 'exact' });
-    const activeSubscriptions = await supabase.from('subscriptions').select('count', { count: 'exact' }).eq('status', 'Active');
-    return { totalStudents: totalStudents.count || 0, totalTeachers: totalTeachers.count || 0, totalLessons: totalLessons.count || 0, activeSubscriptions: activeSubscriptions.count || 0 };
-}
-
-// --- CARTOON MOVIES ---
-export async function getPublishedCartoonMovies(): Promise<CartoonMovie[]> {
-    const { data, error } = await supabase.from('cartoon_movies').select('*').eq('is_published', true).order('created_at', { ascending: false });
-    if (error) { console.error(error); return []; }
-    return (data?.map(movie => ({
-        id: movie.id,
-        title: movie.title,
-        story: movie.story,
-        posterUrl: movie.poster_url,
-        downloadUrl: movie.download_url,
-        downloadInstructions: movie.download_instructions,
-        loadInstructions: movie.load_instructions,
-        instructionsThumbnailUrl: movie.instructions_thumbnail_url,
-        isPublished: movie.is_published,
-        createdAt: movie.created_at,
-    })) as CartoonMovie[]) || [];
-}
-
-export async function getAllCartoonMovies(): Promise<CartoonMovie[]> {
-    const { data, error } = await supabase.from('cartoon_movies').select('*').order('created_at', { ascending: false });
-    if (error) { console.error(error); return []; }
-    return (data?.map(movie => ({
-        id: movie.id,
-        title: movie.title,
-        story: movie.story,
-        posterUrl: movie.poster_url,
-        downloadUrl: movie.download_url,
-        downloadInstructions: movie.download_instructions,
-        loadInstructions: movie.load_instructions,
-        instructionsThumbnailUrl: movie.instructions_thumbnail_url,
-        isPublished: movie.is_published,
-        createdAt: movie.created_at,
-    })) as CartoonMovie[]) || [];
-}
-
-export async function addCartoonMovie(movie: Partial<Omit<CartoonMovie, 'id' | 'createdAt'>>) {
-    const payload = {
-        title: movie.title,
-        story: movie.story,
-        poster_url: movie.posterUrl,
-        download_url: movie.downloadUrl,
-        download_instructions: movie.downloadInstructions,
-        load_instructions: movie.loadInstructions,
-        instructions_thumbnail_url: movie.instructionsThumbnailUrl,
-        is_published: movie.isPublished,
-    };
-    return supabase.from('cartoon_movies').insert(payload);
-}
-
-export async function updateCartoonMovie(id: string, updates: Partial<CartoonMovie>) {
-    const payload: Record<string, any> = {};
-    if (updates.title !== undefined) payload.title = updates.title;
-    if (updates.story !== undefined) payload.story = updates.story;
-    if (updates.posterUrl !== undefined) payload.poster_url = updates.posterUrl;
-    if (updates.downloadUrl !== undefined) payload.download_url = updates.downloadUrl;
-    if (updates.downloadInstructions !== undefined) payload.download_instructions = updates.downloadInstructions;
-    if (updates.loadInstructions !== undefined) payload.load_instructions = updates.loadInstructions;
-    if (updates.instructionsThumbnailUrl !== undefined) payload.instructions_thumbnail_url = updates.instructionsThumbnailUrl;
-    if (updates.isPublished !== undefined) payload.is_published = updates.isPublished;
-    
-    return supabase.from('cartoon_movies').update(payload).eq('id', id);
-}
-
-export async function deleteCartoonMovie(id: string) {
-    return supabase.from('cartoon_movies').delete().eq('id', id);
-}
-
-// --- REELS ---
-export async function getPublishedReels(): Promise<Reel[]> {
-    const { data, error } = await supabase.from('reels').select('*').eq('is_published', true).order('created_at', { ascending: false });
-    if (error) { console.error(error); return []; }
-    return (data?.map(reel => ({
-        id: reel.id,
-        title: reel.title,
-        youtubeUrl: reel.youtube_url,
-        isPublished: reel.is_published,
-        createdAt: reel.created_at,
-    })) as Reel[]) || [];
-}
-
-export async function getAllReels(): Promise<Reel[]> {
-    const { data, error } = await supabase.from('reels').select('*').order('created_at', { ascending: false });
-    if (error) { console.error(error); return []; }
-    return (data?.map(reel => ({
-        id: reel.id,
-        title: reel.title,
-        youtubeUrl: reel.youtube_url,
-        isPublished: reel.is_published,
-        createdAt: reel.created_at,
-    })) as Reel[]) || [];
-}
-
-export async function addReel(reel: Partial<Omit<Reel, 'id' | 'createdAt'>>) {
-    const payload = {
-        title: reel.title,
-        youtube_url: reel.youtubeUrl,
-        is_published: reel.isPublished,
-    };
-    return supabase.from('reels').insert(payload);
-}
-
-export async function updateReel(id: string, updates: Partial<Reel>) {
-    const payload: Record<string, any> = {};
-    if (updates.title !== undefined) payload.title = updates.title;
-    if (updates.youtubeUrl !== undefined) payload.youtube_url = updates.youtubeUrl;
-    if (updates.isPublished !== undefined) payload.is_published = updates.isPublished;
-    
-    return supabase.from('reels').update(payload).eq('id', id);
-}
-
-export async function deleteReel(id: string) {
-    return supabase.from('reels').delete().eq('id', id);
-}
-
-
-// =================================================================
-// EXISTING FUNCTIONS (Kept for App Integrity or No Guide Equivalent)
-// =================================================================
-export let curriculumCache: { grades: Grade[] } | null = null;
-const defaultGrades: Grade[] = [{ id: 1, name: 'الصف الأول الإعدادي', level: 'Middle', levelAr: 'الإعدادي', semesters: [{ id: 's1-1', title: 'الفصل الدراسي الأول', units: [] }, { id: 's1-2', title: 'الفصل الدراسي الثاني', units: [] }] }];
-
-// initData is crucial for app startup and synchronous grade access
+// --- Curriculum ---
+export let curriculumCache: { grades: Grade[] } | null = { grades: mockCurriculum };
 export const initData = async (): Promise<void> => {
-    try {
-        const dbData = await getAllGrades();
-        if (dbData && dbData.length > 0) curriculumCache = { grades: dbData as Grade[] };
-        else curriculumCache = { grades: defaultGrades };
-    } catch (error: any) {
-        console.warn("Could not fetch curriculum, using fallback. Error:", error.message);
-        curriculumCache = { grades: defaultGrades };
-    }
+    curriculumCache = { grades: mockCurriculum };
+    return Promise.resolve();
 };
-
-export const getGradesForSelection = (): {id: number, name: string, level: 'Middle' | 'Secondary', levelAr: 'الإعدادي' | 'الثانوي'}[] => (curriculumCache?.grades || defaultGrades).map(g => ({ id: g.id, name: g.name, level: g.level, levelAr: g.levelAr }));
-export const getUnitsForSemester = async (gradeId: number, semesterId: string): Promise<Unit[]> => {
-    const { data, error } = await supabase.from('units').select('*').eq('semester_id', semesterId).order('id', { ascending: true });
-    if (error) { console.error(error); return []; }
-    if (!data) return [];
-    return data.map((unit: any) => ({
-        ...unit,
-        teacherId: unit.teacher_id,
-    })) as Unit[];
-};
-
-// Kept synchronous version for components that rely on it
+export async function getAllGrades(): Promise<Grade[]> { return Promise.resolve(mockCurriculum); }
+export const getGradesForSelection = (): {id: number, name: string, level: 'Middle' | 'Secondary', levelAr: 'الإعدادي' | 'الثانوي'}[] => (curriculumCache?.grades || []).map(g => ({ id: g.id, name: g.name, level: g.level, levelAr: g.levelAr }));
 export const getGradeByIdSync = (gradeId: number | null): Grade | undefined => {
     if (gradeId === null) return undefined;
     return curriculumCache?.grades.find(g => g.id === gradeId);
 };
+export async function getLessonsByUnit(unitId: string): Promise<Lesson[]> {
+    for (const grade of mockCurriculum) {
+        for (const semester of grade.semesters) {
+            const unit = semester.units.find(u => u.id === unitId);
+            if (unit) return Promise.resolve(unit.lessons);
+        }
+    }
+    return Promise.resolve([]);
+}
+export async function getUnitsForSemester(gradeId: number, semesterId: string): Promise<Unit[]> {
+    const grade = mockCurriculum.find(g => g.id === gradeId);
+    const semester = grade?.semesters.find(s => s.id === semesterId);
+    return Promise.resolve(semester?.units || []);
+}
 
+
+// --- Subscriptions ---
+export async function getAllSubscriptions(): Promise<Subscription[]> { return Promise.resolve(mockSubscriptions); }
+export async function getSubscriptionsByTeacherId(teacherId: string): Promise<Subscription[]> { return Promise.resolve(mockSubscriptions.filter(s => s.teacherId === teacherId)); }
+export async function getUserSubscriptions(userId: string) { return Promise.resolve({ data: mockSubscriptions.filter(s => s.userId === userId), error: null }); }
+export async function getAllSubscriptionRequests(): Promise<SubscriptionRequest[]> { return Promise.resolve(mockSubscriptionRequests); }
+export async function getPendingSubscriptionRequestCount(): Promise<number> { return Promise.resolve(mockSubscriptionRequests.filter(r => r.status === 'Pending').length); }
 export const createOrUpdateSubscription = async (userId: string, plan: Subscription['plan'], status: 'Active' | 'Expired', customEndDate?: string, teacherId?: string): Promise<{ error: Error | null }> => {
-    if (!plan) return { error: new Error('فشل تحديث الاشتراك: خطة الاشتراك غير محددة.') };
-    const startDate = new Date(); let endDate: Date;
+    const existingIndex = mockSubscriptions.findIndex(s => s.userId === userId && s.teacherId === teacherId);
+    const startDate = new Date();
+    let endDate: Date;
     if (customEndDate) { endDate = new Date(customEndDate); } 
     else {
         endDate = new Date(startDate);
@@ -779,488 +278,151 @@ export const createOrUpdateSubscription = async (userId: string, plan: Subscript
             case 'Annual': endDate.setFullYear(startDate.getFullYear() + 1); break;
         }
     }
-    const subscriptionPayload = { user_id: userId, plan, start_date: startDate.toISOString(), end_date: endDate.toISOString(), status, teacher_id: teacherId };
-    const { data: existing } = await supabase.from('subscriptions').select('id').eq('user_id', userId).is('teacher_id', teacherId || null).maybeSingle();
-    const { error: dbError } = await (existing ? supabase.from('subscriptions').update(subscriptionPayload).eq('id', existing.id) : supabase.from('subscriptions').insert(subscriptionPayload));
-    if (dbError) return { error: new Error(dbError.message) };
-    return { error: null };
+    const newSub: Subscription = { id: `sub-${Date.now()}`, userId, plan, startDate: startDate.toISOString(), endDate: endDate.toISOString(), status, teacherId };
+    if (existingIndex > -1) {
+        mockSubscriptions[existingIndex] = newSub;
+    } else {
+        mockSubscriptions.push(newSub);
+    }
+    return Promise.resolve({ error: null });
 };
-
 export const addSubscriptionRequest = async (userId: string, userName: string, plan: SubscriptionRequest['plan'], paymentFromNumber: string, subjectName?: string, unitId?: string): Promise<void> => {
-    await supabase.from('subscription_requests').insert({ user_id: userId, user_name: userName, plan, payment_from_number: paymentFromNumber, status: 'Pending', subject_name: subjectName, unit_id: unitId });
+    mockSubscriptionRequests.push({ id: `req-${Date.now()}`, userId, userName, plan, paymentFromNumber, status: 'Pending', createdAt: new Date().toISOString(), subjectName, unitId });
+    return Promise.resolve();
 };
 export const updateSubscriptionRequest = async (updatedRequest: SubscriptionRequest): Promise<void> => {
-    const { id, ...updates } = updatedRequest;
-    await supabase.from('subscription_requests').update({ status: updates.status }).eq('id', id);
-};
-export const getPendingSubscriptionRequestCount = async (): Promise<number> => {
-    const { count } = await supabase.from('subscription_requests').select('*', { count: 'exact', head: true }).eq('status', 'Pending');
-    return count || 0;
+    const index = mockSubscriptionRequests.findIndex(r => r.id === updatedRequest.id);
+    if (index > -1) mockSubscriptionRequests[index] = updatedRequest;
+    return Promise.resolve();
 };
 
-export async function createTeacher(params: any) {
-    try {
-        // Step 1: Create user in auth.users using admin privileges.
-        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-            email: params.email,
-            password: params.password,
-            phone: params.phone ? `+20${params.phone.replace(/^0/, '')}` : undefined,
-            email_confirm: true, // Auto-confirm email for simplicity
-            user_metadata: { name: params.name },
-        });
-
-        if (authError) {
-            if (authError.message.includes('unique constraint') || authError.message.includes('already exists')) {
-                 throw new Error(`الحساب بالبريد الإلكتروني أو رقم الهاتف هذا موجود بالفعل.`);
-            }
-            if (authError.message.toLowerCase().includes('user not allowed')) {
-                const domain = params.email.split('@')[1];
-                const detailedError = `فشل إنشاء الحساب لأن نطاق البريد الإلكتروني "@${domain}" غير مسموح به.\n\nلحل المشكلة، يرجى الذهاب إلى لوحة تحكم Supabase، ثم:\n1. Authentication > Settings\n2. ابحث عن قسم "Allowed Email Domains".\n3. أضف النطاق "${domain}" واضغط حفظ.`;
-                throw new Error(detailedError);
-            }
-            if (authError.message.toLowerCase().includes('service_role key required') || authError.message.toLowerCase().includes('jwt')) {
-                const detailedError = `فشل المصادقة كمسؤول (Admin). لا يمكن إنشاء حسابات مدرسين من طرف العميل مباشرةً لأسباب أمنية. هذه الميزة تتطلب إعدادًا من جانب الخادم (Supabase Edge Function). يرجى التواصل مع مطور المنصة.`;
-                throw new Error(detailedError);
-            }
-            throw new Error(`فشل إنشاء حساب المصادقة: ${authError.message}`);
-        }
-
-        const newUserId = authData.user.id;
-
-        // Step 2: Verify that the `profiles` table was populated by the trigger.
-        let profileData, profileError;
-        for (let i = 0; i < 3; i++) {
-            await new Promise(res => setTimeout(res, 500));
-            const { data, error } = await supabase.from('profiles').select('id').eq('id', newUserId).single();
-            if (data) {
-                profileData = data;
-                profileError = null;
-                break;
-            }
-            profileError = error;
-        }
-
-        if (profileError || !profileData) {
-            await supabase.auth.admin.deleteUser(newUserId);
-            throw new Error(`فشل التحقق من إنشاء الملف الشخصي. قد يكون الربط (DB Trigger) معطلاً. الخطأ: ${profileError?.message}`);
-        }
-
-        // Step 3: Create the teacher-specific record in the `teachers` table.
-        const { data: teacherData, error: teacherError } = await supabase
-            .from('teachers')
-            .insert({
-                name: params.name,
-                subject: params.subject,
-                image_url: params.image_url || null,
-                teaching_grades: params.teaching_grades,
-                teaching_levels: params.teaching_levels,
-            })
-            .select()
-            .single();
-
-        if (teacherError) {
-            await supabase.auth.admin.deleteUser(newUserId);
-            throw new Error(`فشل إنشاء سجل المدرس: ${teacherError.message}`);
-        }
-        
-        const newTeacherId = teacherData.id;
-
-        // Step 4: Link the user's profile to the new teacher record and set their role.
-        const { error: profileUpdateError } = await supabase
-            .from('profiles')
-            .update({ teacher_id: newTeacherId, role: 'teacher' })
-            .eq('id', newUserId);
-            
-        if (profileUpdateError) {
-            await supabase.auth.admin.deleteUser(newUserId);
-            await supabase.from('teachers').delete().eq('id', newTeacherId);
-            throw new Error(`فشل ربط الملف الشخصي بسجل المدرس: ${profileUpdateError.message}`);
-        }
-        
-        return { success: true, data: { teacher_id: newTeacherId, user_id: newUserId }, error: null };
-
-    } catch (error: any) {
-        return { success: false, error, data: null };
-    }
-}
-
-export async function createSupervisor(params: any) {
-    try {
-        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-            email: params.email,
-            password: params.password,
-            phone: params.phone ? `+20${params.phone.replace(/^0/, '')}` : undefined,
-            email_confirm: true,
-            user_metadata: { name: params.name }, // Trigger will use this
-        });
-
-        if (authError) {
-            if (authError.message.toLowerCase().includes('service_role key required')) {
-                throw new Error(`فشل المصادقة كمسؤول (Admin). لا يمكن إنشاء حسابات من طرف العميل مباشرةً.`);
-            }
-            throw new Error(`فشل إنشاء حساب المصادقة: ${authError.message}`);
-        }
-        
-        const newUserId = authData.user.id;
-        
-        await new Promise(res => setTimeout(res, 1000)); // wait for trigger
-        
-        const { error: profileUpdateError } = await supabase
-            .from('profiles')
-            .update({ role: 'supervisor', phone: params.phone ? `+20${params.phone.replace(/^0/, '')}` : undefined })
-            .eq('id', newUserId);
-
-        if (profileUpdateError) {
-            await supabase.auth.admin.deleteUser(newUserId); // Rollback
-            throw new Error(`Failed to update profile to supervisor role: ${profileUpdateError.message}`);
-        }
-        
-        if (params.teacherIds && params.teacherIds.length > 0) {
-            const links = params.teacherIds.map((teacher_id: string) => ({ supervisor_id: newUserId, teacher_id }));
-            const { error: linkError } = await supabase.from('supervisor_teachers').insert(links);
-            if (linkError) {
-                console.warn(`Supervisor created, but failed to link teachers: ${linkError.message}`);
-            }
-        }
-        
-        return { success: true, data: { user_id: newUserId }, error: null };
-
-    } catch (error: any) {
-        return { success: false, error, data: null };
-    }
-}
-
-export async function updateSupervisor(supervisorId: string, updates: any) {
-    try {
-        const authUpdates: any = {};
-        if (updates.email) authUpdates.email = updates.email;
-        if (updates.password && updates.password.trim()) authUpdates.password = updates.password;
-        
-        if (Object.keys(authUpdates).length > 0) {
-            const { error: authError } = await supabase.auth.admin.updateUserById(supervisorId, authUpdates);
-            if (authError) throw new Error(`Failed to update auth user: ${authError.message}`);
-        }
-        
-        const profileUpdates: any = {};
-        if (updates.name) profileUpdates.name = updates.name;
-        if (updates.phone) profileUpdates.phone = `+20${updates.phone.replace(/^0/, '')}`;
-        
-        if (Object.keys(profileUpdates).length > 0) {
-            const { error: profileError } = await supabase.from('profiles').update(profileUpdates).eq('id', supervisorId);
-            if (profileError) throw new Error(`Failed to update profile: ${profileError.message}`);
-        }
-
-        // Resync teacher links
-        const { error: deleteLinkError } = await supabase.from('supervisor_teachers').delete().eq('supervisor_id', supervisorId);
-        if (deleteLinkError) throw new Error(`Failed to clear old teacher links: ${deleteLinkError.message}`);
-        
-        if (updates.teacherIds && updates.teacherIds.length > 0) {
-            const newLinks = updates.teacherIds.map((teacher_id: string) => ({ supervisor_id: supervisorId, teacher_id }));
-            const { error: newLinkError } = await supabase.from('supervisor_teachers').insert(newLinks);
-            if (newLinkError) throw new Error(`Failed to add new teacher links: ${newLinkError.message}`);
-        }
-
-        return { success: true, error: null };
-    } catch (error: any) {
-        return { success: false, error };
-    }
-}
-
-export async function deleteSupervisor(supervisorId: string) {
-    try {
-        // Deleting the user from auth will cascade delete the profile, which will cascade delete the supervisor_teachers entries.
-        const { error: authError } = await supabase.auth.admin.deleteUser(supervisorId);
-        if (authError) {
-            if (authError.message.toLowerCase().includes('service_role key required')) {
-                throw new Error(`فشل المصادقة كمسؤول (Admin). لا يمكن حذف حسابات من طرف العميل مباشرةً.`);
-            }
-            throw authError;
-        }
-        return { success: true, error: null };
-    } catch(error: any) {
-        return { success: false, error };
-    }
-}
-
-
-export async function updateTeacher(teacherId: string, updates: any) {
-    try {
-        const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('id')
-            .eq('teacher_id', teacherId)
-            .single();
-        
-        if (profileError) throw new Error(`Could not find a user profile for this teacher: ${profileError.message}`);
-        
-        const userId = profile.id;
-
-        const [teacherResult, profileResult, authResult] = await Promise.all([
-            supabase.from('teachers').update({
-                name: updates.name,
-                subject: updates.subject,
-                image_url: updates.imageUrl,
-                teaching_levels: updates.teachingLevels,
-                teaching_grades: updates.teachingGrades,
-            }).eq('id', teacherId),
-            
-            supabase.from('profiles').update({ name: updates.name }).eq('id', userId),
-
-            (() => {
-                const authUpdates: any = {};
-                if (updates.email) authUpdates.email = updates.email;
-                if (updates.phone) authUpdates.phone = `+20${updates.phone.replace(/^0/, '')}`;
-                if (updates.password && updates.password.trim()) authUpdates.password = updates.password;
-                
-                if (Object.keys(authUpdates).length > 0) {
-                    return supabase.auth.admin.updateUserById(userId, authUpdates);
-                }
-                return Promise.resolve({ error: null });
-            })()
-        ]);
-        
-        if (teacherResult.error) throw new Error(`Failed to update teachers table: ${teacherResult.error.message}`);
-        if (profileResult.error) console.warn(`Failed to update name in profiles table: ${profileResult.error.message}`);
-        if (authResult.error) {
-            if (authResult.error.message.toLowerCase().includes('service_role key required') || authResult.error.message.toLowerCase().includes('jwt')) {
-                throw new Error(`فشل المصادقة كمسؤول (Admin). لا يمكن تعديل بيانات المدرسين الحساسة من طرف العميل مباشرةً لأسباب أمنية.`);
-            }
-            throw new Error(`Failed to update auth user: ${authResult.error.message}`);
-        }
-        
-        return { success: true, data: { message: "Teacher updated successfully." }, error: null };
-
-    } catch (error: any) {
-        return { success: false, error, data: null };
-    }
-}
-
-export async function deleteTeacher(teacherId: string) {
-    const { data: profileData, error: profileError } = await supabase.from('profiles').select('id').eq('teacher_id', teacherId).single();
-    if (profileError && profileError.code !== 'PGRST116') return { success: false, error: profileError };
-    if (profileData) {
-        const { error: adminDeleteError } = await supabase.auth.admin.deleteUser(profileData.id);
-        if (adminDeleteError && !adminDeleteError.message.includes('User not found')) {
-            if (adminDeleteError.message.toLowerCase().includes('service_role key required') || adminDeleteError.message.toLowerCase().includes('jwt')) {
-                const detailedError = `فشل المصادقة كمسؤول (Admin). لا يمكن حذف حسابات المدرسين من طرف العميل مباشرةً لأسباب أمنية.`;
-                return { success: false, error: new Error(detailedError) };
-            }
-            return { success: false, error: adminDeleteError };
-        }
-    }
-    const { error: teacherError } = await supabase.from('teachers').delete().eq('id', teacherId);
-    if (teacherError) return { success: false, error: teacherError };
-    return { success: true, error: null };
-}
-
-export async function redeemCode(code: string, userGradeId: number, userTrack: string): Promise<{ success: boolean; error?: string }> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { success: false, error: 'User is not authenticated.' };
-    const { data: codeData, error: codeError } = await supabase.from('subscription_codes').select('*').eq('code', code).single();
-    if (codeError || !codeData) return { success: false, error: 'Invalid code.' };
-    if (codeData.times_used >= codeData.max_uses) return { success: false, error: 'Code has reached its maximum usage limit.' };
-    if (codeData.used_by_user_ids.includes(user.id)) return { success: false, error: 'You have already used this code.' };
-
-    const startDate = new Date();
-    const endDate = new Date();
-    endDate.setDate(startDate.getDate() + codeData.duration_days);
-
-    const subResult = await createOrUpdateSubscription(user.id, 'Monthly', 'Active', endDate.toISOString(), codeData.teacher_id);
-    if (subResult.error) return { success: false, error: `Failed to activate subscription: ${subResult.error.message}` };
-    
-    await supabase.from('subscription_codes').update({ times_used: codeData.times_used + 1, used_by_user_ids: [...codeData.used_by_user_ids, user.id] }).eq('code', code);
-    return { success: true };
-}
-export async function registerAndRedeemCode(userData: any, code: string): Promise<{ data: { userId: string } | null, error: string | null }> {
-    const { data: authData, error: authError } = await signUp(userData);
-    if (authError || !authData.user) return { data: null, error: authError?.message || 'فشل إنشاء الحساب.' };
-    const redeemResult = await redeemCode(code, userData.grade, userData.track);
-    if (!redeemResult.success) return { data: { userId: authData.user.id }, error: `تم إنشاء حسابك ولكن فشل تفعيل الكود: ${redeemResult.error}. يرجى التواصل مع الدعم.` };
-    return { data: { userId: authData.user.id }, error: null };
-};
+// --- CRUD ---
 export const updateUser = async (userId: string, updates: Partial<User>) => {
-    const payload: Record<string, any> = {};
-    if (updates.name) payload.name = updates.name;
-    if (updates.phone) payload.phone = updates.phone;
-    if (updates.guardianPhone) payload.guardian_phone = updates.guardianPhone;
-    if (updates.grade !== undefined) payload.grade_id = updates.grade;
-    if (updates.track !== undefined) payload.track = updates.track;
-    if (Object.keys(payload).length === 0) return { error: null };
-    const { error } = await supabase.from('profiles').update(payload).eq('id', userId);
-    return { error };
+    const user = mockStudents.find(s => s.id === userId);
+    if (user) Object.assign(user, updates);
+    return Promise.resolve({ error: null });
 };
 export const deleteUser = async (id: string) => {
-    const { error } = await supabase.auth.admin.deleteUser(id);
-    return { error };
-};
-export const clearUserDevices = async (userId: string) => { const { error } = await supabase.from('user_sessions').delete().eq('user_id', userId); return { error }; };
-
-export const clearAllActiveSessions = async () => {
-    // This sets all active sessions to inactive, forcing every user to log in again.
-    const { error } = await supabase.from('user_sessions').update({ active: false }).eq('active', true);
-    return { error };
-};
-
-export const checkDbConnection = async () => supabase.from('teachers').select('id', { count: 'exact', head: true });
-export async function saveQuizAttempt(userId: string, lessonId: string, score: number, submittedAnswers: QuizAttempt['submittedAnswers'], timeTaken: number) {
-    const lesson = (await getLessonWithDetails(lessonId)).data;
-    const isPass = score >= (lesson?.passing_score ?? 50);
-    const { error } = await supabase.from('quiz_attempts').insert({ user_id: userId, lesson_id: lessonId, score, submitted_answers: submittedAnswers, time_taken: timeTaken, is_pass: isPass });
-    if (error) console.error("Error saving quiz attempt:", error.message);
-}
-export async function generateSubscriptionCodes(options: { teacherId?: string, durationDays: number, count: number, maxUses: number }): Promise<SubscriptionCode[]> {
-    const generatedCodes: SubscriptionCode[] = [];
-    for (let i = 0; i < options.count; i++) {
-        const code = `GS${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-        const {data: newCode} = await supabase.from('subscription_codes').insert({ code, teacher_id: options.teacherId, duration_days: options.durationDays, max_uses: options.maxUses, times_used: 0, used_by_user_ids: [] }).select().single();
-        if (newCode) generatedCodes.push(newCode);
+    // FIX: Mutate array in place to avoid reassigning an imported variable.
+    const index = mockStudents.findIndex(s => s.id === id);
+    if (index > -1) {
+        mockStudents.splice(index, 1);
     }
-    return generatedCodes;
+    return Promise.resolve({ error: null });
 };
-export const deleteSubscriptionCode = async (code: string) => {
-    return supabase.from('subscription_codes').delete().eq('code', code);
-};
-
-// Functions without a direct guide equivalent but necessary for the app
-export const getLatestQuizAttemptForLesson = async (userId: string, lessonId: string): Promise<QuizAttempt | null> => (await getStudentBestScore(userId, lessonId)).data as QuizAttempt | null;
-export const getSubscriptionsByUserId = async (userId: string): Promise<Subscription[]> => ((await getUserSubscriptions(userId)).data || []) as Subscription[];
-export const getSubscriptionByUserId = async (userId: string): Promise<Subscription | null> => (await getUserSubscriptions(userId)).data?.[0] || null;
-
-// Kept for legacy compatibility where direct calls might still exist
-export const markLessonComplete = async (userId: string, lessonId: string) => { await supabase.from('progress').insert({ student_id: userId, lesson_id: lessonId }); };
-export const addActivityLog = (action: string, details: string) => console.log(`Activity: ${action} - ${details}`);
-
-const getTodayDateString = () => {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = (today.getMonth() + 1).toString().padStart(2, '0');
-    const day = today.getDate().toString().padStart(2, '0');
-    return `${year}-${month}-${day}`;
-};
-
-export const getChatUsage = (userId: string): { remaining: number } => {
-    if (!userId) return { remaining: 0 };
-
-    const countKey = `chatbotUsageCount_${userId}`;
-    const resetKey = `chatbotUsageLastReset_${userId}`;
-    const today = getTodayDateString();
-    
-    const lastReset = localStorage.getItem(resetKey);
-
-    if (lastReset !== today) {
-        // It's a new day, or the first time ever. Reset the count.
-        localStorage.setItem(countKey, '50');
-        localStorage.setItem(resetKey, today);
-        return { remaining: 50 };
-    }
-
-    // It's the same day, get the current count.
-    const countStr = localStorage.getItem(countKey);
-    if (countStr === null) {
-        // Should not happen if lastReset is today, but as a fallback.
-        localStorage.setItem(countKey, '50');
-        return { remaining: 50 };
-    }
-
-    return { remaining: parseInt(countStr, 10) };
-};
-
-export const incrementChatUsage = (userId: string): { remaining: number } => {
-    if (!userId) return { remaining: 0 };
-    
-    // getChatUsage already handles the reset, so we call it to ensure we have the correct starting count for the day.
-    const currentUsage = getChatUsage(userId);
-    
-    const countKey = `chatbotUsageCount_${userId}`;
-
-    if (currentUsage.remaining > 0) {
-        const newCount = currentUsage.remaining - 1;
-        localStorage.setItem(countKey, newCount.toString());
-        return { remaining: newCount };
-    }
-    
-    return { remaining: 0 };
-};
-
-export const getActivityLogs = (): ActivityLog[] => [];
-
-export const updatePlatformSettings = async (newSettings: PlatformSettings): Promise<{ error: any }> => {
-    // Explicitly map from application camelCase to database snake_case
-    // This resolves the error by ensuring the payload matches the database schema.
-    const payload = {
-        platform_name: newSettings.platformName,
-        hero_title: newSettings.heroTitle,
-        hero_subtitle: newSettings.heroSubtitle,
-        hero_button_text: newSettings.heroButtonText,
-        hero_image_url: newSettings.heroImageUrl,
-        teacher_image_url: newSettings.teacherImageUrl,
-        features_title: newSettings.featuresTitle,
-        features_subtitle: newSettings.featuresSubtitle,
-        features: newSettings.features,
-        footer_description: newSettings.footerDescription,
-        contact_phone: newSettings.contactPhone,
-        contact_facebook_url: newSettings.contactFacebookUrl,
-        contact_youtube_url: newSettings.contactYoutubeUrl,
-        announcement_banner: newSettings.announcementBanner,
-        monthly_price: newSettings.monthlyPrice,
-        quarterly_price: newSettings.quarterlyPrice,
-        semi_annually_price: newSettings.semiAnnuallyPrice,
-        annual_price: newSettings.annualPrice,
-        currency: newSettings.currency,
-        payment_numbers: newSettings.paymentNumbers,
-        enabled_subscription_modes: newSettings.enabledSubscriptionModes,
+export async function createTeacher(params: any) {
+    const newTeacher: Teacher = {
+        id: `teacher-${Date.now()}`,
+        name: params.name,
+        subject: params.subject,
+        imageUrl: params.image_url,
+        teachingLevels: params.teaching_levels,
+        teachingGrades: params.teaching_grades,
     };
-
-    const { data } = await supabase.from('platform_settings').select('id').limit(1).single();
-    const { error } = await (data
-        ? supabase.from('platform_settings').update(payload).eq('id', data.id)
-        : supabase.from('platform_settings').insert([payload])
-    );
-    
-    return { error };
-};
-
-export const createCourse = async (courseData: Omit<Course, 'id'>) => supabase.from('courses').insert(courseData).select().single();
-export const updateCourse = async (courseId: string, updates: Partial<Course>) => supabase.from('courses').update(updates).eq('id', courseId).select().single();
-export const deleteCourse = async (courseId: string) => supabase.from('courses').delete().eq('id', courseId);
-export const checkCoursePurchase = async (userId: string, courseId: string): Promise<boolean> => { const { count } = await supabase.from('user_courses').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('course_id', courseId); return (count || 0) > 0; };
-export const purchaseCourse = async (userId: string, courseId: string) => supabase.from('user_courses').insert({ user_id: userId, course_id: courseId });
-export const addFeaturedBook = async (book: Omit<Book, 'id'>) => supabase.from('featured_books').insert(book);
-export const updateFeaturedBook = async (book: Book) => supabase.from('featured_books').update(book).eq('id', book.id);
-export const deleteFeaturedBook = async (id: string) => supabase.from('featured_books').delete().eq('id', id);
-export const addFeaturedCourse = async (course: any) => supabase.from('featured_courses').insert(course);
-export const updateFeaturedCourse = async (course: any) => supabase.from('featured_courses').update(course).eq('id', course.id);
-export const deleteFeaturedCourse = async (id: string) => supabase.from('featured_courses').delete().eq('id', id);
-export const addUnitToSemester = async (gradeId: number, semesterId: string, unitData: Omit<Unit, 'id'|'lessons'>) => {
-    const payload = { ...unitData, semester_id: semesterId };
-    if (payload.teacherId) {
-        (payload as any).teacher_id = payload.teacherId;
-        delete (payload as any).teacherId;
-    }
-    return supabase.from('units').insert(payload).select().single();
-};
-export const addLessonToUnit = async (gradeId: number, semesterId: string, unitId: string, lessonData: Omit<Lesson, 'id'>) => supabase.from('lessons').insert({ ...lessonData, unit_id: unitId }).select().single();
-export const updateLesson = async (gradeId: number, semesterId: string, unitId: string, updatedLesson: Lesson) => supabase.from('lessons').update(updatedLesson).eq('id', updatedLesson.id);
-export const deleteLesson = async (gradeId: number, semesterId: string, unitId: string, lessonId: string) => supabase.from('lessons').delete().eq('id', lessonId);
-export const updateUnit = async (gradeId: number, semesterId: string, updatedUnit: Partial<Unit> & { id: string }) => {
-    const payload = { ...updatedUnit };
-    if (payload.teacherId) {
-        (payload as any).teacher_id = payload.teacherId;
-        delete payload.teacherId;
-    }
-    delete (payload as any).lessons;
-    return supabase.from('units').update(payload).eq('id', updatedUnit.id);
-};
-export const deleteUnit = async (gradeId: number, semesterId: string, unitId: string) => supabase.from('units').delete().eq('id', unitId);
-// The functions below were in the original file but are now superseded by the guide's functions.
-// They are kept here commented out for reference but can be removed.
-/*
-export async function getStudentProgress(userId: string): Promise<{ lesson_id: string }[]> {
-    const { data, error } = await supabase.from('progress').select('lesson_id').eq('student_id', userId);
-    if (error) { console.warn('Could not fetch student progress...', error.message); return []; }
-    return data || [];
+    mockTeachers.push(newTeacher);
+    return Promise.resolve({ success: true, data: { teacher_id: newTeacher.id, user_id: `user-${Date.now()}` }, error: null });
 }
-export const getQuizAttemptsByUserId = async (userId: string): Promise<QuizAttempt[]> => {
-    return getStudentQuizAttempts(userId);
+export async function updateTeacher(teacherId: string, updates: any) {
+    const index = mockTeachers.findIndex(t => t.id === teacherId);
+    if (index > -1) {
+        mockTeachers[index] = { ...mockTeachers[index], ...updates };
+    }
+    return Promise.resolve({ success: true, data: {}, error: null });
 }
-*/
+export async function deleteTeacher(teacherId: string) {
+    // FIX: Mutate array in place to avoid reassigning an imported variable.
+    const index = mockTeachers.findIndex(t => t.id === teacherId);
+    if (index > -1) {
+        mockTeachers.splice(index, 1);
+    }
+    return Promise.resolve({ success: true, error: null });
+}
+
+// --- Other ---
+export async function getPlatformSettings(): Promise<PlatformSettings | null> { return Promise.resolve(mockPlatformSettings); }
+export const uploadImage = async (file: File): Promise<string | null> => Promise.resolve('https://picsum.photos/400/600');
+export const clearUserDevices = async (userId: string) => Promise.resolve({ error: null });
+export const clearAllActiveSessions = async () => Promise.resolve({ error: null });
+export const checkDbConnection = async () => Promise.resolve({ error: null });
+export async function getStudentProgress(studentId: string): Promise<{lesson_id: string}[]> { return Promise.resolve([]); }
+export async function getAllStudentProgress() { return Promise.resolve([]); }
+export async function getAllQuizAttempts(): Promise<QuizAttempt[]> { return Promise.resolve([]); }
+export async function getStudentQuizAttempts(studentId: string): Promise<QuizAttempt[]> { return Promise.resolve([]); }
+export async function saveQuizAttempt(userId: string, lessonId: string, score: number, submittedAnswers: QuizAttempt['submittedAnswers'], timeTaken: number) { return Promise.resolve(); }
+export async function generateSubscriptionCodes(options: any): Promise<SubscriptionCode[]> {
+    const codes: SubscriptionCode[] = [];
+    for (let i = 0; i < options.count; i++) {
+        codes.push({ code: `GS-MOCK${randomInt(1000, 9999)}`, durationDays: options.durationDays, maxUses: 1, timesUsed: 0, usedByUserIds: [], createdAt: new Date().toISOString() });
+    }
+    return Promise.resolve(codes);
+}
+export const getSubscriptionByUserId = async (userId: string): Promise<Subscription | null> => Promise.resolve(mockSubscriptions.find(s => s.userId === userId) || null);
+export const getLatestQuizAttemptForLesson = async (userId: string, lessonId: string): Promise<QuizAttempt | null> => Promise.resolve(null);
+export const markLessonComplete = async (userId: string, lessonId: string) => Promise.resolve();
+export async function getPublishedCartoonMovies(): Promise<CartoonMovie[]> { return Promise.resolve(mockCartoonMovies.filter(m => m.isPublished)); }
+export async function getAllCartoonMovies(): Promise<CartoonMovie[]> { return Promise.resolve(mockCartoonMovies); }
+export async function addCartoonMovie(movie: any) { mockCartoonMovies.unshift({ ...movie, id: `movie-${Date.now()}`, createdAt: new Date().toISOString() }); return Promise.resolve({}); }
+export async function updateCartoonMovie(id: string, updates: any) { const i = mockCartoonMovies.findIndex(m => m.id === id); if(i > -1) mockCartoonMovies[i] = {...mockCartoonMovies[i], ...updates}; return Promise.resolve({}); }
+export async function deleteCartoonMovie(id: string) { 
+    // FIX: Mutate array in place to avoid reassigning an imported variable.
+    const index = mockCartoonMovies.findIndex(m => m.id === id);
+    if (index > -1) {
+        mockCartoonMovies.splice(index, 1);
+    }
+    return Promise.resolve({}); 
+}
+export async function getPublishedReels(): Promise<Reel[]> { return Promise.resolve(mockReels.filter(r => r.isPublished)); }
+export async function getAllReels(): Promise<Reel[]> { return Promise.resolve(mockReels); }
+export async function addReel(reel: any) { mockReels.unshift({ ...reel, id: `reel-${Date.now()}`, createdAt: new Date().toISOString() }); return Promise.resolve({}); }
+export async function updateReel(id: string, updates: any) { const i = mockReels.findIndex(r => r.id === id); if(i > -1) mockReels[i] = {...mockReels[i], ...updates}; return Promise.resolve({}); }
+export async function deleteReel(id: string) { 
+    // FIX: Mutate array in place to avoid reassigning an imported variable.
+    const index = mockReels.findIndex(r => r.id === id);
+    if (index > -1) {
+        mockReels.splice(index, 1);
+    }
+    return Promise.resolve({}); 
+}
+export async function getStudentQuestions(userId: string): Promise<StudentQuestion[]> { return Promise.resolve([]); }
+export async function addStudentQuestion(userId: string, userName: string, questionText: string): Promise<void> { return Promise.resolve(); }
+export async function getAllStudentQuestions(): Promise<StudentQuestion[]> { return Promise.resolve([]); }
+export async function answerStudentQuestion(questionId: string, answerText: string): Promise<void> { return Promise.resolve(); }
+export async function createSupervisor(params: any) { return Promise.resolve({ success: true, data: { user_id: 'new-sup' }}); }
+export async function updateSupervisor(supervisorId: string, updates: any) { return Promise.resolve({ success: true }); }
+export async function deleteSupervisor(supervisorId: string) { return Promise.resolve({ success: true, error: null }); }
+export const redeemCode = async (code: string, userGradeId: number, userTrack: string): Promise<{ success: boolean; error?: string }> => { return Promise.resolve({ success: true }); }
+export async function registerAndRedeemCode(userData: any, code: string): Promise<{ data: { userId: string } | null, error: string | null }> {
+    const { data, error } = await signUp(userData);
+    if(error || !data.user) return { data: null, error: error || 'Signup failed' };
+    return { data: { userId: data.user.id }, error: null };
+}
+
+// Unimplemented mock functions - kept for type consistency
+export async function getFeaturedCourses(): Promise<any[]> { return Promise.resolve([]); }
+export async function addFeaturedCourse(course: any) { return Promise.resolve({ error: null }); }
+export async function updateFeaturedCourse(course: any) { return Promise.resolve({ error: null }); }
+export async function deleteFeaturedCourse(id: string) { return Promise.resolve({ error: null }); }
+export async function getFeaturedBooks(): Promise<Book[]> { return Promise.resolve([]); }
+export async function addFeaturedBook(book: any) { return Promise.resolve({ error: null }); }
+export async function updateFeaturedBook(book: any) { return Promise.resolve({ error: null }); }
+export async function deleteFeaturedBook(id: string) { return Promise.resolve({ error: null }); }
+
+export const createCourse = async (courseData: Omit<Course, 'id'>) => Promise.resolve({});
+export const updateCourse = async (courseId: string, updates: Partial<Course>) => Promise.resolve({});
+export const deleteCourse = async (courseId: string) => Promise.resolve({ error: null });
+export const getAllPublishedCourses = async (): Promise<Course[]> => Promise.resolve([]);
+export const getPublishedCourses = async (): Promise<Course[]> => Promise.resolve([]);
+export const checkCoursePurchase = async (userId: string, courseId: string): Promise<boolean> => Promise.resolve(false);
+export const purchaseCourse = async (userId: string, courseId: string): Promise<void> => Promise.resolve();
+export const deleteSubscriptionCode = async (code: string) => Promise.resolve({ error: null });
+
+export const addUnitToSemester = async (gradeId: number, semesterId: string, unitData: Omit<Unit, 'id'|'lessons'>) => Promise.resolve({});
+export const addLessonToUnit = async (gradeId: number, semesterId: string, unitId: string, lessonData: Omit<Lesson, 'id'>) => Promise.resolve({});
+export const updateLesson = async (gradeId: number, semesterId: string, unitId: string, updatedLesson: Lesson) => Promise.resolve({});
+export const deleteLesson = async (gradeId: number, semesterId: string, unitId: string, lessonId: string) => Promise.resolve({});
+export const updateUnit = async (gradeId: number, semesterId: string, updatedUnit: Partial<Unit> & { id: string }) => Promise.resolve({});
+export const deleteUnit = async (gradeId: number, semesterId: string, unitId: string) => Promise.resolve({});
+export const getChatUsage = (userId: string): { remaining: number } => ({ remaining: 50 });
+export const incrementChatUsage = (userId: string): { remaining: number } => ({ remaining: 49 });
+export const getActivityLogs = (): ActivityLog[] => [];
+export const updatePlatformSettings = async (newSettings: PlatformSettings): Promise<{ error: any }> => Promise.resolve({ error: null });

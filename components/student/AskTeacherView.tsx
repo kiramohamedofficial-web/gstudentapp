@@ -35,7 +35,7 @@ const TeacherChatView: React.FC<{ student: User, teacher: Teacher, onBack: () =>
             .gte('created_at', threeDaysAgo)
             .order('created_at', { ascending: true });
         
-        if (data) setMessages(data);
+        if (data) setMessages(data as TeacherChatMessage[]);
         setIsLoading(false);
     }, [student.id, teacher.id]);
 

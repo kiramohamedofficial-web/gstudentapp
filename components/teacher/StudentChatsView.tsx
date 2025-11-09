@@ -42,7 +42,7 @@ const ChatModal: React.FC<{ conversation: Conversation | null; supervisorId: str
             .gte('created_at', threeDaysAgo)
             .order('created_at', { ascending: true });
         
-        if (data) setMessages(data);
+        if (data) setMessages(data as TeacherChatMessage[]);
         setIsLoading(false);
     }, [conversation]);
 

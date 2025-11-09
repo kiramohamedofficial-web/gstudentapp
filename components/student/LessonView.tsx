@@ -53,6 +53,8 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, grade, onLesson
     }, [lesson]);
 
     const { hasActiveSubscription, lessonTeacherId } = useMemo(() => {
+        if (!grade) return { hasActiveSubscription: false, lessonTeacherId: undefined }; // GUARD CLAUSE
+
         // Find the unit and teacher for the current lesson
         let teacherId: string | undefined;
         for (const semester of grade.semesters) {
@@ -86,6 +88,8 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, grade, onLesson
     }, [subscriptions, currentLesson, grade]);
 
     const unit = useMemo(() => {
+        if (!grade) return undefined; // GUARD CLAUSE
+        
         for (const semester of grade.semesters) {
             const foundUnit = semester.units.find(u => u.lessons.some(l => l.id === currentLesson.id));
             if (foundUnit) return foundUnit;

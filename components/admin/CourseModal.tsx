@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { Course, CourseVideo, Teacher, ToastType } from '../../types';
 import { createCourse, updateCourse } from '../../services/storageService';
@@ -51,12 +52,12 @@ const CourseModal: React.FC<CourseModalProps> = ({ isOpen, onClose, onSave, cour
         setIsSaving(true);
         try {
             if (course) { // Editing
-                const { error } = await updateCourse(course.id, formData);
-                if (error) throw error;
+                const result = await updateCourse(course.id, formData);
+                if ((result as any).error) throw (result as any).error;
                 addToast('تم تحديث الكورس بنجاح!', ToastType.SUCCESS);
             } else { // Creating
-                const { error } = await createCourse(formData as Omit<Course, 'id'>);
-                 if (error) throw error;
+                const result = await createCourse(formData as Omit<Course, 'id'>);
+                 if ((result as any).error) throw (result as any).error;
                 addToast('تم إنشاء الكورس بنجاح!', ToastType.SUCCESS);
             }
             onSave();

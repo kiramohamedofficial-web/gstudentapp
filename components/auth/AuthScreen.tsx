@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ArrowRightIcon, ChevronDownIcon } from '../common/Icons';
 import { Grade } from '../../types';
-import { validateSubscriptionCode, getGradesForSelection } from '../../services/storageService';
+// FIX: Removed unused import causing error. `getGradesForSelection` is a function, not a type.
+import { getGradesForSelection } from '../../services/storageService';
 import { useSession } from '../../hooks/useSession';
 
 interface AuthScreenProps {

@@ -100,12 +100,12 @@ const ReelsManagementView: React.FC = () => {
     const handleSave = async (data: Partial<Omit<Reel, 'id' | 'createdAt'>>) => {
         try {
             if (modalState.data.id) { // Editing
-                const { error } = await updateReel(modalState.data.id, data);
-                if (error) throw error;
+                const result = await updateReel(modalState.data.id, data);
+                if ((result as any).error) throw (result as any).error;
                 addToast("تم تحديث الريل بنجاح.", ToastType.SUCCESS);
             } else { // Adding
-                const { error } = await addReel(data);
-                if (error) throw error;
+                const result = await addReel(data);
+                if ((result as any).error) throw (result as any).error;
                 addToast("تم إضافة الريل بنجاح.", ToastType.SUCCESS);
             }
             refreshData();

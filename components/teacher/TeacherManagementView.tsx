@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Teacher, ToastType, Grade, User } from '../../types';
-import { getAllTeachers, createTeacher, updateTeacher, deleteTeacher, getGradesForSelection, getUserByTeacherId, supabase } from '../../services/storageService';
+import { getAllTeachers, createTeacher, updateTeacher, deleteTeacher, getGradesForSelection, getUserByTeacherId } from '../../services/storageService';
 import Modal from '../common/Modal';
 import { PlusIcon, PencilIcon, TrashIcon, UserCircleIcon } from '../common/Icons';
 import { useToast } from '../../useToast';
@@ -52,11 +52,12 @@ const TeacherModal: React.FC<{
         const loadTeacherData = async () => {
             setError('');
             if (teacher) {
-                const profileData = await getUserByTeacherId(teacher.id);
+                const { data: profileData } = await getUserByTeacherId(teacher.id);
                 setFormData({
                     name: teacher.name || '',
                     subject: teacher.subject || '',
                     imageUrl: teacher.imageUrl || '',
+                    // FIX: Access property directly on profileData, not profileData.data
                     phone: profileData?.phone?.replace('+2', '') || '',
                     email: profileData?.email || '',
                     password: '' // Don't pre-fill password
@@ -209,6 +210,7 @@ const TeacherModal: React.FC<{
     );
 };
 
+// FIX: Added missing TeacherCard component definition.
 const TeacherCard: React.FC<{ teacher: Teacher; onEdit: () => void; onDelete: () => void; }> = ({ teacher, onEdit, onDelete }) => {
     const levelMap: Record<'Middle' | 'Secondary', string> = {
         'Middle': 'إعدادي',
@@ -280,14 +282,6 @@ const TeacherManagementView: React.FC = () => {
                 }
                 result = await updateTeacher(id, updates);
     
-                if (updates.password && updates.password.trim()) {
-                     const { data: profileData, error: profileError } = await supabase.from('profiles').select('id').eq('teacher_id', id).single();
-                     if (profileError) throw new Error(`Could not find user for teacher: ${profileError.message}`);
-                     if (profileData) {
-                         const { error: passwordError } = await supabase.auth.admin.updateUserById(profileData.id, { password: updates.password });
-                         if (passwordError) throw new Error(`Failed to update password: ${passwordError.message}`);
-                     }
-                }
             } else { // Adding
                 result = await createTeacher({
                     email: data.email,

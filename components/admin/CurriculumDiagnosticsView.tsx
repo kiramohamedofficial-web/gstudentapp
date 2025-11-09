@@ -53,7 +53,7 @@ const CurriculumDiagnosticsView: React.FC<CurriculumDiagnosticsViewProps> = ({ o
 
         try {
             updateCheck('fetch', 'جلب البيانات الخام', 'running', 'جاري جلب البيانات من جدول `grades`...');
-            const { data, error } = await supabase.from('grades').select('*').order('id');
+            const { data, error } = await supabase.from('grades').select('*').order('id', { ascending: true });
             if (error) throw new Error(`فشل جلب البيانات: ${error.message}`);
             
             setRawData(data);

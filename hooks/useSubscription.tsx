@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useCallback, useContext, useMemo } from 'react';
-import { getSubscriptionsByUserId, supabase } from '../services/storageService';
+// FIX: Changed function name to match exported function
+import { getUserSubscriptions } from '../services/storageService';
 import { Subscription, AppNotification, ToastType } from '../types';
 import { useSession } from './useSession';
 import { useToast } from '../useToast';
@@ -28,16 +29,18 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
         if (currentUser) {
             setIsLoading(true);
             try {
-                const subsData = await getSubscriptionsByUserId(currentUser.id);
+                // FIX: Use the correct function name `getUserSubscriptions`
+                const { data: subsData, error } = await getUserSubscriptions(currentUser.id);
+                if (error) throw error;
                 // FIX: Map snake_case fields from DB to camelCase fields in the frontend type.
-                const mappedSubs = subsData.map((sub: any) => ({
+                const mappedSubs = (subsData || []).map((sub: any) => ({
                     id: sub.id,
-                    userId: sub.user_id,
+                    userId: sub.user_id || sub.userId,
                     plan: sub.plan,
-                    startDate: sub.start_date,
-                    endDate: sub.end_date,
+                    startDate: sub.start_date || sub.startDate,
+                    endDate: sub.end_date || sub.endDate,
                     status: sub.status,
-                    teacherId: sub.teacher_id,
+                    teacherId: sub.teacher_id || sub.teacherId,
                 }));
                 setSubscriptions(mappedSubs);
             } catch (error) {
@@ -55,27 +58,6 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
     useEffect(() => {
         fetchSubscription();
     }, [fetchSubscription]);
-
-    useEffect(() => {
-        if (!currentUser) return;
-
-        const subscriptionChannel = supabase
-            .channel(`user-subscriptions-${currentUser.id}`)
-            .on('postgres_changes', {
-                event: '*',
-                schema: 'public',
-                table: 'subscriptions',
-                filter: `user_id=eq.${currentUser.id}`
-            }, payload => {
-                addToast('تم تحديث حالة اشتراكك!', ToastType.INFO);
-                fetchSubscription();
-            })
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(subscriptionChannel);
-        };
-    }, [currentUser, fetchSubscription, addToast]);
 
     useEffect(() => {
         if (subscriptions.length > 0) {

@@ -115,12 +115,12 @@ const CartoonMoviesManagementView: React.FC = () => {
     const handleSave = async (data: Partial<Omit<CartoonMovie, 'id' | 'createdAt'>>) => {
         try {
             if (modalState.data.id) { // Editing
-                const { error } = await updateCartoonMovie(modalState.data.id, data);
-                if (error) throw error;
+                const result = await updateCartoonMovie(modalState.data.id, data);
+                if ((result as any).error) throw (result as any).error;
                 addToast("تم تحديث الفيلم بنجاح.", ToastType.SUCCESS);
             } else { // Adding
-                const { error } = await addCartoonMovie(data);
-                if (error) throw error;
+                const result = await addCartoonMovie(data);
+                if ((result as any).error) throw (result as any).error;
                 addToast("تم إضافة الفيلم بنجاح.", ToastType.SUCCESS);
             }
             refreshData();

@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Course, Teacher, ToastType, StudentView } from '../../types';
+// FIX: Use `getPublishedCourses` as `getAllCourses` is not exported from storageService.
 import { getPublishedCourses, getAllTeachers } from '../../services/storageService';
 import { useToast } from '../../useToast';
 import Modal from '../common/Modal';

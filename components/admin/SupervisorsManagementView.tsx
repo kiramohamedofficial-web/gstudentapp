@@ -72,12 +72,12 @@ const SupervisorsManagementView: React.FC = () => {
     const handleDelete = async () => {
         if (!deletingSupervisor) return;
         setIsActionLoading(true);
-        const { success, error } = await deleteSupervisor(deletingSupervisor.id);
-        if (success) {
+        const result = await deleteSupervisor(deletingSupervisor.id);
+        if (result.success) {
             addToast('تم حذف المشرف بنجاح.', ToastType.SUCCESS);
             fetchData();
         } else {
-            addToast(`فشل حذف المشرف: ${error?.message}`, ToastType.ERROR);
+            addToast(`فشل حذف المشرف: ${(result as any).error?.message}`, ToastType.ERROR);
         }
         setDeletingSupervisor(null);
         setIsActionLoading(false);

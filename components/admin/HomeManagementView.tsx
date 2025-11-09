@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Book, ToastType, Teacher } from '../../types';
 import { 
-    getFeaturedCourses, addFeaturedCourse, updateFeaturedCourse, deleteFeaturedCourse,
-    getFeaturedBooks, addFeaturedBook, updateFeaturedBook, deleteFeaturedBook, getAllTeachers
+    getFeaturedCourses, updateFeaturedCourse, deleteFeaturedCourse,
+    getFeaturedBooks, updateFeaturedBook, deleteFeaturedBook, getAllTeachers, addFeaturedBook, addFeaturedCourse
 } from '../../services/storageService';
 import Modal from '../common/Modal';
 import { PlusIcon, PencilIcon, TrashIcon, BookBookmarkIcon, TemplateIcon } from '../common/Icons';
