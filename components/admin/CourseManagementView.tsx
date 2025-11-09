@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Course, Teacher, ToastType } from '../../types';
-// FIX: Changed to a function that exists in the mock service
-import { getPublishedCourses, getAllTeachers, deleteCourse } from '../../services/storageService';
+import { getAllCourses, getAllTeachers, deleteCourse } from '../../services/storageService';
 import { useToast } from '../../useToast';
 import { PlusIcon, PencilIcon, TrashIcon, BookOpenIcon } from '../common/Icons';
 import Loader from '../common/Loader';
@@ -41,8 +40,7 @@ const CourseManagementView: React.FC = () => {
 
     const fetchData = useCallback(async () => {
         setIsLoading(true);
-        // FIX: Use the correct function `getPublishedCourses`
-        const [courseData, teacherData] = await Promise.all([getPublishedCourses(), getAllTeachers()]);
+        const [courseData, teacherData] = await Promise.all([getAllCourses(), getAllTeachers()]);
         setCourses(courseData);
         setTeachers(teacherData);
         setIsLoading(false);
@@ -50,7 +48,7 @@ const CourseManagementView: React.FC = () => {
 
     useEffect(() => {
         fetchData();
-    }, [fetchData]);
+    }, []);
 
     const handleAdd = () => {
         setEditingCourse(null);
@@ -64,9 +62,9 @@ const CourseManagementView: React.FC = () => {
 
     const handleDelete = async () => {
         if (!deletingCourse) return;
-        const result = await deleteCourse(deletingCourse.id);
-        if ((result as any).error) {
-            addToast(`فشل حذف الكورس: ${(result as any).error.message}`, ToastType.ERROR);
+        const { error } = await deleteCourse(deletingCourse.id);
+        if (error) {
+            addToast(`فشل حذف الكورس: ${error.message}`, ToastType.ERROR);
         } else {
             addToast('تم حذف الكورس بنجاح.', ToastType.SUCCESS);
             fetchData();

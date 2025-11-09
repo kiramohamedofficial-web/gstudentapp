@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { Teacher, Subscription, User, ToastType } from '../../types';
-import { getSubscriptionsByTeacherId, getAllUsers } from '../../services/storageService';
+import { getSubscriptionsByTeacherId, getAllUsers, supabase } from '../../services/storageService';
 import { CreditCardIcon } from '../common/Icons';
 import Loader from '../common/Loader';
 import { useToast } from '../../useToast';
@@ -29,10 +29,26 @@ const TeacherSubscriptionsView: React.FC<TeacherSubscriptionsViewProps> = ({ tea
 
     useEffect(() => {
         fetchData();
-        // Fallback polling for demo mode since websockets are removed
-        const interval = setInterval(fetchData, 30000);
-        return () => clearInterval(interval);
     }, [fetchData]);
+
+    useEffect(() => {
+        const channel = supabase
+            .channel(`teacher-subs-changes-${teacher.id}`)
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'subscriptions',
+                filter: `teacher_id=eq.${teacher.id}`
+            }, (payload) => {
+                addToast('تم تحديث قائمة طلابك!', ToastType.INFO);
+                fetchData();
+            })
+            .subscribe();
+        
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [teacher.id, fetchData, addToast]);
 
     return (
         <div>

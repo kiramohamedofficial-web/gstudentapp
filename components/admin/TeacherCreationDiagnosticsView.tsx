@@ -1,5 +1,4 @@
 
-
 import React, { useState } from 'react';
 import { supabase, createTeacher, deleteTeacher } from '../../services/storageService';
 import { useToast } from '../../useToast';

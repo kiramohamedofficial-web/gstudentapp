@@ -6,13 +6,6 @@ export const DEMO_STUDENT_IDENTIFIER = 'student@demo.com';
 export const DEMO_STUDENT_PASSWORD = '1234';
 export const DEMO_ADMIN_IDENTIFIER = 'admin@demo.com';
 export const DEMO_ADMIN_PASSWORD = 'admin';
-export const DEMO_TEACHER_IDENTIFIER = 'teacher@demo.com';
-export const DEMO_TEACHER_PASSWORD = 'teacher';
-export const DEMO_SUPERVISOR_IDENTIFIER = 'supervisor@demo.com';
-export const DEMO_SUPERVISOR_PASSWORD = 'supervisor';
-export const DEMO_PROF_ADMIN_IDENTIFIER = 'prof@gstudent.com';
-export const DEMO_PROF_ADMIN_PASSWORD = 'prof';
-
 
 export const THEMES: {
   id: string;

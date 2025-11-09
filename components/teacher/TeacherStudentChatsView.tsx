@@ -41,7 +41,7 @@ const ChatModal: React.FC<{ conversation: Conversation | null; teacher: Teacher;
             .gte('created_at', threeDaysAgo)
             .order('created_at', { ascending: true });
         
-        if (data) setMessages(data as TeacherChatMessage[]);
+        if (data) setMessages(data);
         setIsLoading(false);
     }, [conversation, teacher.id]);
 

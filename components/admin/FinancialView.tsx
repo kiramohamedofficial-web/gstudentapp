@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { SubscriptionRequest, ToastType, Subscription, Grade, User, PlatformSettings } from '../../types';
-import { getAllSubscriptionRequests, updateSubscriptionRequest, createOrUpdateSubscription, getAllSubscriptions, getAllUsers, getAllGrades, getPlatformSettings } from '../../services/storageService';
+import { getAllSubscriptionRequests, updateSubscriptionRequest, createOrUpdateSubscription, getAllSubscriptions, getAllUsers, getAllGrades, getPlatformSettings, supabase } from '../../services/storageService';
 import { useToast } from '../../useToast';
 import Modal from '../common/Modal';
 import { BellIcon, CheckCircleIcon, ClockIcon, CreditCardIcon, PhoneIcon, TrashIcon, CheckIcon, UserCircleIcon, CurrencyDollarIcon } from '../common/Icons';
@@ -172,10 +172,25 @@ const SubscriptionManagementView: React.FC = () => {
             setIsLoading(false);
         };
         fetchData();
-        const interval = setInterval(fetchData, 30000);
-        return () => clearInterval(interval);
     }, [dataVersion]);
     
+    useEffect(() => {
+        const channel = supabase
+            .channel('subscription-requests-realtime')
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'subscription_requests'
+            }, (payload) => {
+                addToast('تم تحديث طلبات الاشتراك.', ToastType.INFO);
+                refreshData();
+            })
+            .subscribe();
+    
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [refreshData, addToast]);
 
     const findTeacherIdForUnit = useCallback((unitIdToFind: string): string | undefined => {
         for (const grade of allGrades) {

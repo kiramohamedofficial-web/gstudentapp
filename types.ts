@@ -26,14 +26,6 @@ export interface User {
   teacherId?: string; // Links user to a teacher profile
 }
 
-// FIX: Add Session interface for authentication context
-export interface Session {
-  user: {
-    id: string;
-    email?: string;
-  };
-}
-
 export interface Subscription {
   id: string;
   userId: string;
@@ -68,8 +60,7 @@ export interface Lesson {
   id:string;
   title: string;
   type: LessonType;
-  // FIX: Made content optional to support quiz-only lessons
-  content?: string; // YouTube video ID, summary text, etc.
+  content: string; // YouTube video ID, summary text, etc.
   
   // Quiz fields
   quizType?: QuizType;

@@ -1,30 +1,13 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { User } from '../../types';
-import { QrcodeIcon, CreditCardIcon, HomeIcon, XIcon, TemplateIcon, CogIcon, LogoutIcon, BellIcon, QuestionMarkCircleIcon, CurrencyDollarIcon, BookOpenIcon, HardDriveIcon, ChartBarIcon, UsersSolidIcon, ReelsIcon } from '../common/Icons';
+import { CollectionIcon, QrcodeIcon, CreditCardIcon, HomeIcon, XIcon, TemplateIcon, CogIcon, LogoutIcon, UsersIcon, UserCircleIcon, BellIcon, CurrencyDollarIcon, BookOpenIcon, HardDriveIcon, ChartBarIcon } from '../common/Icons';
 import { getPendingSubscriptionRequestCount } from '../../services/storageService';
 
-type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'courseManagement' | 'tools' | 'homeManagement' | 'questionBank' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers' | 'subscriptionPrices' | 'deviceManagement' | 'content' | 'accountCreationDiagnostics' | 'teacherCreationDiagnostics' | 'financials' | 'cartoonMoviesManagement' | 'supervisors' | 'reelsManagement';
-
-const ContentManagementIcon: React.FC<{ className?: string }> = ({ className }) => (
-    <img src="https://a.top4top.io/p_3591fcsm53.png" alt="Content Management" className={className} />
-);
-
-const TeacherManagementIcon: React.FC<{ className?: string }> = ({ className }) => (
-    <img src="https://l.top4top.io/p_3591st8vz2.png" alt="Teacher Management" className={className} />
-);
-
-const StudentManagementIcon: React.FC<{ className?: string }> = ({ className }) => (
-    <img src="https://l.top4top.io/p_3591vsc7c1.png" alt="Student Management" className={className} />
-);
+type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'courseManagement' | 'tools' | 'homeManagement' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers' | 'subscriptionPrices' | 'deviceManagement' | 'content' | 'accountCreationDiagnostics' | 'teacherCreationDiagnostics' | 'financials';
 
 const SystemHealthIcon: React.FC<{ className?: string }> = ({ className }) => (
     <img src="https://g.top4top.io/p_3584g68tl0.png" alt="System Health" className={className} />
 );
-
-const CartoonMoviesIcon: React.FC<{ className?: string }> = ({ className }) => (
-    <img src="https://h.top4top.io/p_3584kk8d71.png" alt="Cartoon Movies" className={className} />
-);
-
 
 interface AdminLayoutProps {
   user: User;
@@ -36,19 +19,15 @@ interface AdminLayoutProps {
 
 const mainNavItems = [
     { id: 'dashboard', label: 'الرئيسية', icon: HomeIcon },
-    { id: 'students', label: 'إدارة الطلاب', icon: StudentManagementIcon },
-    { id: 'teachers', label: 'إدارة المدرسين', icon: TeacherManagementIcon },
-    { id: 'supervisors', label: 'إدارة المشرفين', icon: UsersSolidIcon },
-    { id: 'content', label: 'إدارة المنهج الدراسي', icon: ContentManagementIcon },
+    { id: 'students', label: 'إدارة الطلاب', icon: UsersIcon },
+    { id: 'teachers', label: 'إدارة المدرسين', icon: UserCircleIcon },
+    { id: 'content', label: 'إدارة المنهج الدراسي', icon: CollectionIcon },
     { id: 'courseManagement', label: 'إدارة الكورسات', icon: BookOpenIcon },
     { id: 'homeManagement', label: 'إدارة الرئيسية', icon: TemplateIcon },
-    { id: 'cartoonMoviesManagement', label: 'أفلام الكرتون', icon: CartoonMoviesIcon },
-    { id: 'reelsManagement', label: 'إدارة الريلز', icon: ReelsIcon },
     { id: 'subscriptions', label: 'الاشتراكات', icon: CreditCardIcon },
     { id: 'financials', label: 'التقارير المالية', icon: ChartBarIcon },
     { id: 'subscriptionPrices', label: 'أسعار الاشتراكات', icon: CurrencyDollarIcon },
     { id: 'tools', label: 'أكواد الاشتراكات', icon: QrcodeIcon },
-    { id: 'questionBank', label: 'بنك الأسئلة', icon: QuestionMarkCircleIcon },
 ];
 
 const settingsNavItems = [
@@ -131,27 +110,22 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ user, onLogout, children, onN
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
-  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
-  const notificationsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const fetchPendingCount = async () => {
-        const count = await getPendingSubscriptionRequestCount();
-        setPendingRequestsCount(count);
-    };
-    fetchPendingCount();
-    const interval = setInterval(fetchPendingCount, 30000); // Poll every 30 seconds in demo mode
-    return () => clearInterval(interval);
-  }, []);
+      const fetchPendingCount = async () => {
+          const count = await getPendingSubscriptionRequestCount();
+          setPendingRequestsCount(count);
+      };
+      fetchPendingCount();
+      const interval = setInterval(fetchPendingCount, 60000); // every minute
+      return () => clearInterval(interval);
+  }, [children]);
 
    useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
                 setIsProfileMenuOpen(false);
-            }
-            if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
-                setIsNotificationsOpen(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -182,7 +156,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ user, onLogout, children, onN
 
         <div className="flex-1 flex flex-col overflow-hidden md:rounded-2xl">
           {/* Header */}
-          <header className="app-header relative">
+          <header className="app-header">
                 <div className="header-logo" style={{ cursor: 'pointer' }} onClick={() => onNavClick('dashboard')}>
                     <div className="header-logo-icon" style={{background: 'linear-gradient(135deg, #a855f7, #ec4899)'}}>
                         <i className="fa-solid fa-gear text-white"></i>
@@ -191,39 +165,12 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ user, onLogout, children, onN
                 </div>
 
                 <div className="header-actions">
+                    <button onClick={() => onNavClick('subscriptions')} className="notification-btn">
+                        <i className="fas fa-bell"></i>
+                        {pendingRequestsCount > 0 && <span className="badge">{pendingRequestsCount}</span>}
+                    </button>
                     <div className="relative">
-                        <button onClick={() => { setIsNotificationsOpen(p => !p); setIsProfileMenuOpen(false); }} className="notification-btn">
-                            <BellIcon className="w-6 h-6 text-[var(--text-secondary)]" />
-                            {pendingRequestsCount > 0 && <span className="badge">{pendingRequestsCount}</span>}
-                        </button>
-                        {isNotificationsOpen && (
-                            <div ref={notificationsRef} className="absolute top-full mt-3 left-0 w-80 bg-[var(--bg-primary)] border border-[var(--border-secondary)] rounded-2xl shadow-lg z-50 fade-in-up">
-                                <div className="p-4 border-b border-[var(--border-primary)]"><h3 className="font-bold text-lg text-[var(--text-primary)]">الإشعارات</h3></div>
-                                {pendingRequestsCount > 0 ? (
-                                    <div className="p-2 max-h-80 overflow-y-auto">
-                                        <button 
-                                            onClick={() => {
-                                                onNavClick('subscriptions');
-                                                setIsNotificationsOpen(false);
-                                            }}
-                                            className="w-full p-3 rounded-lg hover:bg-[var(--bg-tertiary)] text-right"
-                                        >
-                                            <p className="text-sm text-[var(--text-primary)]">لديك {pendingRequestsCount} طلبات اشتراك جديدة للمراجعة.</p>
-                                            <p className="text-xs text-purple-400 font-semibold mt-1">
-                                                اضغط هنا للانتقال
-                                            </p>
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <div className="p-8 text-center text-sm text-[var(--text-secondary)]">
-                                        <p>لا توجد إشعارات جديدة حاليًا.</p>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                    <div className="relative">
-                        <div onClick={() => { setIsProfileMenuOpen(p => !p); setIsNotificationsOpen(false); }} className="user-avatar" style={{background: 'linear-gradient(135deg, #a855f7, #ec4899)'}}>
+                        <div onClick={() => setIsProfileMenuOpen(p => !p)} className="user-avatar" style={{background: 'linear-gradient(135deg, #a855f7, #ec4899)'}}>
                             {user.name.charAt(0)}
                         </div>
                         {isProfileMenuOpen && (

@@ -1,10 +1,7 @@
 
-
-
 import React, { useState, useMemo, useEffect, lazy, Suspense } from 'react';
-// FIX: Import SupervisorProfile type
-import { User, Theme, TeacherView, Teacher, Grade, Role, SupervisorProfile } from '../../types';
-import { getTeacherById, getSubscriptionsByTeacherId, getAllGrades } from '../../services/storageService';
+import { User, Theme, TeacherView, Teacher, Grade, Role } from '../../types';
+import { getTeacherById, getSubscriptionsByTeacherId, getAllGrades, supabase } from '../../services/storageService';
 import TeacherLayout from './TeacherLayout';
 import { CollectionIcon, UsersIcon, InformationCircleIcon } from '../common/Icons';
 import { useSession } from '../../hooks/useSession';
@@ -96,9 +93,20 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = (props) => {
         setSelectedTeacherId(null);
 
         if (user.role === Role.SUPERVISOR) {
-            // In mock mode, the full supervisor profile is already on the user object
-            const supervisorUser = user as SupervisorProfile;
-            const validProfiles = supervisorUser.supervisor_teachers?.map(st => st.teachers).filter(Boolean) || [];
+             const { data: links, error: linkError } = await supabase
+                .from('supervisor_teachers')
+                .select('teacher_id')
+                .eq('supervisor_id', user.id);
+
+            if (linkError || !links || links.length === 0) {
+                console.error("Supervisor has no linked teachers or failed to fetch them.", linkError);
+                setIsLoading(false);
+                return;
+            }
+
+            const teacherIds = links.map(l => l.teacher_id);
+            const profiles = await Promise.all(teacherIds.map(id => getTeacherById(id)));
+            const validProfiles = profiles.filter((p): p is Teacher => p !== null);
             
             setSupervisedTeachers(validProfiles);
             if (validProfiles.length > 0) {
