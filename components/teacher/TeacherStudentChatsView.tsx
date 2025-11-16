@@ -22,7 +22,7 @@ interface Conversation {
     lastMessage: TeacherChatMessage;
 }
 
-const ChatModal: React.FC<{ conversation: Conversation | null; teacher: Teacher; teacherId: string; onClose: () => void; }> = ({ conversation, teacher, teacherId, onClose }) => {
+const TeacherChatInterface: React.FC<{ conversation: Conversation; teacher: Teacher; teacherId: string; onBack: () => void; }> = ({ conversation, teacher, teacherId, onBack }) => {
     const [messages, setMessages] = useState<TeacherChatMessage[]>([]);
     const [newMessage, setNewMessage] = useState('');
     const [isLoading, setIsLoading] = useState(true);
@@ -113,39 +113,41 @@ const ChatModal: React.FC<{ conversation: Conversation | null; teacher: Teacher;
         }
     };
     
-    if (!conversation) return null;
-
     return (
-        <Modal isOpen={true} onClose={onClose} title={`محادثة مع ${conversation.student.name}`}>
-            <div className="flex flex-col h-[70vh] bg-[var(--bg-primary)] -m-4 sm:-m-6">
-                 <header className="flex-shrink-0 p-3 border-b border-[var(--border-primary)] flex justify-between items-center bg-[var(--bg-secondary)]">
-                    <p className="font-semibold text-sm">طالب في: {conversation.student.gradeData?.name || 'غير محدد'}</p>
-                    <button onClick={onClose} className="p-2 hover:bg-[var(--bg-tertiary)] rounded-full"><XIcon className="w-5 h-5"/></button>
-                 </header>
-
-                <div className="flex-1 p-4 space-y-4 overflow-y-auto">
-                    {isLoading && <div className="flex justify-center items-center h-full"><Loader /></div>}
-                    {!isLoading && messages.map(msg => (
-                        <div key={msg.id} className={`flex items-end gap-2.5 ${msg.sender_id === teacherId ? 'justify-end' : 'justify-start'}`}>
-                             {msg.sender_id !== teacherId && <div className="w-8 h-8 rounded-full bg-gray-700 flex-shrink-0"></div>}
-                            <div className={`max-w-md p-3 px-4 rounded-2xl ${msg.sender_id === teacherId ? 'bg-purple-600 text-white rounded-br-lg' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-bl-lg'}`}>
-                                <p className="whitespace-pre-wrap text-sm leading-relaxed">{msg.content}</p>
-                                <p className="text-xs opacity-70 mt-1.5 text-right">{new Date(msg.created_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</p>
-                            </div>
-                        </div>
-                    ))}
-                    <div ref={chatEndRef} />
+        <div className="h-full flex flex-col bg-[var(--bg-secondary)] sm:rounded-2xl shadow-lg border border-[var(--border-primary)]">
+             <header className="flex-shrink-0 p-3 border-b border-[var(--border-primary)] flex justify-between items-center bg-[var(--bg-secondary)] sm:rounded-t-2xl">
+                <div>
+                    <p className="font-bold text-lg">{conversation.student.name}</p>
+                    <p className="font-semibold text-sm text-[var(--text-secondary)]">طالب في: {conversation.student.gradeData?.name || 'غير محدد'}</p>
                 </div>
-                 <footer className="p-3 border-t border-[var(--border-primary)] bg-[var(--bg-secondary)]">
-                    <form onSubmit={handleSendMessage} className="flex items-center gap-3">
-                        <input type="text" value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="اكتب ردك..." className="flex-1 px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-full focus:ring-2 focus:ring-purple-500 transition-all" />
-                        <button type="submit" className="w-12 h-12 flex-shrink-0 bg-purple-600 text-white rounded-full flex items-center justify-center transition-transform hover:scale-110 disabled:bg-gray-500 disabled:scale-100" disabled={!newMessage.trim()}>
-                            <PaperAirplaneIcon className="w-6 h-6"/>
-                        </button>
-                    </form>
-                </footer>
+                <button onClick={onBack} className="p-2 hover:bg-[var(--bg-tertiary)] rounded-full"><ArrowRightIcon className="w-6 h-6"/></button>
+             </header>
+
+            <div className="flex-1 p-4 space-y-4 overflow-y-auto bg-[var(--bg-primary)]">
+                {isLoading && <div className="flex justify-center items-center h-full"><Loader /></div>}
+                {!isLoading && messages.map(msg => (
+                    <div key={msg.id} className={`flex items-end gap-2.5 ${msg.sender_id === teacherId ? 'justify-end' : 'justify-start'} fade-in`}>
+                         {msg.sender_id !== teacherId && <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold flex-shrink-0">{conversation.student.name.charAt(0)}</div>}
+                        <div className={`max-w-md p-3 px-4 rounded-2xl shadow-sm ${msg.sender_id === teacherId ? 'bg-purple-600 text-white rounded-br-none' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-bl-none'}`}>
+                            <p className="whitespace-pre-wrap text-sm leading-relaxed">{msg.content}</p>
+                            <p className="text-xs opacity-70 mt-1.5 text-left">{new Date(msg.created_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</p>
+                        </div>
+                    </div>
+                ))}
+                <div ref={chatEndRef} />
             </div>
-        </Modal>
+             <footer 
+                className="p-3 border-t border-[var(--border-primary)] bg-[var(--bg-secondary)] sm:rounded-b-2xl" 
+                style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 1rem))' }}
+             >
+                <form onSubmit={handleSendMessage} className="flex items-center gap-3">
+                    <input type="text" value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="اكتب ردك..." className="flex-1 px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-full focus:ring-2 focus:ring-purple-500 transition-all" />
+                    <button type="submit" className="w-12 h-12 flex-shrink-0 bg-purple-600 text-white rounded-full flex items-center justify-center transition-transform hover:scale-110 disabled:bg-gray-500 disabled:scale-100" disabled={!newMessage.trim()}>
+                        <PaperAirplaneIcon className="w-6 h-6"/>
+                    </button>
+                </form>
+            </footer>
+        </div>
     );
 };
 
@@ -164,7 +166,6 @@ const TeacherStudentChatsView: React.FC<TeacherStudentChatsViewProps> = ({ teach
         const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
         const { data: messages, error } = await supabase
             .from('teacher_chats')
-            .select('*')
             .eq('teacher_id', teacher.id)
             .gte('created_at', threeDaysAgo)
             .order('created_at', { ascending: false });
@@ -215,6 +216,19 @@ const TeacherStudentChatsView: React.FC<TeacherStudentChatsViewProps> = ({ teach
         return () => { supabase.removeChannel(channel); };
     }, [fetchData, teacher.id]);
 
+    if (selectedConversation) {
+        return (
+            <div className="h-full -m-4 md:-m-6">
+                <TeacherChatInterface 
+                    conversation={selectedConversation}
+                    teacher={teacher}
+                    teacherId={teacherId}
+                    onBack={() => setSelectedConversation(null)}
+                />
+            </div>
+        );
+    }
+
     return (
         <div>
             <h1 className="text-3xl font-bold mb-6 text-[var(--text-primary)]">رسائل الطلاب</h1>
@@ -227,7 +241,7 @@ const TeacherStudentChatsView: React.FC<TeacherStudentChatsViewProps> = ({ teach
                             <div className="flex items-center gap-4">
                                 <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">{convo.student.name.charAt(0)}</div>
                                 <div>
-                                    <h3 className="font-bold text-lg">{convo.student.name}</h3>
+                                    <h3 className="font-bold text-lg text-[var(--text-primary)]">{convo.student.name}</h3>
                                     <p className="text-sm text-[var(--text-secondary)] mt-2 line-clamp-1 max-w-md">
                                         <span className={`font-semibold ${convo.lastMessage.sender_id !== teacherId ? 'text-purple-400' : 'text-[var(--text-secondary)]'}`}>
                                             {convo.lastMessage.sender_id !== teacherId ? 'الطالب: ' : 'أنت: '}
@@ -238,7 +252,7 @@ const TeacherStudentChatsView: React.FC<TeacherStudentChatsViewProps> = ({ teach
                             </div>
                             <div className="flex flex-col items-end">
                                 <span className="text-xs text-[var(--text-secondary)] mb-2">{new Date(convo.lastMessage.created_at).toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'})}</span>
-                                {convo.lastMessage.sender_id !== teacherId && <div className="w-3 h-3 rounded-full bg-purple-500"></div>}
+                                {convo.lastMessage.sender_id !== teacherId && <div className="w-3 h-3 rounded-full bg-purple-500 animate-pulse"></div>}
                             </div>
                         </button>
                     ))}
@@ -248,10 +262,6 @@ const TeacherStudentChatsView: React.FC<TeacherStudentChatsViewProps> = ({ teach
                     <ChatBubbleOvalLeftEllipsisIcon className="w-16 h-16 mx-auto text-[var(--text-secondary)] opacity-20 mb-4"/>
                     <p className="text-[var(--text-secondary)]">لا توجد رسائل جديدة من الطلاب.</p>
                 </div>
-            )}
-            
-            {selectedConversation && (
-                <ChatModal conversation={selectedConversation} teacher={teacher} teacherId={teacherId} onClose={() => setSelectedConversation(null)} />
             )}
         </div>
     );

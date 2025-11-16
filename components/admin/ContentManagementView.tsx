@@ -75,7 +75,7 @@ const LessonModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (dat
     
     useEffect(() => {
         if (isOpen) {
-            const initialData = lesson ? { ...lesson } : { type: LessonType.EXPLANATION, correctAnswers: [] };
+            const initialData = lesson ? { ...lesson } : { type: LessonType.EXPLANATION, correctAnswers: [], isFree: false };
             if (!initialData.type) initialData.type = LessonType.EXPLANATION;
             setFormData(initialData);
             setQuizEditorMode(initialData.quizType === 'mcq' ? 'mcq' : 'image');
@@ -184,6 +184,16 @@ const LessonModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (dat
                 <select name="type" value={formData.type} onChange={handleChange} className="w-full p-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md">
                     {Object.values(LessonType).map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
+                <label className="flex items-center space-x-2 space-x-reverse cursor-pointer p-2 rounded-md hover:bg-white/5">
+                    <input 
+                        type="checkbox" 
+                        name="isFree" 
+                        checked={!!formData.isFree} 
+                        onChange={e => setFormData(prev => ({ ...prev, isFree: e.target.checked }))} 
+                        className="h-4 w-4 rounded border-gray-500 bg-transparent text-purple-600 focus:ring-purple-500" 
+                    />
+                    <span className="text-[var(--text-secondary)] text-sm font-semibold">درس مجاني للجميع</span>
+                </label>
                 
                 {type === LessonType.EXPLANATION && <input type="text" placeholder="معرف فيديو يوتيوب" name="content" value={formData.content || ''} onChange={handleChange} className="w-full p-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md"/>}
                 {type === LessonType.SUMMARY && <textarea placeholder="محتوى الملخص" name="content" value={formData.content || ''} onChange={handleChange} className="w-full p-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md" rows={5}></textarea>}

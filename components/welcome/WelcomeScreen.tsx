@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getAllGrades, getPlatformSettings } from '../../services/storageService';
 import { Grade, PlatformSettings } from '../../types';
-import { AtomIcon, ArrowLeftIcon, PhoneIcon, YoutubeIcon, FacebookIcon, SparklesIcon, ChartBarIcon, VideoCameraIcon, BrainIcon, BookOpenIcon, ArrowRightIcon, MenuIcon, XIcon } from '../common/Icons';
+import { AtomIcon, ArrowLeftIcon, PhoneIcon, YoutubeIcon, FacebookIcon, SparklesIcon, ChartBarIcon, VideoCameraIcon, BrainIcon, BookOpenIcon, ArrowRightIcon, MenuIcon, XIcon, SunIcon, MoonIcon } from '../common/Icons';
+import { useAppearance } from '../../App';
 
 interface WelcomeScreenProps {
     onNavigateToLogin: () => void;
@@ -28,22 +29,37 @@ const MobileNav: React.FC<{ isOpen: boolean; onClose: () => void; onNavigateToLo
     );
 };
 
-const Header: React.FC<{ onNavigateToLogin: () => void; onNavigateToRegister: () => void; onOpenNav: () => void; platformName: string; }> = ({ onNavigateToLogin, onNavigateToRegister, onOpenNav, platformName }) => (
-    <header className="fixed top-0 left-0 right-0 z-50 transition-colors duration-300">
-        <div className="container mx-auto px-6 py-4 flex justify-between items-center bg-[var(--glass-bg)] backdrop-blur-[var(--glass-blur)] border border-[var(--glass-border)] rounded-2xl m-3">
-            <div className="flex items-center">
-                <img src="https://j.top4top.io/p_3584uziv73.png" alt="Gstudent Logo" className="w-10 h-10" />
+const Header: React.FC<{ onNavigateToLogin: () => void; onNavigateToRegister: () => void; onOpenNav: () => void; platformName: string; }> = ({ onNavigateToLogin, onNavigateToRegister, onOpenNav, platformName }) => {
+    const { mode, setMode } = useAppearance();
+    return (
+        <header className="fixed top-0 left-0 right-0 z-50 transition-colors duration-300">
+            <div className="container mx-auto px-6 py-4 flex justify-between items-center bg-[var(--glass-bg)] backdrop-blur-[var(--glass-blur)] border border-[var(--glass-border)] rounded-2xl m-3">
+                <div className="flex items-center">
+                    <img src="https://j.top4top.io/p_3584uziv73.png" alt="Gstudent Logo" className="w-10 h-10" />
+                </div>
+                <div className="hidden md:flex items-center gap-3">
+                     <button onClick={() => setMode(mode === 'light' ? 'dark' : 'light')} className="w-11 h-11 p-3 rounded-full bg-white/5 hover:bg-white/10 transition-colors flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] theme-toggle-button">
+                        <div className="theme-toggle-icons">
+                            <SunIcon className="w-5 h-5 sun-icon" />
+                            <MoonIcon className="w-5 h-5 moon-icon" />
+                        </div>
+                    </button>
+                    <button onClick={onNavigateToRegister} className="px-6 py-2.5 text-sm font-semibold bg-transparent border-2 border-[var(--accent-primary)] text-[var(--accent-primary)] rounded-lg transition-all duration-300 transform hover:scale-105 hover:bg-[rgba(var(--accent-primary-rgb),0.1)]">إنشاء حساب</button>
+                    <button onClick={onNavigateToLogin} className="px-6 py-2.5 text-sm font-semibold bg-[var(--accent-primary)] text-white rounded-lg transition-all duration-300 transform hover:scale-105 hover:brightness-110 shadow-md hover:shadow-lg shadow-[0_10px_20px_-10px_rgba(var(--accent-primary-rgb),0.4)]">تسجيل الدخول</button>
+                </div>
+                <div className="md:hidden flex items-center gap-2">
+                    <button onClick={() => setMode(mode === 'light' ? 'dark' : 'light')} className="w-10 h-10 p-2.5 rounded-full bg-white/5 hover:bg-white/10 transition-colors flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] theme-toggle-button">
+                        <div className="theme-toggle-icons">
+                            <SunIcon className="w-5 h-5 sun-icon" />
+                            <MoonIcon className="w-5 h-5 moon-icon" />
+                        </div>
+                    </button>
+                    <button onClick={onOpenNav} className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"><MenuIcon className="w-7 h-7"/></button>
+                </div>
             </div>
-            <div className="hidden md:flex items-center gap-3">
-                 <button onClick={onNavigateToRegister} className="px-6 py-2.5 text-sm font-semibold bg-transparent border-2 border-[var(--accent-primary)] text-[var(--accent-primary)] rounded-lg transition-all duration-300 transform hover:scale-105 hover:bg-[rgba(var(--accent-primary-rgb),0.1)]">إنشاء حساب</button>
-                <button onClick={onNavigateToLogin} className="px-6 py-2.5 text-sm font-semibold bg-[var(--accent-primary)] text-white rounded-lg transition-all duration-300 transform hover:scale-105 hover:brightness-110 shadow-md hover:shadow-lg shadow-[0_10px_20px_-10px_rgba(var(--accent-primary-rgb),0.4)]">تسجيل الدخول</button>
-            </div>
-            <div className="md:hidden">
-                <button onClick={onOpenNav} className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"><MenuIcon className="w-7 h-7"/></button>
-            </div>
-        </div>
-    </header>
-);
+        </header>
+    );
+};
 
 const CosmicFlowBackground: React.FC = () => (
     <div className="fixed top-0 left-0 right-0 bottom-0 cosmic-flow-background z-[-1]"></div>
@@ -94,7 +110,7 @@ const SatisfactionIcon: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 const SupportIcon: React.FC<{ className?: string }> = ({ className }) => (
-    <img src="https://i.top4top.io/p_35838mn0k1.png" alt="دعم مستمر" className={className} />
+    <img src="https://i.ibb.co/L1pDcnv/support.png" alt="دعم مستمر" className={className} />
 );
 
 const RegisteredStudentIcon: React.FC<{ className?: string }> = ({ className }) => (

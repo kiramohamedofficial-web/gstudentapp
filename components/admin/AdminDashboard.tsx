@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, lazy, Suspense, useCallback } from 'react';
-import { User, ActivityLog, Grade, Theme, Teacher, AdminView, Subscription, QuizAttempt, PlatformSettings } from '../../types';
+import { User, ActivityLog, Grade, Teacher, AdminView, Subscription, QuizAttempt, PlatformSettings } from '../../types';
 import AdminLayout from '../layout/AdminLayout';
 import SubscriptionManagementView from './FinancialView';
 import StudentDetailView from './StudentDetailView';
@@ -14,13 +14,12 @@ import {
     getAllQuizAttempts,
     getPlatformSettings,
 } from '../../services/storageService';
-import { ChartBarIcon, UsersIcon, BellIcon, SearchIcon, InformationCircleIcon, UserCircleIcon, ChevronLeftIcon, VideoCameraIcon, PencilIcon, ChevronRightIcon } from '../common/Icons';
+import { ChartBarIcon, UsersIcon, BellIcon, SearchIcon, InformationCircleIcon, UserCircleIcon, ChevronLeftIcon, VideoCameraIcon, PencilIcon, ChevronRightIcon, ReelsIcon } from '../common/Icons';
 import RevenueChart from './RevenueChart';
 import QrCodeGeneratorView from './QrCodeGeneratorView';
 import HomeManagementView from './HomeManagementView';
 import PlatformSettingsView from './PlatformSettingsView';
 import AdminSettingsView from './AdminSettingsView';
-import TeacherManagementView from './TeacherManagementView';
 import SystemHealthView from './SystemHealthView';
 import Loader from '../common/Loader';
 import { useSession } from '../../hooks/useSession';
@@ -37,12 +36,9 @@ const SubscriptionCodeDiagnosticsView = lazy(() => import('./SubscriptionCodeDia
 const CartoonMoviesManagementView = lazy(() => import('./CartoonMoviesManagementView'));
 const SupervisorsManagementView = lazy(() => import('./SupervisorsManagementView'));
 const ReelsManagementView = lazy(() => import('./ReelsManagementView'));
+const IconSettingsView = lazy(() => import('./IconSettingsView'));
+const TeacherManagementView = lazy(() => import('./TeacherManagementView'));
 
-
-interface AdminDashboardProps {
-  theme: Theme;
-  setTheme: (theme: Theme) => void;
-}
 
 const StatCard: React.FC<{ title: string; value: string; icon: React.FC<{ className?: string; }>; delay: number; onClick?: () => void; }> = React.memo(({ title, value, icon: Icon, delay, onClick }) => (
     <div 
@@ -302,8 +298,7 @@ const StudentManagementView: React.FC<{ onViewDetails: (user: User) => void }> =
     );
 };
 
-const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
-  const { theme, setTheme } = props;
+const AdminDashboard: React.FC = () => {
   const { currentUser: user, handleLogout: onLogout } = useSession();
   const [activeView, setActiveView] = useState<AdminView>('dashboard');
   const [viewingUser, setViewingUser] = useState<User | null>(null);
@@ -407,10 +402,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
         return <HomeManagementView />;
       case 'platformSettings':
         return user ? <PlatformSettingsView user={user} /> : null;
+      case 'iconSettings':
+        return <Suspense fallback={<SuspenseLoader />}><IconSettingsView /></Suspense>;
       case 'accountSettings':
-        return <AdminSettingsView theme={theme} setTheme={setTheme} />;
+        return <AdminSettingsView />;
       case 'teachers':
-        return <TeacherManagementView />;
+        return <Suspense fallback={<SuspenseLoader />}><TeacherManagementView /></Suspense>;
       case 'systemHealth':
         return <SystemHealthView onNavigate={handleNavClick} />;
        case 'deviceManagement':

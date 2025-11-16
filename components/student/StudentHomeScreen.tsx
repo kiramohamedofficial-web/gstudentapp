@@ -134,7 +134,7 @@ const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({ user, onNavigate 
     return (
         <div style={styles as React.CSSProperties} className="space-y-6">
 
-            <section className="welcome-card" style={{ backgroundColor: 'var(--card-bg)', borderRadius: 'var(--border-radius)', padding: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: 'var(--shadow)', marginBottom: '25px'}}>
+            <section className="home-card p-6 flex justify-between items-center mb-6">
                 <div className="welcome-text">
                     <h1 style={{ margin: '0 0 5px 0', fontSize: '1.6rem', fontWeight: 700, color: 'var(--text-dark)'}}>أهلاً بعودتك، {user.name.split(' ')[0]}!</h1>
                     <p style={{ margin: 0, fontSize: '1rem', color: 'var(--text-muted)' }}>{grade?.name || ''}</p>
@@ -159,7 +159,7 @@ const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({ user, onNavigate 
                     </div>
                     <div className="continue-info" style={{ width: '100%' }}>
                         <h3 style={{ margin: '0 0 4px 0', fontSize: '1.1rem' }}>{lastWatched.lessonTitle}</h3>
-                        <p style={{ margin: '0 0 12px 0', fontSize: '0.9rem', color: 'var(--text-muted)' }}>english</p>
+                        <p style={{ margin: '0 0 12px 0', fontSize: '0.9rem', color: 'var(--text-muted)' }}>{unitForLastWatched.title}</p>
                         <div className="progress-bar" style={{ width: '100%', height: '8px', backgroundColor: '#E0E8F5', borderRadius: '4px', overflow: 'hidden' }}>
                             <div className="progress-bar-inner" style={{ height: '100%', width: `${progressForLastWatched}%`, background: 'linear-gradient(90deg, var(--primary-color), var(--primary-light))', borderRadius: '4px', transition: 'width 0.5s ease' }}></div>
                         </div>
@@ -197,7 +197,9 @@ const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({ user, onNavigate 
                 <p className="section-description" style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginBottom: '20px', lineHeight: 1.5 }}>اختر من بين أحدث الدروس المُعدة بعناية لمساعدتك على تحقيق أهدافك التعليمية</p>
                 
                 <div className="lessons-grid" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px', marginBottom: '25px' }}>
-                    {newestLessons.map(({ lesson, unit }, index) => (
+                    {newestLessons.map(({ lesson, unit }, index) => {
+                        const teacher = teacherMap.get(unit.teacherId);
+                        return (
                         <article key={lesson.id} onClick={() => onNavigate('grades', { unit, lesson })} className="lesson-card cursor-pointer" style={{ backgroundColor: 'var(--card-bg)', borderRadius: 'var(--border-radius)', boxShadow: 'var(--shadow)', overflow: 'hidden', transition: 'var(--transition)', border: '1px solid rgba(0,0,0,0.04)' }}>
                             <div className="lesson-thumbnail" style={{ height: '160px', backgroundSize: 'cover', backgroundPosition: 'center', position: 'relative', backgroundImage: `url('https://images.unsplash.com/photo-1635070041078-e363dbe005cb?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60')` }}>
                                 <div style={{ content: '""', position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: 'linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.3) 100%)' }}></div>
@@ -206,7 +208,7 @@ const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({ user, onNavigate 
                             <div className="lesson-info" style={{ padding: '18px' }}>
                                 <h3 className="lesson-title" style={{ fontSize: '1.1rem', fontWeight: 700, margin: '0 0 10px 0', color: 'var(--text-dark)', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{lesson.title}</h3>
                                 <p className="lesson-instructor" style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    <span className="instructor-icon" style={{ color: 'var(--primary-color)' }}>👤</span> english
+                                    <span className="instructor-icon" style={{ color: 'var(--primary-color)' }}>👤</span> {teacher?.name || '...'}
                                 </p>
                                 <div className="lesson-meta" style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px', fontSize: '0.8rem', color: 'var(--text-muted)'}}>
                                      <span>{unit.title}</span>
@@ -214,7 +216,7 @@ const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({ user, onNavigate 
                                 </div>
                             </div>
                         </article>
-                    ))}
+                    )})}
                 </div>
             </section>
 

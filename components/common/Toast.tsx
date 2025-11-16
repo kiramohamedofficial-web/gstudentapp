@@ -1,18 +1,20 @@
 import React from 'react';
 import { useToast } from '../../useToast';
 import { ToastMessage, ToastType } from '../../types';
-import { CheckCircleIcon, XCircleIcon, InformationCircleIcon } from './Icons';
+import { CheckCircleIcon, XCircleIcon, InformationCircleIcon, ShieldExclamationIcon } from './Icons';
 
 const toastIcons: Record<ToastType, React.FC<{className?: string}>> = {
     [ToastType.SUCCESS]: CheckCircleIcon,
     [ToastType.ERROR]: XCircleIcon,
     [ToastType.INFO]: InformationCircleIcon,
+    [ToastType.WARNING]: ShieldExclamationIcon,
 };
 
 const toastStyles: Record<ToastType, string> = {
     [ToastType.SUCCESS]: 'bg-green-500/80 text-white',
     [ToastType.ERROR]: 'bg-red-500/80 text-white',
     [ToastType.INFO]: 'bg-blue-500/80 text-white',
+    [ToastType.WARNING]: 'bg-amber-500/80 text-white',
 };
 
 const Toast: React.FC<{ toast: ToastMessage; onDismiss: (id: string) => void }> = ({ toast, onDismiss }) => {

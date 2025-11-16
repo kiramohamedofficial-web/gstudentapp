@@ -39,7 +39,7 @@ const parseYouTubeVideoId = (url: any): string | null => {
 
 const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, grade, onLessonComplete, onNavigate, isDataSaverEnabled }) => {
     const { currentUser: user } = useSession();
-    const { subscriptions, isLoading: isSubLoading } = useSubscription();
+    const { subscriptions, activeSubscriptions, isLoading: isSubLoading } = useSubscription();
 
     const [isHelpModalOpen, setHelpModalOpen] = useState(false);
     const [aiQuestion, setAiQuestion] = useState('');
@@ -52,38 +52,36 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, grade, onLesson
         setCurrentLesson(lesson);
     }, [lesson]);
 
-    const { hasActiveSubscription, lessonTeacherId } = useMemo(() => {
-        // Find the unit and teacher for the current lesson
-        let teacherId: string | undefined;
-        for (const semester of grade.semesters) {
-            const unit = semester.units.find(u => u.lessons.some(l => l.id === currentLesson.id));
-            if (unit) {
-                teacherId = unit.teacherId;
-                break;
+    const canAccess = useMemo(() => {
+        if (currentLesson.isFree) {
+            return true;
+        }
+
+        if (!currentLesson.publishedAt) {
+            return activeSubscriptions.length > 0;
+        }
+        
+        const lessonPublicationDate = new Date(currentLesson.publishedAt);
+        if (isNaN(lessonPublicationDate.getTime())) {
+            return false;
+        }
+
+        const lessonYear = lessonPublicationDate.getFullYear();
+        const lessonMonth = lessonPublicationDate.getMonth();
+
+        const lessonMonthStart = new Date(lessonYear, lessonMonth, 1);
+        const lessonMonthEnd = new Date(lessonYear, lessonMonth + 1, 0);
+
+        for (const sub of subscriptions) {
+            const subStartDate = new Date(sub.startDate);
+            const subEndDate = new Date(sub.endDate);
+            if (subStartDate <= lessonMonthEnd && subEndDate >= lessonMonthStart) {
+                return true;
             }
         }
 
-        const activeSubs = subscriptions.filter(s => s.status === 'Active' && new Date(s.endDate) >= new Date());
-        
-        if (activeSubs.length === 0) {
-            return { hasActiveSubscription: false, lessonTeacherId: teacherId };
-        }
-
-        // Check for comprehensive subscription (no teacherId)
-        const hasComprehensive = activeSubs.some(s => !s.teacherId);
-        if (hasComprehensive) {
-            return { hasActiveSubscription: true, lessonTeacherId: teacherId };
-        }
-        
-        // Check for teacher-specific subscription
-        if (teacherId) {
-            const hasTeacherSub = activeSubs.some(s => s.teacherId === teacherId);
-            return { hasActiveSubscription: hasTeacherSub, lessonTeacherId: teacherId };
-        }
-        
-        return { hasActiveSubscription: false, lessonTeacherId: teacherId };
-
-    }, [subscriptions, currentLesson, grade]);
+        return false;
+    }, [currentLesson, subscriptions, activeSubscriptions]);
 
     const unit = useMemo(() => {
         for (const semester of grade.semesters) {
@@ -164,9 +162,7 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, grade, onLesson
              return <div className="text-center p-8 bg-[var(--bg-secondary)] rounded-lg">جاري التحقق من الاشتراك...</div>
         }
         
-        const lessonType = (currentLesson.type || '').toLowerCase();
-
-        if (lessonType === LessonType.EXPLANATION.toLowerCase() && !hasActiveSubscription) {
+        if (!canAccess) {
             return (
                 <div className="relative w-full max-w-4xl mx-auto aspect-video bg-gradient-to-br from-[rgba(var(--bg-secondary-rgb),0.5)] to-[rgba(var(--bg-primary-rgb),0.5)] rounded-2xl shadow-2xl border border-purple-500/30 flex flex-col items-center justify-center p-8 text-center overflow-hidden backdrop-blur-lg">
                     <div className="absolute -top-1/4 -right-1/4 w-72 h-72 bg-purple-600/30 rounded-full filter blur-3xl animate-blob"></div>
@@ -176,9 +172,9 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, grade, onLesson
                         <div className="p-4 bg-gray-700/50 rounded-full mb-6 border-2 border-gray-600 inline-block">
                             <LockClosedIcon className="w-12 h-12 text-purple-400" />
                         </div>
-                        <h2 className="text-3xl font-extrabold text-white mb-3">محتوى حصري للمشتركين</h2>
+                        <h2 className="text-3xl font-extrabold text-white mb-3">محتوى مقيد</h2>
                         <p className="text-gray-300 mb-8 max-w-lg mx-auto">
-                            للوصول إلى هذا الدرس وجميع مميزات المنصة، يرجى تفعيل اشتراكك. استثمر في مستقبلك اليوم!
+                           للوصول إلى هذا الدرس، يجب أن يكون لديك اشتراك فعال في الشهر الذي تم فيه نشر الدرس.
                         </p>
                         <button 
                             onClick={() => onNavigate('subscription')}
@@ -193,6 +189,8 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, grade, onLesson
                 </div>
             );
         }
+
+        const lessonType = (currentLesson.type || '').toLowerCase();
 
         switch (lessonType) {
             case LessonType.EXPLANATION.toLowerCase(): {

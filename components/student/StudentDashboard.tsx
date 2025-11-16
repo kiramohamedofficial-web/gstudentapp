@@ -1,10 +1,11 @@
 import React, { useState, useMemo, useEffect, lazy, Suspense, useCallback } from 'react';
-import { Unit, Lesson, StudentView, Theme, Teacher, Course, ToastType, CartoonMovie } from '../../types';
+import { Unit, Lesson, StudentView, Teacher, Course, ToastType, CartoonMovie, Mode } from '../../types';
 import StudentLayout from '../layout/StudentLayout';
 import { SparklesIcon } from '../common/Icons';
 import { useSession } from '../../hooks/useSession';
 import Loader from '../common/Loader';
 import { useToast } from '../../useToast';
+import { useAppearance } from '../../App';
 
 // Lazy load all view components for performance optimization
 const CourseView = lazy(() => import('./CourseView'));
@@ -28,23 +29,18 @@ const AskTeacherView = lazy(() => import('./AskTeacherView'));
 const ReelsView = lazy(() => import('./ReelsView'));
 
 
-interface StudentDashboardProps {
-  theme: Theme;
-  setTheme: (theme: Theme) => void;
-}
-
 const SuspenseLoader: React.FC = () => (
     <div className="w-full h-full flex items-center justify-center">
         <Loader />
     </div>
 );
 
-const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
-  const { theme, setTheme } = props;
+const StudentDashboard: React.FC = () => {
   const { currentUser: user } = useSession();
   const [activeView, setActiveView] = useState<StudentView>('home');
   const [isDataSaverEnabled, setIsDataSaverEnabled] = useState(false);
   const { addToast } = useToast();
+  const { mode, setMode, style, setStyle } = useAppearance();
 
   useEffect(() => {
     performance.mark('student-dashboard-render');
@@ -65,6 +61,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
   const handleDataSaverToggle = (enabled: boolean) => {
     localStorage.setItem('dataSaverEnabled', String(enabled));
     setIsDataSaverEnabled(enabled);
+    addToast(enabled ? 'تم تفعيل وضع توفير البيانات.' : 'تم إيقاف وضع توفير البيانات.', ToastType.INFO);
   };
   
   const studentGrade = useMemo(() => user?.gradeData ?? null, [user]);
@@ -175,7 +172,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
       case 'cartoonMovies':
         return <CartoonMoviesView onBack={() => setActiveView('home')} />;
       case 'chatbot':
-        return <ChatbotView onNavigate={setActiveView} />;
+        return <div className="h-full -m-4 md:-m-6"><ChatbotView onNavigate={setActiveView} /></div>;
       case 'askTeacher':
         return <AskTeacherView />;
       case 'reels':
@@ -199,7 +196,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
       case 'comprehensiveSubscription':
         return <ComprehensiveSubscription onBack={() => setActiveView('subscription')} />;
       case 'profile':
-        return <Profile theme={theme} setTheme={setTheme} isDataSaverEnabled={isDataSaverEnabled} onDataSaverToggle={handleDataSaverToggle} />;
+        return <Profile onNavigate={handleNavClick} isDataSaverEnabled={isDataSaverEnabled} onDataSaverToggle={handleDataSaverToggle} />;
       default:
         return <StudentHomeScreen user={user} onNavigate={handleHomeNavigation} />;
     }
@@ -207,8 +204,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
 
   return (
     <StudentLayout 
-        theme={theme}
-        setTheme={setTheme}
         activeView={activeView} 
         onNavClick={handleNavClick} 
         gradeName={studentGrade?.name}

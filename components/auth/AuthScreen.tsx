@@ -40,12 +40,11 @@ const GradeSelectionModal: React.FC<{
 
     const gradesForLevel = useMemo(() => {
         if (!selectedLevel) return [];
-        // FIX: Use .includes() for robust matching against 'إعدادي'/'ثانوي'
         if (selectedLevel === 'Middle') {
-            return grades.filter(g => g.levelAr?.includes('إعدادي'));
+            return grades.filter(g => g.levelAr?.includes('الإعدادي'));
         }
         if (selectedLevel === 'Secondary') {
-            return grades.filter(g => g.levelAr?.includes('ثانوي'));
+            return grades.filter(g => g.levelAr?.includes('الثانوي'));
         }
         return [];
     }, [grades, selectedLevel]);

@@ -1,8 +1,10 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { PlatformSettings, ToastType } from '../../types';
-import { getPlatformSettings } from '../../services/storageService';
+import { getPlatformSettings, updatePlatformSettings } from '../../services/storageService';
 import { CurrencyDollarIcon, CreditCardIcon, CogIcon } from '../common/Icons';
 import Loader from '../common/Loader';
+import { useToast } from '../../useToast';
 
 const PriceDisplay: React.FC<{ label: string; value: number; currency: string; }> = ({ label, value, currency }) => (
     <div className="bg-[var(--bg-tertiary)] p-4 rounded-lg border border-[var(--border-primary)]">
@@ -13,9 +15,27 @@ const PriceDisplay: React.FC<{ label: string; value: number; currency: string; }
     </div>
 );
 
+const ToggleSwitch: React.FC<{ enabled: boolean; onChange: (enabled: boolean) => void; }> = ({ enabled, onChange }) => (
+    <button
+        type="button"
+        onClick={() => onChange(!enabled)}
+        className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 ${enabled ? 'bg-purple-600' : 'bg-[var(--bg-tertiary)]'}`}
+        role="switch"
+        aria-checked={enabled}
+    >
+        <span
+            aria-hidden="true"
+            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${enabled ? 'translate-x-5' : 'translate-x-0'}`}
+        />
+    </button>
+);
+
 const SubscriptionPriceControlView: React.FC = () => {
     const [settings, setSettings] = useState<PlatformSettings | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isDirty, setIsDirty] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const { addToast } = useToast();
 
     useEffect(() => {
         const fetchSettings = async () => {
@@ -26,6 +46,36 @@ const SubscriptionPriceControlView: React.FC = () => {
         };
         fetchSettings();
     }, []);
+
+    const handleSubscriptionModeChange = useCallback((mode: 'comprehensive' | 'singleSubject', enabled: boolean) => {
+        setSettings(prev => {
+            if (!prev) return null;
+            const currentModes = prev.enabledSubscriptionModes || [];
+            let newModes: ('comprehensive' | 'singleSubject')[];
+            if (enabled) {
+                newModes = [...new Set([...currentModes, mode])];
+            } else {
+                newModes = currentModes.filter(m => m !== mode);
+            }
+            return { ...prev, enabledSubscriptionModes: newModes };
+        });
+        setIsDirty(true);
+    }, []);
+    
+    const handleSave = async () => {
+        if (settings) {
+            setIsSaving(true);
+            const { error } = await updatePlatformSettings(settings);
+            if (error) {
+                addToast(`فشل حفظ الإعدادات: ${error.message}`, ToastType.ERROR);
+            } else {
+                addToast('تم حفظ الإعدادات بنجاح!', ToastType.SUCCESS);
+                setIsDirty(false);
+            }
+            setIsSaving(false);
+        }
+    };
+
 
     if (isLoading || !settings) {
         return <div className="flex justify-center items-center h-64"><Loader /></div>;
@@ -43,23 +93,25 @@ const SubscriptionPriceControlView: React.FC = () => {
                     <CogIcon className="w-6 h-6 text-purple-400" />
                     أنواع الاشتراكات المتاحة
                 </h2>
-                <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-tertiary)] opacity-70">
+                <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-tertiary)]">
                     <div>
-                        <h3 className="font-semibold text-[var(--text-primary)]">الاشتراك الشامل</h3>
-                        <p className="text-sm text-[var(--text-secondary)] mt-1">يسمح للطلاب بالوصول لكل المحتوى.</p>
+                        <h3 className="font-semibold text-[var(--text-primary)]">تفعيل الاشتراك الشامل</h3>
+                        <p className="text-sm text-[var(--text-secondary)] mt-1">السماح للطلاب بالاشتراك في الباقة الشاملة.</p>
                     </div>
-                     <span className={`px-3 py-1 text-xs font-semibold rounded-full ${settings.enabledSubscriptionModes?.includes('comprehensive') ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
-                        {settings.enabledSubscriptionModes?.includes('comprehensive') ? 'مفعل' : 'معطل'}
-                    </span>
+                     <ToggleSwitch 
+                        enabled={(settings.enabledSubscriptionModes ?? ['comprehensive', 'singleSubject']).includes('comprehensive')}
+                        onChange={(enabled) => handleSubscriptionModeChange('comprehensive', enabled)}
+                    />
                 </div>
-                <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-tertiary)] opacity-70">
+                <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-tertiary)]">
                     <div>
-                        <h3 className="font-semibold text-[var(--text-primary)]">اشتراك المادة الواحدة</h3>
-                        <p className="text-sm text-[var(--text-secondary)] mt-1">يسمح للطلاب بالاشتراك في مواد منفصلة.</p>
+                        <h3 className="font-semibold text-[var(--text-primary)]">تفعيل اشتراك المادة الواحدة</h3>
+                        <p className="text-sm text-[var(--text-secondary)] mt-1">السماح للطلاب بالاشتراك في مواد منفصلة.</p>
                     </div>
-                    <span className={`px-3 py-1 text-xs font-semibold rounded-full ${settings.enabledSubscriptionModes?.includes('singleSubject') ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
-                        {settings.enabledSubscriptionModes?.includes('singleSubject') ? 'مفعل' : 'معطل'}
-                    </span>
+                    <ToggleSwitch 
+                        enabled={(settings.enabledSubscriptionModes ?? ['comprehensive', 'singleSubject']).includes('singleSubject')}
+                        onChange={(enabled) => handleSubscriptionModeChange('singleSubject', enabled)}
+                    />
                 </div>
             </div>
 
@@ -106,6 +158,16 @@ const SubscriptionPriceControlView: React.FC = () => {
                     </div>
                 </div>
             </div>
+            {isDirty && (
+                <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 w-auto fade-in-up">
+                    <div className="bg-[var(--bg-tertiary)] p-3 rounded-xl shadow-2xl border border-[var(--border-primary)] flex items-center gap-4">
+                        <p className="text-sm text-[var(--text-secondary)]">لديك تغييرات غير محفوظة.</p>
+                        <button onClick={handleSave} disabled={isSaving} className="px-5 py-2 font-bold text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50">
+                            {isSaving ? 'جاري الحفظ...' : 'حفظ التغييرات'}
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

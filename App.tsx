@@ -1,7 +1,7 @@
 
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Role, Theme } from './types';
+import React, { useState, useEffect, createContext, useContext, useCallback } from 'react';
+import { Role, Mode, Style, AppearanceSettings, FullTheme, CustomColors } from './types';
 import { useSession } from './hooks/useSession';
 import StudentDashboard from './components/student/StudentDashboard';
 import AdminDashboard from './components/admin/AdminDashboard';
@@ -13,90 +13,175 @@ import AuthScreen from './components/auth/AuthScreen';
 import ScreenSecurity from './components/common/ScreenSecurity';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import Modal from './components/common/Modal';
-import { curriculumCache, initData, supabase } from './services/storageService';
+// FIX: Import signOut to handle session termination consistently.
+import { curriculumCache, initData, supabase, signOut } from './services/storageService';
+import { useIcons } from './IconContext';
+
+// =================================================================
+// APPEARANCE MANAGEMENT CONTEXT V2.0
+// =================================================================
+
+// Default colors matching the initial CSS setup
+const defaultColors: Record<FullTheme, CustomColors> = {
+  light: {
+    '--bg-primary': '#f9fafb', '--bg-secondary': '#ffffff',
+    '--text-primary': '#333b47', '--accent-primary': '#3366cc',
+  },
+  dark: {
+    '--bg-primary': '#1a1c22', '--bg-secondary': '#22252d',
+    '--text-primary': '#e2e4e7', '--accent-primary': '#7094e2',
+  },
+  '.clymorphism-light': {
+    '--bg-primary': '#E6E7ED', '--bg-secondary': '#F0F0F3',
+    '--text-primary': '#2d2a3a', '--accent-primary': '#8a3ffc',
+  },
+  '.clymorphism-dark': {
+    '--bg-primary': '#252330', '--bg-secondary': '#2d2a3a',
+    '--text-primary': '#f2efff', '--accent-primary': '#9f7aea',
+  },
+};
+
+const defaultAppearanceSettings: AppearanceSettings = {
+  neon: {
+    enabled: false,
+    color: '#00ffff',
+    intensity: 0.5,
+  },
+  customColors: defaultColors,
+};
+
+
+interface AppearanceContextType {
+  mode: Mode;
+  style: Style;
+  setMode: (mode: Mode) => void;
+  setStyle: (style: Style) => void;
+  toggleStyle: () => void;
+  appearanceSettings: AppearanceSettings;
+  setAppearanceSettings: React.Dispatch<React.SetStateAction<AppearanceSettings>>;
+}
+
+const AppearanceContext = createContext<AppearanceContextType | undefined>(undefined);
+
+export const useAppearance = () => {
+    const context = useContext(AppearanceContext);
+    if (!context) throw new Error('useAppearance must be used within an AppearanceProvider');
+    return context;
+};
+
+const AppearanceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const [mode, setMode] = useState<Mode>('light');
+    const [style, setStyle] = useState<Style>('basic');
+    const [appearanceSettings, setAppearanceSettings] = useState<AppearanceSettings>(defaultAppearanceSettings);
+
+    useEffect(() => {
+        const storedMode = localStorage.getItem('theme_mode') as Mode | null;
+        const storedStyle = localStorage.getItem('theme_style') as Style | null;
+        const storedSettings = localStorage.getItem('appearance_settings');
+        
+        if (storedMode) setMode(storedMode);
+        if (storedStyle) setStyle(storedStyle);
+        if (storedSettings) {
+             try {
+                const parsedSettings = JSON.parse(storedSettings);
+                // Merge with defaults to prevent errors if structure changed
+                setAppearanceSettings(prev => ({
+                    ...prev,
+                    ...parsedSettings,
+                    neon: { ...prev.neon, ...parsedSettings.neon },
+                    customColors: { ...prev.customColors, ...parsedSettings.customColors }
+                }));
+            } catch (e) {
+                // FIX: The caught error `e` is of type `unknown`. A type guard is necessary to
+                // check if `e` is an `Error` before accessing `e.message`.
+                if (e instanceof Error) {
+                    console.error("Failed to parse appearance settings from localStorage:", e.message);
+                } else {
+                    console.error("Failed to parse appearance settings from localStorage:", String(e));
+                }
+            }
+        }
+    }, []);
+
+    useEffect(() => {
+        // 1. Determine the full theme name (e.g., '.clymorphism-dark')
+        const themeToApply: FullTheme = style === '.clymorphism' ? `.clymorphism-${mode}` : mode;
+        document.documentElement.setAttribute('data-theme', themeToApply);
+
+        // 2. Apply custom colors for the current theme from settings
+        const colors = appearanceSettings.customColors[themeToApply] || defaultColors[themeToApply];
+        if (colors) {
+            for (const [key, value] of Object.entries(colors)) {
+                document.documentElement.style.setProperty(key, value);
+            }
+        }
+        
+        // 3. Apply neon effects globally
+        const { neon } = appearanceSettings;
+        document.documentElement.setAttribute('data-neon-enabled', String(neon.enabled));
+        if (neon.enabled) {
+            document.documentElement.style.setProperty('--neon-color', neon.color);
+            document.documentElement.style.setProperty('--neon-intensity', String(neon.intensity));
+        }
+        
+        // 4. Save all settings to localStorage
+        localStorage.setItem('theme_mode', mode);
+        localStorage.setItem('theme_style', style);
+        localStorage.setItem('appearance_settings', JSON.stringify(appearanceSettings));
+    }, [mode, style, appearanceSettings]);
+
+    const toggleStyle = useCallback(() => {
+        setStyle(prev => (prev === 'basic' ? '.clymorphism' : 'basic'));
+    }, []);
+
+    const value = {
+        mode, style, setMode, setStyle, toggleStyle,
+        appearanceSettings, setAppearanceSettings
+    };
+
+    return (
+        <AppearanceContext.Provider value={value}>
+            {children}
+        </AppearanceContext.Provider>
+    );
+};
+
+
+// =================================================================
+// MAIN APP COMPONENT
+// =================================================================
 
 const App: React.FC = () => {
   const { currentUser, isLoading, authView, setAuthView, isPostRegistrationModalOpen, closePostRegistrationModal } = useSession();
-  const [theme, setTheme] = useState<Theme>('light');
-  // State to force re-render when app state is re-initialized
   const [appKey, setAppKey] = useState(0);
-  const backgroundRefreshIntervalRef = useRef<number | undefined>();
+  const icons = useIcons();
 
   useEffect(() => {
-    const storedTheme = localStorage.getItem('theme') as Theme | null;
-    if (storedTheme) {
-        setTheme(storedTheme);
+    // Dynamically set favicon
+    const favicon = document.getElementById('favicon') as HTMLLinkElement | null;
+    if (favicon && icons.faviconUrl) {
+      favicon.href = icons.faviconUrl;
     }
-  }, []);
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('theme', theme);
-  }, [theme]);
+    // Dynamically set CSS variable for header logo
+    if (icons.mainLogoUrl) {
+      document.documentElement.style.setProperty('--header-logo-url', `url('${icons.mainLogoUrl}')`);
+    }
+  }, [icons]);
   
-  // This useEffect manages the app's lifecycle, especially when the tab is backgrounded or restored.
-  // It ensures data and user sessions remain fresh to prevent a "broken" state upon returning to the app.
   useEffect(() => {
-    // This handler is for tab visibility changes (e.g., switching tabs, minimizing the browser).
-    const handleVisibilityChange = async () => {
+    const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        console.log("App became visible. Performing soft reload to ensure data freshness.");
-        
-        // 1. Stop any background refresh timers.
-        if (backgroundRefreshIntervalRef.current) {
-          clearInterval(backgroundRefreshIntervalRef.current);
-          backgroundRefreshIntervalRef.current = undefined;
-        }
-        
-        // 2. Re-initialize core app data (like the curriculum) which might be stale.
-        await initData();
-        
-        // 3. Check for an active session and refresh it to get a new, valid auth token.
-        // This is crucial because the token might have expired while the tab was in the background.
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          const { error: refreshError } = await supabase.auth.refreshSession();
-          if (refreshError) {
-            console.error("Session refresh failed on visibility change:", refreshError.message);
-            // If the token is invalid (e.g., expired, revoked), the Supabase client might
-            // sign the user out automatically. We add an extra check to force it if needed.
-            if (refreshError.message.includes('invalid') && refreshError.message.includes('token')) {
-                console.warn('Invalid token detected. Forcing sign out.');
-                await supabase.auth.signOut();
-            }
-          } else {
-            console.log("Session successfully refreshed.");
-          }
-        }
-        
-        // 4. Force a complete re-render of the app by changing the 'key' prop on the main container.
-        // This ensures all components unmount and remount, picking up the fresh data and session state.
-        setAppKey(key => key + 1);
-
-      } else {
-        console.log("App is hidden. Starting background refresh timer.");
-        
-        // 5. When the tab is backgrounded, start a periodic timer to silently refresh the session.
-        // This helps prevent the session from expiring during long periods of inactivity.
-        if (backgroundRefreshIntervalRef.current) {
-            clearInterval(backgroundRefreshIntervalRef.current);
-        }
-        backgroundRefreshIntervalRef.current = window.setInterval(async () => {
-          console.log("Performing silent background session refresh...");
-          // We don't need to re-render here, just keep the session alive.
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session) {
-            await supabase.auth.refreshSession();
-          }
-        }, 30000); // Refresh every 30 seconds.
+        // When a tab becomes visible after being hidden, its state can be broken.
+        // Remounting the app by changing its key is a robust and less disruptive
+        // way to reset the app's state compared to a full page reload.
+        setAppKey(k => k + 1);
       }
     };
 
-    // This handler is specifically for pages restored from the browser's back-forward cache (bfcache).
-    // Bfcache freezes the page's state entirely, so a full reload is the most reliable way to fix it.
     const handlePageShow = (event: PageTransitionEvent) => {
+        // This handles bfcache (back/forward cache) where connections are often broken.
+        // A full reload is the most reliable fix for this specific browser behavior.
         if (event.persisted) {
-            console.log("Page was restored from bfcache. Forcing a full reload to ensure correct state.");
             window.location.reload();
         }
     };
@@ -104,15 +189,20 @@ const App: React.FC = () => {
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('pageshow', handlePageShow);
 
-    // Cleanup listeners and timers when the component unmounts.
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('pageshow', handlePageShow);
-      if (backgroundRefreshIntervalRef.current) {
-        clearInterval(backgroundRefreshIntervalRef.current);
-      }
     };
-  }, []); // The empty dependency array ensures this effect runs only once on mount.
+  }, []);
+
+  useEffect(() => {
+    // Automatically refresh app state every minute to fetch latest updates
+    const refreshInterval = setInterval(() => {
+      setAppKey(k => k + 1);
+    }, 60000); // 60 seconds
+
+    return () => clearInterval(refreshInterval);
+  }, []);
 
 
   const renderContent = () => {
@@ -141,17 +231,17 @@ const App: React.FC = () => {
     return (
       <ScreenSecurity>
         {currentUser.role === Role.ADMIN
-          ? <AdminDashboard theme={theme} setTheme={setTheme} />
+          ? <AdminDashboard />
           : currentUser.role === Role.TEACHER || currentUser.role === Role.SUPERVISOR
-          ? <TeacherDashboard theme={theme} setTheme={setTheme} />
-          : <StudentDashboard theme={theme} setTheme={setTheme} />
+          ? <TeacherDashboard />
+          : <StudentDashboard />
         }
       </ScreenSecurity>
     );
   }
 
   return (
-    <>
+    <AppearanceProvider>
       <div key={appKey} className={`transition-all duration-300`}>
         <ErrorBoundary>
           {renderContent()}
@@ -183,7 +273,7 @@ const App: React.FC = () => {
           </button>
         </div>
       </Modal>
-    </>
+    </AppearanceProvider>
   );
 };
 

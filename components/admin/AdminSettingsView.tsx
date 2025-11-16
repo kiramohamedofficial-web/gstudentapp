@@ -1,10 +1,11 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { User, Theme, ToastType } from '../../types';
-import { LogoutIcon, KeyIcon, TemplateIcon, ArrowsExpandIcon, ArrowsShrinkIcon } from '../common/Icons';
+import { User, ToastType } from '../../types';
+// FIX: Replaced missing PaletteIcon with TemplateIcon which is available and used for theming.
+import { LogoutIcon, KeyIcon, TemplateIcon, ArrowsExpandIcon, ArrowsShrinkIcon, CogIcon, SparklesIcon, VideoCameraIcon, SunIcon, MoonIcon, CheckIcon } from '../common/Icons';
 import { useToast } from '../../useToast';
 import Modal from '../common/Modal';
-import ThemeSelectionModal from '../common/ThemeSelectionModal';
 import { useSession } from '../../hooks/useSession';
+import { useAppearance } from '../../App';
 
 const ChangePasswordModal: React.FC<{ isOpen: boolean, onClose: () => void }> = ({ isOpen, onClose }) => {
     const { addToast } = useToast();
@@ -36,16 +37,54 @@ const ChangePasswordModal: React.FC<{ isOpen: boolean, onClose: () => void }> = 
     );
 };
 
+// NOTE: This component is duplicated from Profile.tsx due to file structure constraints.
+// In a real project, this would be a shared component.
+const AppearanceSettings: React.FC<{}> = () => {
+    // This component will contain all the new UI for theme customization
+    return (
+        <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-md border border-[var(--border-primary)]">
+            <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-2 flex items-center gap-2">
+                <TemplateIcon className="w-6 h-6 text-purple-400"/>
+                إعدادات المظهر
+            </h3>
+            <p className="text-sm text-[var(--text-secondary)] mb-6">
+                هذه الإعدادات متقدمة وتسمح بتخصيص دقيق. حاليًا هي واجهة للعرض فقط.
+            </p>
 
-interface AdminSettingsViewProps {
-  theme: Theme;
-  setTheme: (theme: Theme) => void;
-}
+            <div className="space-y-6">
+                {/* Neon Mode Section */}
+                <div className="p-4 bg-[var(--bg-tertiary)] rounded-lg border border-[var(--border-primary)] space-y-4">
+                    <div className="flex items-center justify-between">
+                        <h4 className="font-semibold text-lg flex items-center gap-2">
+                            <SparklesIcon className="w-5 h-5 text-cyan-400"/>
+                            وضع النيون
+                        </h4>
+                        {/* <ToggleSwitch enabled={false} onChange={() => {}} /> */}
+                    </div>
+                    <p className="text-xs text-[var(--text-secondary)]">
+                        سيتم تفعيل هذه الميزة قريبًا لإضافة تأثيرات توهج وحدود مضيئة للواجهة.
+                    </p>
+                </div>
 
-const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({ theme, setTheme }) => {
+                {/* Color Customization Section */}
+                <div className="p-4 bg-[var(--bg-tertiary)] rounded-lg border border-[var(--border-primary)] space-y-4">
+                     <h4 className="font-semibold text-lg flex items-center gap-2">
+                        <TemplateIcon className="w-5 h-5 text-pink-400"/>
+                        تخصيص الألوان
+                    </h4>
+                    <p className="text-xs text-[var(--text-secondary)]">
+                        سيتم تفعيل هذه الميزة قريبًا لتغيير الألوان الأساسية للتطبيق لكل وضع على حدة.
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
+const AdminSettingsView: React.FC = () => {
   const { currentUser: user, handleLogout: onLogout } = useSession();
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
-  const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
 
   const handleFullscreenChange = useCallback(() => {
@@ -114,26 +153,10 @@ const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({ theme, setTheme }
 
         {/* Right Column */}
         <div className="lg:col-span-2">
-            <div className="bg-[var(--bg-secondary)] p-6 rounded-xl shadow-lg border border-[var(--border-primary)]">
-                <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-2 flex items-center gap-2">
-                    <TemplateIcon className="w-6 h-6 text-purple-400"/>
-                    خصص مظهر لوحة التحكم
-                </h2>
-                <p className="text-[var(--text-secondary)] mb-8">اختر السمة التي تناسب ذوقك وتريح عينيك أثناء العمل.</p>
-                <button onClick={() => setIsThemeModalOpen(true)} className="w-full flex items-center justify-center p-4 rounded-lg text-[var(--text-primary)] bg-[var(--bg-tertiary)] hover:bg-[var(--border-primary)] transition-colors duration-200 space-x-3 space-x-reverse text-lg">
-                    <TemplateIcon className="w-6 h-6 text-purple-400" />
-                    <span>فتح قائمة السمات</span>
-                </button>
-            </div>
+            <AppearanceSettings />
         </div>
       </div>
       <ChangePasswordModal isOpen={isPasswordModalOpen} onClose={() => setIsPasswordModalOpen(false)} />
-      <ThemeSelectionModal 
-        isOpen={isThemeModalOpen}
-        onClose={() => setIsThemeModalOpen(false)}
-        currentTheme={theme}
-        setTheme={setTheme}
-      />
     </div>
   );
 };

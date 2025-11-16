@@ -20,7 +20,7 @@ const SubscriptionOptionCard: React.FC<{
     return (
         <button
             onClick={onClick}
-            className="w-full bg-[var(--bg-secondary)] p-5 rounded-2xl border border-[var(--border-primary)] hover:border-[var(--border-secondary)] transition-all duration-300 flex items-center justify-between text-right space-x-4 space-x-reverse group"
+            className="w-full p-5 rounded-2xl flex items-center justify-between text-right space-x-4 space-x-reverse group home-card"
         >
             <div className="flex items-center space-x-5 space-x-reverse flex-1">
                  <div className="p-4 bg-[#2D2D30] rounded-xl group-hover:bg-[#3a3a3d] transition-colors">

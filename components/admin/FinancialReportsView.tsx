@@ -86,7 +86,6 @@ const FinancialReportsView: React.FC = () => {
     }, []);
     
     const sortedMonths = useMemo(() => Object.keys(monthlyRevenue).sort().reverse(), [monthlyRevenue]);
-    // FIX: Added explicit types to the reduce function's parameters to resolve the TypeScript error.
     const totalRevenue = useMemo(() => Object.values(monthlyRevenue).reduce((sum: number, rev: number) => sum + rev, 0), [monthlyRevenue]);
 
 

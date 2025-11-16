@@ -106,7 +106,7 @@ const TeacherChatView: React.FC<{ student: User, teacher: Teacher, onBack: () =>
     };
 
     return (
-        <div className="flex flex-col h-full bg-[var(--bg-secondary)] rounded-2xl shadow-lg border border-[var(--border-primary)]">
+        <div className="flex flex-col h-full bg-[var(--bg-secondary)] sm:rounded-2xl shadow-lg border border-[var(--border-primary)]">
             <header className="flex-shrink-0 p-3 border-b border-[var(--border-primary)] flex items-center gap-3">
                 <button onClick={onBack} className="p-2 hover:bg-[var(--bg-tertiary)] rounded-full"><ArrowRightIcon className="w-6 h-6"/></button>
                 <img src={teacher.imageUrl} alt={teacher.name} className="w-11 h-11 rounded-full object-cover" />
@@ -124,9 +124,11 @@ const TeacherChatView: React.FC<{ student: User, teacher: Teacher, onBack: () =>
             <div className="flex-1 p-4 space-y-6 overflow-y-auto bg-[var(--bg-primary)]">
                 {isLoading && <div className="flex justify-center items-center h-full"><Loader /></div>}
                 {!isLoading && messages.map(msg => (
-                    <div key={msg.id} className={`flex items-end gap-2.5 ${msg.sender_id === student.id ? 'justify-end' : 'justify-start'}`}>
-                        {msg.sender_id !== student.id && <div className="w-8 h-8 rounded-full bg-[var(--bg-tertiary)] flex-shrink-0"></div>}
-                        <div className={`max-w-xl p-3 px-4 rounded-2xl ${msg.sender_id === student.id ? 'bg-blue-600 text-white rounded-br-lg' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-bl-lg'}`}>
+                    <div key={msg.id} className={`flex items-end gap-2.5 ${msg.sender_id === student.id ? 'justify-end' : 'justify-start'} fade-in`}>
+                        {msg.sender_id !== student.id && (
+                             <img src={teacher.imageUrl} alt={teacher.name} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+                        )}
+                        <div className={`max-w-xl p-3 px-4 rounded-2xl shadow-sm ${msg.sender_id === student.id ? 'bg-blue-600 text-white rounded-br-none' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-bl-none'}`}>
                             <p className="whitespace-pre-wrap text-sm leading-relaxed">{msg.content}</p>
                             <p className="text-xs opacity-70 mt-1.5 text-left">{new Date(msg.created_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</p>
                         </div>
@@ -135,7 +137,10 @@ const TeacherChatView: React.FC<{ student: User, teacher: Teacher, onBack: () =>
                  <div ref={chatEndRef} />
             </div>
             
-            <footer className="p-3 border-t border-[var(--border-primary)] bg-[var(--bg-secondary)] rounded-b-2xl">
+            <footer 
+                className="p-3 border-t border-[var(--border-primary)] bg-[var(--bg-secondary)] sm:rounded-b-2xl" 
+                style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 1rem))' }}
+            >
                 <form onSubmit={handleSendMessage} className="flex items-center gap-3">
                     <input type="text" value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="اكتب رسالتك..." className="flex-1 px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-full focus:ring-2 focus:ring-purple-500 transition-all" />
                     <button type="submit" className="w-12 h-12 flex-shrink-0 bg-purple-600 text-white rounded-full flex items-center justify-center transition-transform hover:scale-110 disabled:bg-gray-500 disabled:scale-100" disabled={!newMessage.trim()}>
@@ -146,7 +151,6 @@ const TeacherChatView: React.FC<{ student: User, teacher: Teacher, onBack: () =>
         </div>
     );
 };
-
 
 const AskTeacherView: React.FC = () => {
     const { currentUser } = useSession();
@@ -175,7 +179,11 @@ const AskTeacherView: React.FC = () => {
     }
     
     if (selectedTeacher && currentUser) {
-        return <div className="h-full -m-4 md:-m-6"><TeacherChatView student={currentUser} teacher={selectedTeacher} onBack={() => setSelectedTeacher(null)} /></div>;
+        return (
+            <div className="h-full -m-4 md:-m-6">
+                <TeacherChatView student={currentUser} teacher={selectedTeacher} onBack={() => setSelectedTeacher(null)} />
+            </div>
+        );
     }
 
     return (

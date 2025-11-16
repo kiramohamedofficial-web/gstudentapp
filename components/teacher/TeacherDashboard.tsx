@@ -1,6 +1,5 @@
-
 import React, { useState, useMemo, useEffect, lazy, Suspense } from 'react';
-import { User, Theme, TeacherView, Teacher, Grade, Role } from '../../types';
+import { User, TeacherView, Teacher, Grade, Role } from '../../types';
 import { getTeacherById, getSubscriptionsByTeacherId, getAllGrades, supabase } from '../../services/storageService';
 import TeacherLayout from './TeacherLayout';
 import { CollectionIcon, UsersIcon, InformationCircleIcon } from '../common/Icons';
@@ -15,11 +14,6 @@ const SupervisorStudentDetailView = lazy(() => import('./SupervisorStudentDetail
 const StudentChatsView = lazy(() => import('./StudentChatsView'));
 const TeacherStudentChatsView = lazy(() => import('./TeacherStudentChatsView'));
 
-
-interface TeacherDashboardProps {
-  theme: Theme;
-  setTheme: (theme: Theme) => void;
-}
 
 const StatCard: React.FC<{ title: string; value: string | number; icon: React.FC<any> }> = ({ title, value, icon: Icon }) => (
     <div className="bg-[var(--bg-secondary)] p-6 rounded-2xl shadow-lg border border-[var(--border-primary)] flex items-center space-x-4 space-x-reverse">
@@ -70,8 +64,7 @@ const MainDashboard: React.FC<{ teacher: Teacher }> = ({ teacher }) => {
     );
 };
 
-const TeacherDashboard: React.FC<TeacherDashboardProps> = (props) => {
-  const { theme, setTheme } = props;
+const TeacherDashboard: React.FC = () => {
   const { currentUser: user, handleLogout: onLogout } = useSession();
   const [activeView, setActiveView] = useState<TeacherView>('dashboard');
   const [viewingStudent, setViewingStudent] = useState<User | null>(null);

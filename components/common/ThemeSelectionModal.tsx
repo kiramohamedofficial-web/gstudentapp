@@ -1,6 +1,6 @@
 import React from 'react';
 import { THEMES } from '../../constants';
-import { Theme } from '../../types';
+import { Mode, Style, FullTheme } from '../../types';
 import { CheckCircleIcon, XIcon } from './Icons';
 
 interface ThemeCardProps {
@@ -15,7 +15,7 @@ const ThemeCard: React.FC<ThemeCardProps> = ({ theme, isActive, onClick }) => {
       onClick={onClick}
       className="relative w-full h-24 rounded-xl flex items-center justify-center text-white p-4 transition-all duration-300 transform group focus:outline-none"
     >
-      <div className={`absolute inset-0 rounded-xl transition-all duration-300 border-4 ${isActive ? 'border-blue-500 scale-105' : 'border-transparent group-hover:scale-105'}`} style={{ background: theme.colors.gradient || theme.colors.bg }}></div>
+      <div className={`absolute inset-0 rounded-xl transition-all duration-300 border-4 ${isActive ? 'border-blue-500 scale-105' : 'border-transparent group-hover:scale-105'}`} style={{ background: theme.colors.gradient }}></div>
       {isActive && (
         <div className="absolute top-2 right-2 w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center border-2 border-white/50 shadow-lg">
           <CheckCircleIcon className="w-5 h-5 text-white" />
@@ -35,15 +35,26 @@ const ThemeCard: React.FC<ThemeCardProps> = ({ theme, isActive, onClick }) => {
 interface ThemeSelectionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  currentTheme: Theme;
-  setTheme: (theme: Theme) => void;
+  currentMode: Mode;
+  currentStyle: Style;
+  setMode: (mode: Mode) => void;
+  setStyle: (style: Style) => void;
 }
 
-const ThemeSelectionModal: React.FC<ThemeSelectionModalProps> = ({ isOpen, onClose, currentTheme, setTheme }) => {
+const ThemeSelectionModal: React.FC<ThemeSelectionModalProps> = ({ isOpen, onClose, currentMode, currentStyle, setMode, setStyle }) => {
   if (!isOpen) return null;
 
-  const handleThemeSelect = (themeId: string) => {
-    setTheme(themeId as Theme);
+  const currentFullTheme: FullTheme = currentStyle === 'claymorphism' ? `claymorphism-${currentMode}` : currentMode;
+
+  const handleThemeSelect = (themeId: FullTheme) => {
+    if (themeId.includes('claymorphism')) {
+        setStyle('claymorphism');
+        setMode(themeId.includes('dark') ? 'dark' : 'light');
+    } else {
+        setStyle('basic');
+        setMode(themeId as Mode);
+    }
+    onClose();
   };
 
   return (
@@ -63,8 +74,8 @@ const ThemeSelectionModal: React.FC<ThemeSelectionModalProps> = ({ isOpen, onClo
             <ThemeCard
               key={theme.id}
               theme={theme}
-              isActive={currentTheme === theme.id}
-              onClick={() => handleThemeSelect(theme.id)}
+              isActive={currentFullTheme === theme.id}
+              onClick={() => handleThemeSelect(theme.id as FullTheme)}
             />
           ))}
         </div>

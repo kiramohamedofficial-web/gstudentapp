@@ -1,12 +1,15 @@
+
 import React, { useMemo, useState, useCallback, useEffect } from 'react';
-import { User, Grade, Subscription, QuizAttempt } from '../../types';
+import { User, Grade, ToastType, Subscription, QuizAttempt } from '../../types';
 import { 
     getSubscriptionByUserId, 
     getAllGrades,
     getStudentProgress, 
-    getStudentQuizAttempts
+    getStudentQuizAttempts,
 } from '../../services/storageService';
+// FIX: Added 'PencilIcon' to the import list as it was used in the component but not imported.
 import { ArrowRightIcon, ChartBarIcon, VideoCameraIcon, CheckCircleIcon, XCircleIcon, PencilIcon } from '../common/Icons';
+import { useToast } from '../../useToast';
 import Loader from '../common/Loader';
 
 const InfoRow: React.FC<{ label: string; value?: string | null; iconClass: string; }> = ({ label, value, iconClass }) => (
@@ -36,6 +39,7 @@ const SupervisorStudentDetailView: React.FC<SupervisorStudentDetailViewProps> = 
   const [attempts, setAttempts] = useState<QuizAttempt[]>([]);
 
   useEffect(() => { setLocalUser(user); }, [user]);
+  const refreshData = useCallback(() => setDataVersion(v => v + 1), []);
   
   const lessonMap = useMemo(() => {
     const map = new Map<string, { lessonTitle: string; unitTitle: string; }>();
@@ -71,14 +75,14 @@ const SupervisorStudentDetailView: React.FC<SupervisorStudentDetailViewProps> = 
     fetchData();
   }, [localUser.id, dataVersion]);
   
-  const gradeId = (localUser as any).grade_id;
+  const gradeId = localUser.grade;
 
   const gradeName = useMemo(() => {
     if (gradeId === null || gradeId === undefined) return 'غير محدد';
     const gradeInfo = allGrades.find(g => g.id === gradeId);
     return gradeInfo?.name || `صف غير معروف (ID: ${gradeId})`;
   }, [gradeId, allGrades]);
-
+  
   const { subscriptionStatus, subscriptionEndDate } = useMemo(() => {
     const endDateStr = subscription?.endDate;
     if (!endDateStr) return { subscriptionStatus: { text: 'لا يوجد', color: 'text-gray-400' }, subscriptionEndDate: null };
@@ -123,7 +127,7 @@ const SupervisorStudentDetailView: React.FC<SupervisorStudentDetailViewProps> = 
                       <InfoRow label="الصف الدراسي" value={gradeName} iconClass="fa-solid fa-graduation-cap" />
                       <InfoRow label="البريد الإلكتروني" value={localUser.email} iconClass="fa-solid fa-envelope" />
                       <InfoRow label="رقم الهاتف" value={localUser.phone} iconClass="fa-solid fa-phone" />
-                      <InfoRow label="رقم ولي الأمر" value={(localUser as any).guardian_phone} iconClass="fa-solid fa-user-shield" />
+                      <InfoRow label="رقم ولي الأمر" value={localUser.guardianPhone} iconClass="fa-solid fa-user-shield" />
                   </div>
               </div>
               <div className="bg-[var(--bg-secondary)] p-6 rounded-2xl shadow-lg border border-[var(--border-primary)]">

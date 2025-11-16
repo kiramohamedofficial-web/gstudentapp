@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { User, Subscription, ChatMessage, StudentView } from '../../types';
+import { User, Subscription, ChatMessage, StudentView, ToastType } from '../../types';
 import { getChatUsage, incrementChatUsage } from '../../services/storageService';
 import { getChatbotResponseStream, ChatMode } from '../../services/geminiService';
 import { CreditCardIcon, BrainIcon, ChevronUpIcon } from '../common/Icons';
@@ -30,8 +30,8 @@ const ChatBubble: React.FC<{ message: ChatMessage }> = ({ message }) => {
                     <BrainIcon className="w-5 h-5 text-[var(--accent-primary)]" />
                 </div>
             )}
-            <div className={`max-w-xl p-4 rounded-2xl ${isUser ? 'bg-blue-600 text-white rounded-br-lg' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-bl-lg'}`}>
-                <p className="whitespace-pre-wrap">{message.content}</p>
+            <div className={`max-w-xl p-4 rounded-2xl ${isUser ? 'bg-blue-600 text-white rounded-br-none' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-bl-none'}`}>
+                <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
             </div>
         </div>
     );
@@ -86,7 +86,7 @@ const ChatbotView: React.FC<{ onNavigate: (view: StudentView) => void }> = ({ on
     const handleSendMessage = useCallback(async () => {
         if (!input.trim() || isLoading || !user) return;
         if (remaining <= 0) {
-            addToast('لقد وصلت إلى الحد الأقصى للرسائل اليومية (50 رسالة).', 'error');
+            addToast('لقد وصلت إلى الحد الأقصى للرسائل اليومية (50 رسالة).', ToastType.ERROR);
             return;
         }
 
@@ -127,7 +127,7 @@ const ChatbotView: React.FC<{ onNavigate: (view: StudentView) => void }> = ({ on
     }
 
     return (
-        <div className="h-full flex flex-col bg-[var(--bg-secondary)] rounded-2xl overflow-hidden">
+        <div className="h-full flex flex-col bg-[var(--bg-secondary)] rounded-2xl overflow-hidden shadow-lg border border-[var(--border-primary)]">
             {/* Header */}
             <header className="flex-shrink-0 p-4 border-b border-[var(--border-primary)] flex justify-between items-center">
                 <h1 className="text-xl font-bold flex items-center gap-3"><BrainIcon className="w-6 h-6 text-purple-400"/> المساعد الذكي</h1>
@@ -156,7 +156,7 @@ const ChatbotView: React.FC<{ onNavigate: (view: StudentView) => void }> = ({ on
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
-                        placeholder="اكتب سؤالك هنا..."
+                        placeholder="اكتب ردك..."
                         rows={1}
                         className="w-full p-3 resize-none bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg focus:ring-2 focus:ring-purple-500 placeholder:text-[var(--text-secondary)]"
                     />

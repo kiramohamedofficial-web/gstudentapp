@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { User, PlatformSettings, ToastType } from '../../types';
 import { getPlatformSettings, updatePlatformSettings } from '../../services/storageService';
 import { useToast } from '../../useToast';
-import { TemplateIcon, SparklesIcon, CogIcon, PhotoIcon, SpeakerphoneIcon } from '../common/Icons';
+import { TemplateIcon, SparklesIcon, CogIcon, PhotoIcon, SpeakerphoneIcon, CreditCardIcon } from '../common/Icons';
 import ImageUpload from '../common/ImageUpload';
 
 const FormSection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
@@ -47,17 +48,19 @@ interface PlatformSettingsViewProps {
   user: User;
 }
 
-type SettingsTab = 'hero' | 'features' | 'footer' | 'branding' | 'announcements';
+type SettingsTab = 'hero' | 'features' | 'footer' | 'branding' | 'announcements' | 'subscriptions';
 
 const PlatformSettingsView: React.FC<PlatformSettingsViewProps> = ({ user }) => {
     const [settings, setSettings] = useState<PlatformSettings | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isDirty, setIsDirty] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
     const [activeTab, setActiveTab] = useState<SettingsTab>('announcements');
     const { addToast } = useToast();
 
     const tabs: { id: SettingsTab; label: string; icon: React.FC<{className?:string}> }[] = [
         { id: 'announcements', label: 'الإعلانات', icon: SpeakerphoneIcon },
+        { id: 'subscriptions', label: 'الاشتراكات', icon: CreditCardIcon },
         { id: 'hero', label: 'الواجهة الرئيسية', icon: TemplateIcon },
         { id: 'branding', label: 'الصور والعلامة', icon: PhotoIcon },
         { id: 'features', label: 'قسم المميزات', icon: SparklesIcon },
@@ -97,11 +100,32 @@ const PlatformSettingsView: React.FC<PlatformSettingsViewProps> = ({ user }) => 
         setIsDirty(true);
     }, []);
 
-    const handleSave = () => {
+    const handleSubscriptionModeChange = useCallback((mode: 'comprehensive' | 'singleSubject', enabled: boolean) => {
+        setSettings(prev => {
+            if (!prev) return null;
+            const currentModes = prev.enabledSubscriptionModes || [];
+            let newModes: ('comprehensive' | 'singleSubject')[];
+            if (enabled) {
+                newModes = [...new Set([...currentModes, mode])];
+            } else {
+                newModes = currentModes.filter(m => m !== mode);
+            }
+            return { ...prev, enabledSubscriptionModes: newModes };
+        });
+        setIsDirty(true);
+    }, []);
+
+    const handleSave = async () => {
         if (settings) {
-            updatePlatformSettings(settings);
-            addToast('تم حفظ الإعدادات بنجاح!', ToastType.SUCCESS);
-            setIsDirty(false);
+            setIsSaving(true);
+            const { error } = await updatePlatformSettings(settings);
+            if (error) {
+                addToast(`فشل حفظ الإعدادات: ${error.message}`, ToastType.ERROR);
+            } else {
+                addToast('تم حفظ الإعدادات بنجاح!', ToastType.SUCCESS);
+                setIsDirty(false);
+            }
+            setIsSaving(false);
         }
     };
 
@@ -154,6 +178,31 @@ const PlatformSettingsView: React.FC<PlatformSettingsViewProps> = ({ user }) => 
                                 />
                             </div>
                         )}
+                    </FormSection>
+                );
+            case 'subscriptions':
+                return (
+                    <FormSection title="إعدادات الاشتراكات">
+                        <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-tertiary)]">
+                            <div>
+                                <h3 className="font-semibold text-[var(--text-primary)]">تفعيل الاشتراك الشامل</h3>
+                                <p className="text-sm text-[var(--text-secondary)] mt-1">السماح للطلاب بالاشتراك في الباقة الشاملة.</p>
+                            </div>
+                            <ToggleSwitch 
+                                enabled={(settings.enabledSubscriptionModes ?? ['comprehensive', 'singleSubject']).includes('comprehensive')}
+                                onChange={(enabled) => handleSubscriptionModeChange('comprehensive', enabled)}
+                            />
+                        </div>
+                         <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-tertiary)]">
+                            <div>
+                                <h3 className="font-semibold text-[var(--text-primary)]">تفعيل اشتراك المادة الواحدة</h3>
+                                <p className="text-sm text-[var(--text-secondary)] mt-1">السماح للطلاب بالاشتراك في مواد منفصلة.</p>
+                            </div>
+                            <ToggleSwitch 
+                                enabled={(settings.enabledSubscriptionModes ?? ['comprehensive', 'singleSubject']).includes('singleSubject')}
+                                onChange={(enabled) => handleSubscriptionModeChange('singleSubject', enabled)}
+                            />
+                        </div>
                     </FormSection>
                 );
             case 'branding':
@@ -239,7 +288,9 @@ const PlatformSettingsView: React.FC<PlatformSettingsViewProps> = ({ user }) => 
                 <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 w-auto fade-in-up">
                     <div className="bg-[var(--bg-tertiary)] p-3 rounded-xl shadow-2xl border border-[var(--border-primary)] flex items-center gap-4">
                         <p className="text-sm text-[var(--text-secondary)]">لديك تغييرات غير محفوظة.</p>
-                         <button onClick={handleSave} className="px-5 py-2 font-bold text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors">حفظ</button>
+                         <button onClick={handleSave} disabled={isSaving} className="px-5 py-2 font-bold text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50">
+                            {isSaving ? 'جاري الحفظ...' : 'حفظ التغييرات'}
+                        </button>
                     </div>
                 </div>
             )}

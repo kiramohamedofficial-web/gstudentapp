@@ -4,9 +4,10 @@ import {
     getSubscriptionByUserId, 
     getAllGrades, updateUser, deleteUser, 
     createOrUpdateSubscription, getGradesForSelection, clearUserDevices,
-    getStudentProgress, getStudentQuizAttempts
+    getStudentProgress, getStudentQuizAttempts,
+    adminUpdateUserPassword
 } from '../../services/storageService';
-import { ArrowRightIcon, PencilIcon, TrashIcon, CreditCardIcon, HardDriveIcon, ChartBarIcon, VideoCameraIcon, CheckCircleIcon, XCircleIcon } from '../common/Icons';
+import { ArrowRightIcon, PencilIcon, TrashIcon, CreditCardIcon, HardDriveIcon, ChartBarIcon, VideoCameraIcon, CheckCircleIcon, XCircleIcon, KeyIcon } from '../common/Icons';
 import Modal from '../common/Modal';
 import { useToast } from '../../useToast';
 import Loader from '../common/Loader';
@@ -18,6 +19,59 @@ const normalizePhoneNumber = (phone: string): string => {
     if (trimmed.length === 10 && !trimmed.startsWith('0')) return '0' + trimmed;
     return trimmed; // Return as is if format is unusual, validation will handle it
 };
+
+const PasswordResetModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    onSave: (newPassword: string) => Promise<void>;
+}> = ({ isOpen, onClose, onSave }) => {
+    const [newPassword, setNewPassword] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (newPassword.length < 6) {
+            // The parent's handler will show a toast for this
+            return;
+        }
+        setIsSaving(true);
+        await onSave(newPassword);
+        setIsSaving(false);
+    };
+
+    // Reset state when modal opens
+    useEffect(() => {
+        if (isOpen) {
+            setNewPassword('');
+            setIsSaving(false);
+        }
+    }, [isOpen]);
+
+    return (
+        <Modal isOpen={isOpen} onClose={onClose} title="إعادة تعيين كلمة المرور">
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <p className="text-sm text-[var(--text-secondary)]">أدخل كلمة مرور جديدة للطالب. سيتمكن الطالب من استخدامها لتسجيل الدخول فورًا.</p>
+                <div>
+                    <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">كلمة المرور الجديدة</label>
+                    <input
+                        type="password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        className="w-full p-2 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)]"
+                        required
+                        minLength={6}
+                    />
+                </div>
+                 <div className="flex justify-end pt-4">
+                    <button type="submit" disabled={isSaving} className="px-5 py-2 font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:opacity-50">
+                        {isSaving ? 'جاري الحفظ...' : 'حفظ كلمة المرور الجديدة'}
+                    </button>
+                </div>
+            </form>
+        </Modal>
+    );
+};
+
 
 const SubscriptionModal: React.FC<{
     isOpen: boolean;
@@ -101,6 +155,7 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [editFormData, setEditFormData] = useState<Partial<User>>({});
   const [localUser, setLocalUser] = useState(user);
 
@@ -232,6 +287,24 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
     }
   };
 
+    const handlePasswordUpdate = async (newPassword: string) => {
+        if (newPassword.length < 6) {
+            addToast('يجب أن تتكون كلمة المرور من 6 أحرف على الأقل.', ToastType.ERROR);
+            return;
+        }
+        const { error } = await adminUpdateUserPassword(localUser.id, newPassword);
+        if (error) {
+            if (error.message.toLowerCase().includes('service_role key required')) {
+                addToast('فشل المصادقة كمسؤول. لا يمكن تعديل كلمة المرور من طرف العميل مباشرةً.', ToastType.ERROR);
+            } else {
+                addToast(`فشل تحديث كلمة المرور: ${error.message}`, ToastType.ERROR);
+            }
+        } else {
+            addToast("تم تحديث كلمة مرور الطالب بنجاح.", ToastType.SUCCESS);
+            setIsPasswordModalOpen(false);
+        }
+    };
+
   const { subscriptionStatus, subscriptionEndDate } = useMemo(() => {
     const endDateStr = subscription?.endDate;
     if (!endDateStr) return { subscriptionStatus: { text: 'لا يوجد', color: 'text-gray-400' }, subscriptionEndDate: null };
@@ -303,11 +376,19 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
                   </div>
               </div>
 
-              <div className="bg-[var(--bg-secondary)] p-6 rounded-2xl shadow-lg border border-[var(--border-primary)]">
-                  <h2 className="text-lg font-bold text-[var(--text-primary)] mb-4">إدارة الجلسات</h2>
-                  <p className="text-sm text-[var(--text-secondary)] mb-4">إذا أبلغ الطالب عن عدم قدرته على تسجيل الدخول، استخدم هذا الزر لمسح جميع جلساته النشطة.</p>
-                  <button onClick={handleClearDevices} className="w-full mt-2 text-center text-sm p-2 rounded-md bg-red-600/20 text-red-300 hover:bg-red-600/40 transition-colors">مسح جميع الجلسات</button>
-              </div>
+                <div className="bg-[var(--bg-secondary)] p-6 rounded-2xl shadow-lg border border-[var(--border-primary)]">
+                    <h2 className="text-lg font-bold text-[var(--text-primary)] mb-4">إدارة الحساب</h2>
+                    <div className="space-y-3">
+                        <button onClick={() => setIsPasswordModalOpen(true)} className="w-full text-center text-sm p-2 rounded-md bg-yellow-600/20 text-yellow-300 hover:bg-yellow-600/40 transition-colors flex items-center justify-center space-x-2 space-x-reverse">
+                            <KeyIcon className="w-5 h-5"/>
+                            <span>إعادة تعيين كلمة المرور</span>
+                        </button>
+                        <button onClick={handleClearDevices} className="w-full text-center text-sm p-2 rounded-md bg-red-600/20 text-red-300 hover:bg-red-600/40 transition-colors flex items-center justify-center space-x-2 space-x-reverse">
+                            <HardDriveIcon className="w-5 h-5"/>
+                            <span>مسح جميع الجلسات</span>
+                        </button>
+                    </div>
+                </div>
           </div>
           
           <div className="lg:col-span-2 bg-[var(--bg-secondary)] p-6 rounded-2xl shadow-lg border border-[var(--border-primary)]">
@@ -377,6 +458,7 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({ user, onBack }) =
             </div>
         </Modal>
         <SubscriptionModal isOpen={isSubModalOpen} onClose={() => setIsSubModalOpen(false)} subscription={subscription || undefined} onSave={handleSubscriptionUpdate} />
+        <PasswordResetModal isOpen={isPasswordModalOpen} onClose={() => setIsPasswordModalOpen(false)} onSave={handlePasswordUpdate}/>
     </div>
   );
 };

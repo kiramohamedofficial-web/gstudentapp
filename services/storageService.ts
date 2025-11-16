@@ -144,6 +144,26 @@ export const deleteSelf = async () => {
 // --- 1️⃣ Users & Accounts ---
 export async function getAllUsers() { const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false }); if (error) console.error(error); return data || []; }
 export async function getUserById(userId: string) { return supabase.from('profiles').select('*').eq('id', userId).single(); }
+export async function getUsersByIds(userIds: string[]): Promise<User[]> {
+    if (userIds.length === 0) return [];
+    const { data, error } = await supabase.from('profiles').select('*').in('id', userIds);
+    if (error) {
+        console.error('Error fetching users by IDs:', error);
+        return [];
+    }
+    return (data || []).map((user: any) => ({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        guardianPhone: user.guardian_phone,
+        grade: user.grade_id,
+        track: user.track,
+        role: user.role,
+        subscriptionId: user.subscription_id,
+        teacherId: user.teacher_id,
+    }));
+}
 export async function getUserByTeacherId(teacherId: string) { const { data } = await supabase.from('profiles').select('*').eq('teacher_id', teacherId).single(); return data; }
 export async function getAllStudents() { return supabase.from('profiles').select('*').eq('role', 'student').order('name'); }
 export async function getStudentsByGrade(gradeId: number) { return supabase.from('profiles').select('*').eq('role', 'student').eq('grade_id', gradeId); }
@@ -319,6 +339,7 @@ export async function getAllGrades(): Promise<Grade[]> {
                     title: lesson.title,
                     type: lesson.type,
                     content: lesson.content,
+                    isFree: lesson.is_free,
                     quizType: lesson.quiz_type,
                     questions: lesson.questions,
                     imageUrl: lesson.image_url,
@@ -326,6 +347,7 @@ export async function getAllGrades(): Promise<Grade[]> {
                     timeLimit: lesson.time_limit,
                     passingScore: lesson.passing_score,
                     dueDate: lesson.due_date,
+                    publishedAt: lesson.published_at,
                 }))
             }))
         }))
@@ -354,11 +376,13 @@ export async function getLessonsByUnit(unitId: string): Promise<Lesson[]> {
     if (!data) return [];
     return data.map((lesson: any) => ({
         ...lesson,
+        isFree: lesson.is_free,
         quizType: lesson.quiz_type,
         correctAnswers: lesson.correct_answers,
         timeLimit: lesson.time_limit,
         passingScore: lesson.passing_score,
         dueDate: lesson.due_date,
+        publishedAt: lesson.published_at,
     })) as Lesson[];
 }
 
@@ -389,6 +413,23 @@ export async function getSubscriptionsByTeacherId(teacherId: string): Promise<Su
     const { data, error } = await supabase.from('subscriptions').select('*').eq('teacher_id', teacherId);
     if (error) {
         console.error(error);
+        return [];
+    }
+    return (data?.map(sub => ({
+        id: sub.id,
+        userId: sub.user_id,
+        plan: sub.plan,
+        startDate: sub.start_date,
+        endDate: sub.end_date,
+        status: sub.status,
+        teacherId: sub.teacher_id,
+    })) as Subscription[]) || [];
+}
+export async function getSubscriptionsByTeacherIds(teacherIds: string[]): Promise<Subscription[]> {
+    if (teacherIds.length === 0) return [];
+    const { data, error } = await supabase.from('subscriptions').select('*').in('teacher_id', teacherIds);
+    if (error) {
+        console.error("Error fetching subscriptions by teacher IDs:", error);
         return [];
     }
     return (data?.map(sub => ({
@@ -500,6 +541,7 @@ export async function getPlatformSettings(): Promise<PlatformSettings | null> {
         currency: data.currency || 'EGP',
         paymentNumbers: data.payment_numbers || [],
         enabledSubscriptionModes: data.enabled_subscription_modes || ['comprehensive', 'singleSubject'],
+        iconSettings: data.icon_settings || {},
     };
     return settings;
 }
@@ -1089,6 +1131,12 @@ export const updateUser = async (userId: string, updates: Partial<User>) => {
     const { error } = await supabase.from('profiles').update(payload).eq('id', userId);
     return { error };
 };
+export const adminUpdateUserPassword = async (userId: string, newPassword: string) => {
+    const { data, error } = await supabase.auth.admin.updateUserById(userId, {
+        password: newPassword,
+    });
+    return { data, error };
+};
 export const deleteUser = async (id: string) => {
     const { error } = await supabase.auth.admin.deleteUser(id);
     return { error };
@@ -1209,6 +1257,7 @@ export const updatePlatformSettings = async (newSettings: PlatformSettings): Pro
         currency: newSettings.currency,
         payment_numbers: newSettings.paymentNumbers,
         enabled_subscription_modes: newSettings.enabledSubscriptionModes,
+        icon_settings: newSettings.iconSettings,
     };
 
     const { data } = await supabase.from('platform_settings').select('id').limit(1).single();
@@ -1239,8 +1288,16 @@ export const addUnitToSemester = async (gradeId: number, semesterId: string, uni
     }
     return supabase.from('units').insert(payload).select().single();
 };
-export const addLessonToUnit = async (gradeId: number, semesterId: string, unitId: string, lessonData: Omit<Lesson, 'id'>) => supabase.from('lessons').insert({ ...lessonData, unit_id: unitId }).select().single();
-export const updateLesson = async (gradeId: number, semesterId: string, unitId: string, updatedLesson: Lesson) => supabase.from('lessons').update(updatedLesson).eq('id', updatedLesson.id);
+export const addLessonToUnit = async (gradeId: number, semesterId: string, unitId: string, lessonData: Omit<Lesson, 'id'>) => {
+    const { isFree, ...rest } = lessonData;
+    const payload = { ...rest, unit_id: unitId, is_free: isFree === true };
+    return supabase.from('lessons').insert(payload).select().single();
+};
+export const updateLesson = async (gradeId: number, semesterId: string, unitId: string, updatedLesson: Lesson) => {
+    const { isFree, ...rest } = updatedLesson;
+    const payload = { ...rest, is_free: isFree === true };
+    return supabase.from('lessons').update(payload).eq('id', updatedLesson.id);
+};
 export const deleteLesson = async (gradeId: number, semesterId: string, unitId: string, lessonId: string) => supabase.from('lessons').delete().eq('id', lessonId);
 export const updateUnit = async (gradeId: number, semesterId: string, updatedUnit: Partial<Unit> & { id: string }) => {
     const payload = { ...updatedUnit };

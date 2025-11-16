@@ -1,10 +1,11 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { Grade, Unit, Lesson, LessonType, ToastType, User, StudentView } from '../../types';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { Grade, Unit, Lesson, LessonType, ToastType, User, StudentView, Subscription } from '../../types';
 import { getStudentProgress, markLessonComplete, getLessonsByUnit } from '../../services/storageService';
 import { useToast } from '../../useToast';
 import LessonView from './LessonView';
-import { BookOpenIcon, PencilIcon, CheckCircleIcon, VideoCameraIcon, DocumentTextIcon, ArrowRightIcon, ChevronDownIcon, PlaySolidIcon } from '../common/Icons';
+import { BookOpenIcon, PencilIcon, CheckCircleIcon, VideoCameraIcon, DocumentTextIcon, ArrowRightIcon, ChevronDownIcon, PlaySolidIcon, LockClosedIcon } from '../common/Icons';
 import Loader from '../common/Loader';
+import { useSubscription } from '../../hooks/useSubscription';
 
 interface GroupedLesson {
     baseTitle: string;
@@ -68,7 +69,7 @@ const CircularProgress: React.FC<{ progress: number }> = ({ progress }) => {
 };
 
 
-const LessonPartCard: React.FC<{ lesson: Lesson; onSelect: (lesson: Lesson) => void; isCompleted: boolean; }> = ({ lesson, onSelect, isCompleted }) => {
+const LessonPartCard: React.FC<{ lesson: Lesson; onSelect: (lesson: Lesson) => void; isCompleted: boolean; isAccessible: boolean; }> = ({ lesson, onSelect, isCompleted, isAccessible }) => {
     const typeInfo: Record<LessonType, { icon: React.FC<{className?: string}>; action: string }> = {
         [LessonType.EXPLANATION]: { icon: VideoCameraIcon, action: 'مشاهدة' },
         [LessonType.HOMEWORK]: { icon: PencilIcon, action: 'بدء' },
@@ -77,27 +78,46 @@ const LessonPartCard: React.FC<{ lesson: Lesson; onSelect: (lesson: Lesson) => v
     };
     
     const { icon: Icon, action } = typeInfo[lesson.type] || typeInfo[LessonType.EXPLANATION];
+    
+    const publishedDate = lesson.publishedAt ? new Date(lesson.publishedAt) : null;
+    const dateString = publishedDate ? publishedDate.toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' }) : null;
+    const dayString = publishedDate ? publishedDate.toLocaleDateString('ar-EG', { weekday: 'long' }) : null;
+
 
     return (
         <button 
-            onClick={() => onSelect(lesson)}
-            className="bg-[var(--bg-primary)] p-3 rounded-lg text-right w-full flex items-center space-x-4 space-x-reverse transition-all duration-300 transform hover:bg-[var(--border-primary)] group"
+            onClick={() => isAccessible && onSelect(lesson)}
+            disabled={!isAccessible}
+            className="bg-[var(--bg-primary)] p-3 rounded-lg text-right w-full flex items-center space-x-4 space-x-reverse transition-all duration-300 transform group disabled:cursor-not-allowed disabled:opacity-60"
         >
             <div className={`p-3 rounded-md transition-colors ${isCompleted ? 'text-green-400 bg-green-500/10' : 'text-[var(--text-secondary)] bg-[var(--bg-tertiary)]'}`}>
                 <Icon className="w-6 h-6" />
             </div>
             <div className="flex-grow">
                 <p className="font-semibold text-md text-[var(--text-primary)]">{lesson.title}</p>
+                 {dateString && <p className="text-xs text-[var(--text-secondary)] mt-1">{`نُشر يوم ${dayString}، ${dateString}`}</p>}
             </div>
-            {isCompleted ? (
-                <div className="flex items-center space-x-1 space-x-reverse text-green-400 font-semibold">
-                    <CheckCircleIcon className="w-5 h-5" />
-                    <span>مكتمل</span>
-                </div>
+            {isAccessible ? (
+                isCompleted ? (
+                    <div className="flex items-center space-x-1 space-x-reverse text-green-400 font-semibold">
+                        <CheckCircleIcon className="w-5 h-5" />
+                        <span>مكتمل</span>
+                    </div>
+                ) : lesson.isFree ? (
+                    <div className="flex items-center space-x-2 space-x-reverse py-2 px-4 rounded-lg bg-green-500/10 text-green-400 font-bold">
+                        <span>حصة مجانية</span>
+                        <PlaySolidIcon className="w-5 h-5"/>
+                    </div>
+                ) : (
+                     <div className="flex items-center space-x-2 space-x-reverse py-2 px-4 rounded-lg bg-[var(--bg-tertiary)] text-[var(--text-accent)] group-hover:bg-[var(--accent-primary)] group-hover:text-white transition-colors">
+                        <span>{action}</span>
+                        <PlaySolidIcon className="w-5 h-5"/>
+                    </div>
+                )
             ) : (
-                 <div className="flex items-center space-x-2 space-x-reverse py-2 px-4 rounded-lg bg-[var(--bg-tertiary)] text-[var(--text-accent)] group-hover:bg-[var(--accent-primary)] group-hover:text-white transition-colors">
-                    <span>{action}</span>
-                    <PlaySolidIcon className="w-5 h-5"/>
+                 <div className="flex items-center space-x-2 space-x-reverse text-gray-500">
+                    <LockClosedIcon className="w-5 h-5" />
+                    <span>مغلق</span>
                 </div>
             )}
         </button>
@@ -111,7 +131,8 @@ const LessonAccordionItem: React.FC<{
     userProgress: Record<string, boolean>;
     isOpen: boolean;
     onToggle: () => void;
-}> = ({ groupedLesson, onSelect, index, userProgress, isOpen, onToggle }) => {
+    canAccessLesson: (lesson: Lesson) => boolean;
+}> = ({ groupedLesson, onSelect, index, userProgress, isOpen, onToggle, canAccessLesson }) => {
      return (
         <div
             className={`bg-[var(--bg-secondary)] rounded-xl shadow-md border border-[var(--border-primary)] transition-all duration-300 ease-in-out fade-in ${isOpen ? 'border-[var(--accent-primary)] shadow-lg' : 'hover:border-[var(--border-secondary)]'}`}
@@ -140,10 +161,10 @@ const LessonAccordionItem: React.FC<{
             {/* Content Body */}
             <div className={`transition-all duration-500 ease-in-out overflow-hidden ${isOpen ? 'max-h-[50rem]' : 'max-h-0'}`}>
                 <div className="p-4 border-t border-[var(--border-primary)] space-y-3">
-                    {groupedLesson.explanations.map(lesson => <LessonPartCard key={lesson.id} lesson={lesson} onSelect={onSelect} isCompleted={!!userProgress[lesson.id]} />)}
-                    {groupedLesson.homeworks.map(lesson => <LessonPartCard key={lesson.id} lesson={lesson} onSelect={onSelect} isCompleted={!!userProgress[lesson.id]} />)}
-                    {groupedLesson.exams.map(lesson => <LessonPartCard key={lesson.id} lesson={lesson} onSelect={onSelect} isCompleted={!!userProgress[lesson.id]} />)}
-                    {groupedLesson.summaries.map(lesson => <LessonPartCard key={lesson.id} lesson={lesson} onSelect={onSelect} isCompleted={!!userProgress[lesson.id]} />)}
+                    {groupedLesson.explanations.map(lesson => <LessonPartCard key={lesson.id} lesson={lesson} onSelect={onSelect} isCompleted={!!userProgress[lesson.id]} isAccessible={canAccessLesson(lesson)} />)}
+                    {groupedLesson.homeworks.map(lesson => <LessonPartCard key={lesson.id} lesson={lesson} onSelect={onSelect} isCompleted={!!userProgress[lesson.id]} isAccessible={canAccessLesson(lesson)} />)}
+                    {groupedLesson.exams.map(lesson => <LessonPartCard key={lesson.id} lesson={lesson} onSelect={onSelect} isCompleted={!!userProgress[lesson.id]} isAccessible={canAccessLesson(lesson)} />)}
+                    {groupedLesson.summaries.map(lesson => <LessonPartCard key={lesson.id} lesson={lesson} onSelect={onSelect} isCompleted={!!userProgress[lesson.id]} isAccessible={canAccessLesson(lesson)} />)}
                 </div>
             </div>
         </div>
@@ -156,9 +177,40 @@ const CourseView: React.FC<CourseViewProps> = ({ grade, unit, user, onBack, onNa
   const [userProgress, setUserProgress] = useState<Record<string, boolean>>({});
   const [openAccordion, setOpenAccordion] = useState<string | null>(null);
   const { addToast } = useToast();
+  const { subscriptions, activeSubscriptions } = useSubscription();
   
   const [lessonsForUnit, setLessonsForUnit] = useState<Lesson[]>(unit.lessons || []);
   const [isLoadingLessons, setIsLoadingLessons] = useState(false);
+
+    const canAccessLesson = useCallback((lesson: Lesson): boolean => {
+        if (lesson.isFree) {
+            return true;
+        }
+        if (!lesson.publishedAt) {
+            return activeSubscriptions.length > 0;
+        }
+        
+        const lessonPublicationDate = new Date(lesson.publishedAt);
+        if (isNaN(lessonPublicationDate.getTime())) {
+            return false;
+        }
+
+        const lessonYear = lessonPublicationDate.getFullYear();
+        const lessonMonth = lessonPublicationDate.getMonth();
+
+        const lessonMonthStart = new Date(lessonYear, lessonMonth, 1);
+        const lessonMonthEnd = new Date(lessonYear, lessonMonth + 1, 0);
+
+        for (const sub of subscriptions) {
+            const subStartDate = new Date(sub.startDate);
+            const subEndDate = new Date(sub.endDate);
+            if (subStartDate <= lessonMonthEnd && subEndDate >= lessonMonthStart) {
+                return true;
+            }
+        }
+        return false;
+    }, [subscriptions, activeSubscriptions]);
+
 
     useEffect(() => {
         const fetchProgressAndLessons = async () => {
@@ -342,6 +394,7 @@ const CourseView: React.FC<CourseViewProps> = ({ grade, unit, user, onBack, onNa
               userProgress={userProgress}
               isOpen={openAccordion === groupedLesson.baseTitle}
               onToggle={() => handleToggleAccordion(groupedLesson.baseTitle)}
+              canAccessLesson={canAccessLesson}
             />
           ))}
         </div>

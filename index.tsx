@@ -5,6 +5,7 @@ import { ToastProvider } from './ToastContext';
 import { SessionProvider } from './hooks/useSession';
 import { SubscriptionProvider } from './hooks/useSubscription';
 import { initData } from './services/storageService';
+import { IconProvider } from './IconContext';
 
 performance.mark('app-load-start');
 
@@ -22,7 +23,9 @@ initData().then(() => {
       <ToastProvider>
         <SessionProvider>
           <SubscriptionProvider>
-            <App />
+            <IconProvider>
+              <App />
+            </IconProvider>
           </SubscriptionProvider>
         </SessionProvider>
       </ToastProvider>

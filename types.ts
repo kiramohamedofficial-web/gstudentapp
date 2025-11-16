@@ -9,7 +9,7 @@ export enum Role {
 
 export type StudentView = 'home' | 'grades' | 'subscription' | 'profile' | 'teachers' | 'courses' | 'singleSubjectSubscription' | 'comprehensiveSubscription' | 'results' | 'smartPlan' | 'chatbot' | 'adhkar' | 'cartoonMovies' | 'teacherProfile' | 'courseDetail' | 'questionBank' | 'askTeacher' | 'reels';
 export type TeacherView = 'dashboard' | 'content' | 'subscriptions' | 'profile' | 'students' | 'studentChats';
-export type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'courseManagement' | 'tools' | 'homeManagement' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers' | 'subscriptionPrices' | 'deviceManagement' | 'content' | 'accountCreationDiagnostics' | 'teacherCreationDiagnostics' | 'financials' | 'curriculumDiagnostics' | 'subscriptionCodeDiagnostics' | 'cartoonMoviesManagement' | 'questionBank' | 'supervisors' | 'reelsManagement';
+export type AdminView = 'dashboard' | 'students' | 'subscriptions' | 'courseManagement' | 'tools' | 'homeManagement' | 'platformSettings' | 'systemHealth' | 'accountSettings' | 'teachers' | 'subscriptionPrices' | 'deviceManagement' | 'content' | 'accountCreationDiagnostics' | 'teacherCreationDiagnostics' | 'financials' | 'curriculumDiagnostics' | 'subscriptionCodeDiagnostics' | 'cartoonMoviesManagement' | 'questionBank' | 'supervisors' | 'reelsManagement' | 'iconSettings';
 
 
 export interface User {
@@ -61,6 +61,8 @@ export interface Lesson {
   title: string;
   type: LessonType;
   content: string; // YouTube video ID, summary text, etc.
+  isFree?: boolean;
+  publishedAt?: string;
   
   // Quiz fields
   quizType?: QuizType;
@@ -143,6 +145,7 @@ export enum ToastType {
   SUCCESS = 'success',
   ERROR = 'error',
   INFO = 'info',
+  WARNING = 'warning',
 }
 
 export interface ToastMessage {
@@ -207,6 +210,40 @@ export interface PlatformFeature {
 
 export type SubscriptionMode = 'comprehensive' | 'singleSubject';
 
+export interface IconSettings {
+    // Main Branding
+    faviconUrl?: string;
+    mainLogoUrl?: string;
+
+    // Welcome Screen
+    welcomeHeroImageUrl?: string;
+    welcomeStatStudentIconUrl?: string;
+    welcomeStatLessonIconUrl?: string;
+    welcomeStatSatisfactionIconUrl?: string;
+    welcomeStatSupportIconUrl?: string;
+    welcomeFeatureStatsIconUrl?: string;
+    welcomeFeaturePlayerIconUrl?: string;
+    welcomeFeatureAiIconUrl?: string;
+
+    // Student Dashboard
+    studentNavHomeIconUrl?: string;
+    studentNavCurriculumIconUrl?: string;
+    studentNavReelsIconUrl?: string;
+    studentNavSubscriptionIconUrl?: string;
+    studentNavProfileIconUrl?: string;
+    studentNavResultsIconUrl?: string;
+    studentNavChatbotIconUrl?: string;
+    studentNavCartoonIconUrl?: string;
+    studentNavQuestionBankIconUrl?: string;
+    
+    // Admin Dashboard
+    adminNavContentIconUrl?: string;
+    adminNavTeacherIconUrl?: string;
+    adminNavStudentIconUrl?: string;
+    adminNavHealthIconUrl?: string;
+    adminNavCartoonIconUrl?: string;
+}
+
 export interface PlatformSettings {
   platformName: string;
   heroTitle: string;
@@ -234,9 +271,29 @@ export interface PlatformSettings {
     imageUrl?: string;
     enabled: boolean;
   };
+  iconSettings?: IconSettings;
 }
 
-export type Theme = 'dark' | 'light' | 'ghost' | 'gold' | 'pink' | 'sunset' | 'forest' | 'ocean' | 'wave' | 'matrix' | 'aurora' | 'crystal' | 'aquatic' | 'glass' | 'neumorphism' | 'claymorphism';
+export type Mode = 'light' | 'dark';
+export type Style = 'basic' | '.clymorphism';
+export type FullTheme = 'light' | 'dark' | '.clymorphism-light' | '.clymorphism-dark';
+
+export interface CustomColors {
+  '--bg-primary': string;
+  '--bg-secondary': string;
+  '--text-primary': string;
+  '--accent-primary': string;
+}
+
+export interface AppearanceSettings {
+  neon: {
+    enabled: boolean;
+    color: string;
+    intensity: number; // 0 to 1
+  };
+  customColors: Record<FullTheme, CustomColors>;
+}
+
 
 export interface SubscriptionCode {
     code: string;

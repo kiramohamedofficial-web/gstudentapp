@@ -1,15 +1,14 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { StudentView, Subscription, Theme, AppNotification } from '../../types';
-import { UserCircleIcon, CreditCardIcon, UsersIcon, LogoutIcon, TemplateIcon, XIcon, SparklesIcon, BrainIcon, BellIcon, CogIcon, MoonIcon, ShieldCheckIcon, ShieldExclamationIcon, QuestionMarkCircleIcon, ChatBubbleOvalLeftEllipsisIcon } from '../common/Icons';
+import { StudentView, Subscription, AppNotification } from '../../types';
+import { UserCircleIcon, CreditCardIcon, UsersIcon, LogoutIcon, TemplateIcon, XIcon, SparklesIcon, BrainIcon, BellIcon, CogIcon, MoonIcon, ShieldCheckIcon, ShieldExclamationIcon, QuestionMarkCircleIcon, ChatBubbleOvalLeftEllipsisIcon, SunIcon } from '../common/Icons';
 import { useSession } from '../../hooks/useSession';
 import { useSubscription } from '../../hooks/useSubscription';
+import { useAppearance } from '../../App';
 
 interface StudentLayoutProps {
   children: React.ReactNode;
   onNavClick: (view: StudentView) => void;
   activeView: string;
-  theme: Theme;
-  setTheme: (theme: Theme) => void;
   gradeName?: string;
 }
 
@@ -62,12 +61,16 @@ const bottomNavItems = [
     { id: 'profile', label: 'ملفي', icon: ProfileBottomNavIcon },
 ];
 
-const NavButton: React.FC<{ onClick: () => void; label: string; icon: React.FC<{className?: string}>; isActive: boolean; }> = ({ onClick, label, icon: Icon, isActive }) => (
-    <button onClick={onClick} className={`w-full text-right flex items-center space-x-4 space-x-reverse group rounded-lg p-3 nav-btn ${isActive ? 'active' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'}`}>
-        <Icon className={`w-6 h-6 transition-colors duration-300 nav-icon ${isActive ? '' : 'text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]'}`} />
-        <span className="text-md">{label}</span>
-    </button>
-);
+const NavButton: React.FC<{ onClick: () => void; label: string; icon: React.FC<{className?: string}>; isActive: boolean; }> = ({ onClick, label, icon: Icon, isActive }) => {
+    const { style } = useAppearance();
+    const isCly = style.startsWith('.clymorphism');
+    return (
+        <button onClick={onClick} className={`w-full text-right flex items-center space-x-4 space-x-reverse group p-3 nav-btn ${isCly ? `clay-element rounded-lg ${isActive ? 'clay-inset' : 'clay-outset'}` : `rounded-lg ${isActive ? 'active' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'}`}`}>
+            <Icon className={`w-6 h-6 transition-colors duration-300 nav-icon ${isActive ? '' : 'text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]'}`} />
+            <span className="text-md">{label}</span>
+        </button>
+    )
+};
 
 const SubscriptionStatusCard: React.FC<{ subscription: Subscription; onNavClick: () => void; }> = ({ subscription, onNavClick }) => {
     const days = Math.ceil(Math.max(0, (new Date(subscription.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
@@ -75,7 +78,7 @@ const SubscriptionStatusCard: React.FC<{ subscription: Subscription; onNavClick:
 
     return (
         <div className="px-4 pb-4">
-            <button onClick={onNavClick} className="w-full bg-[rgba(var(--accent-primary-rgb),0.1)] p-4 rounded-xl border border-transparent hover:border-[rgba(var(--accent-primary-rgb),0.5)] transition-all duration-300 text-right space-y-2">
+            <button onClick={onNavClick} className="w-full p-4 rounded-xl text-right space-y-2 home-card">
                 <div className="flex items-center space-x-3 space-x-reverse"><div className="p-2 bg-[var(--accent-primary)] rounded-full"><SparklesIcon className="w-5 h-5 text-white" /></div><span className="font-bold text-lg text-[var(--text-primary)]">اشتراكك</span></div>
                 <p className="text-sm text-[var(--text-secondary)]">الخطة {planLabels[subscription.plan]} النشطة</p>
                 <p className="text-md font-bold text-[var(--accent-primary)]">متبقي {days} يوم</p>
@@ -84,24 +87,28 @@ const SubscriptionStatusCard: React.FC<{ subscription: Subscription; onNavClick:
     );
 };
 
-const NavContent: React.FC<{ navItems: any[]; activeView: string; onNavClick: (view: StudentView) => void; onLogout: () => void; subscription: Subscription | null; }> = ({ navItems, activeView, onNavClick, onLogout, subscription }) => (
+const NavContent: React.FC<{ navItems: any[]; activeView: string; onNavClick: (view: StudentView) => void; onLogout: () => void; subscription: Subscription | null; }> = ({ navItems, activeView, onNavClick, onLogout, subscription }) => {
+    return (
     <div className="flex flex-col flex-1 overflow-y-auto">
-        <nav className="mt-2 flex-grow p-4 space-y-1.5">{navItems.map((item) => <NavButton key={item.id} onClick={() => onNavClick(item.id as StudentView)} label={item.label} icon={item.icon} isActive={activeView === item.id} />)}</nav>
+        <div className="w-full h-px bg-[var(--border-primary)] mb-2 flex-shrink-0"></div>
+
+        <nav className="flex-grow p-4 space-y-3">{navItems.map((item) => <NavButton key={item.id} onClick={() => onNavClick(item.id as StudentView)} label={item.label} icon={item.icon} isActive={activeView === item.id} />)}</nav>
         {subscription && subscription.status === 'Active' && (new Date(subscription.endDate) >= new Date()) && (<SubscriptionStatusCard subscription={subscription} onNavClick={() => onNavClick('subscription')} />)}
-        <div className="p-4 border-t border-[var(--border-primary)]"><button onClick={onLogout} className="w-full flex items-center p-3 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors duration-200 space-x-4 space-x-reverse"><LogoutIcon className="w-6 h-6" /><span className="text-md font-semibold">تسجيل الخروج</span></button></div>
+        <div className="p-4 border-t border-[var(--border-primary)]"><button onClick={onLogout} className="w-full flex items-center p-3 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors duration-200 space-x-4 space-x-reverse clay-element clay-outset"><LogoutIcon className="w-6 h-6" /><span className="text-md font-semibold">تسجيل الخروج</span></button></div>
     </div>
-);
+)};
 
 const BottomNavItem: React.FC<{ onClick: () => void; label: string; icon: React.FC<{className?: string}>; isActive: boolean; }> = ({ onClick, label, icon: Icon, isActive }) => (
-    <button onClick={onClick} className={`flex-1 flex flex-col items-center justify-center p-2 transition-colors duration-300 group ${isActive ? 'text-[var(--accent-primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}>
+    <button onClick={onClick} className={`flex-1 flex flex-col items-center justify-center p-2 transition-colors duration-300 group bottom-nav-item ${isActive ? 'active text-[var(--accent-primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}>
         <Icon className={`w-6 h-6 mb-1 transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
         <span className="text-xs font-semibold">{label}</span>
     </button>
 );
 
-const StudentLayout: React.FC<StudentLayoutProps> = ({ children, onNavClick, activeView, theme, setTheme, gradeName }) => {
+const StudentLayout: React.FC<StudentLayoutProps> = ({ children, onNavClick, activeView, gradeName }) => {
     const { currentUser: user, handleLogout: onLogout } = useSession();
     const { subscription, isLoading: isSubLoading, notifications } = useSubscription();
+    const { mode, setMode, style, toggleStyle } = useAppearance();
 
     const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
@@ -150,11 +157,24 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ children, onNavClick, act
       <div className="h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] p-0 md:p-3">
         <div className="flex w-full h-full md:gap-3">
           {/* Desktop Sidebar */}
-          <aside className="w-72 flex-shrink-0 bg-[var(--glass-bg)] backdrop-blur-[var(--glass-blur)] border border-[var(--glass-border)] rounded-2xl flex-col hidden md:flex overflow-hidden">
-              <div className="h-20 flex items-center justify-center px-4 flex-shrink-0">
-                  <div className="flex items-center"><img src="https://j.top4top.io/p_3584uziv73.png" alt="Gstudent Logo" className="w-12 h-12" /></div>
+          <aside className="w-72 flex-shrink-0 rounded-2xl flex-col hidden md:flex p-3">
+              <div className="p-4 flex flex-col items-center gap-4 flex-shrink-0">
+                <div className="flex items-center gap-2 cursor-pointer" onClick={() => onNavClick('home')}>
+                    <img src="https://j.top4top.io/p_3584uziv73.png" alt="Gstudent Logo" className="w-10 h-10" />
+                    <span className="font-bold text-lg text-[var(--text-primary)]">Gstudent</span>
+                </div>
+                <div className="bg-[var(--bg-tertiary)] p-1 rounded-full flex items-center gap-1 border border-[var(--border-primary)]">
+                    <button onClick={() => setMode(mode === 'light' ? 'dark' : 'light')} className="w-12 h-12 p-2.5 rounded-full bg-[var(--bg-secondary)] hover:bg-[var(--border-primary)] transition-colors flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] theme-toggle-button">
+                        <div className="theme-toggle-icons">
+                            <SunIcon className="w-6 h-6 sun-icon" />
+                            <MoonIcon className="w-6 h-6 moon-icon" />
+                        </div>
+                    </button>
+                    <button onClick={toggleStyle} className={`w-12 h-12 p-2.5 rounded-full transition-colors flex items-center justify-center ${style === '.clymorphism' ? 'bg-purple-500/20' : 'hover:bg-[var(--border-primary)]'}`}>
+                        <img src="https://d.top4top.io/p_3606pacf30.png" alt="Toggle Style" className="w-6 h-6" />
+                    </button>
+                </div>
               </div>
-              <div className="w-full h-px bg-[var(--border-primary)] flex-shrink-0"></div>
               <NavContent navItems={navItems} activeView={activeView} onNavClick={onNavClick} onLogout={onLogout} subscription={subscription} />
           </aside>
 
@@ -258,18 +278,32 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ children, onNavClick, act
             </main>
           </div>
         </div>
-        <div className="md:hidden fixed bottom-2 left-2 right-2 h-16 bg-[var(--glass-bg)] backdrop-blur-[var(--glass-blur)] border border-[var(--glass-border)] flex justify-around items-center shadow-lg rounded-2xl">
+        <div className="md:hidden fixed bottom-2 left-2 right-2 h-16 flex justify-around items-center shadow-lg rounded-2xl student-bottom-nav">
             {bottomNavItems.map((item) => <BottomNavItem key={item.id} onClick={() => onNavClick(item.id as StudentView)} label={item.label} icon={item.icon} isActive={activeView === item.id} />)}
         </div>
         {isMobileNavOpen && (
           <div className="md:hidden fixed inset-0 z-[60]" role="dialog" aria-modal="true">
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setIsMobileNavOpen(false)}></div>
             <div className="fixed inset-y-2 right-2 w-72 bg-[var(--bg-secondary)] border border-[var(--border-primary)] flex flex-col animate-slide-in-right rounded-2xl overflow-hidden">
-              <div className="h-20 flex items-center justify-between px-6 flex-shrink-0">
-                 <div className="flex items-center">
-                     <img src="https://j.top4top.io/p_3584uziv73.png" alt="Gstudent Logo" className="w-10 h-10" />
-                 </div>
+              <div className="h-20 flex items-center justify-between px-4 flex-shrink-0">
+                <div className="flex items-center gap-2">
+                    <img src="https://j.top4top.io/p_3584uziv73.png" alt="Gstudent Logo" className="w-10 h-10" />
+                    <span className="font-bold text-lg text-[var(--text-primary)]">Gstudent</span>
+                </div>
                 <button onClick={() => setIsMobileNavOpen(false)} className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"><XIcon className="w-6 h-6" /></button>
+              </div>
+              <div className="px-4 pb-4 flex items-center justify-center">
+                <div className="bg-[var(--bg-tertiary)] p-1 rounded-full flex items-center gap-1 border border-[var(--border-primary)]">
+                    <button onClick={() => setMode(mode === 'light' ? 'dark' : 'light')} className="w-12 h-12 p-2.5 rounded-full bg-[var(--bg-secondary)] hover:bg-[var(--border-primary)] transition-colors flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] theme-toggle-button">
+                        <div className="theme-toggle-icons">
+                            <SunIcon className="w-6 h-6 sun-icon" />
+                            <MoonIcon className="w-6 h-6 moon-icon" />
+                        </div>
+                    </button>
+                    <button onClick={toggleStyle} className={`w-12 h-12 p-2.5 rounded-full transition-colors flex items-center justify-center ${style === '.clymorphism' ? 'bg-purple-500/20' : 'hover:bg-[var(--border-primary)]'}`}>
+                        <img src="https://d.top4top.io/p_3606pacf30.png" alt="Toggle Style" className="w-6 h-6" />
+                    </button>
+                </div>
               </div>
               <NavContent navItems={navItems} activeView={activeView} onNavClick={(v) => { onNavClick(v); setIsMobileNavOpen(false); }} onLogout={() => { onLogout(); setIsMobileNavOpen(false); }} subscription={subscription} />
             </div>

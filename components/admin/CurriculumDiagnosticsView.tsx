@@ -60,10 +60,10 @@ const CurriculumDiagnosticsView: React.FC<CurriculumDiagnosticsViewProps> = ({ o
             updateCheck('fetch', 'جلب البيانات الخام', 'ok', `تم جلب ${data.length} صفًا بنجاح.`);
 
             // FIX: Use .includes() for more robust matching to avoid false negatives.
-            const middleSchoolRecords = data.filter(g => g.level_ar?.includes('إعدادي') || g.level?.toLowerCase() === 'middle');
+            const middleSchoolRecords = data.filter(g => g.level_ar?.includes('الإعدادي') || g.level?.toLowerCase() === 'middle');
             updateCheck('middle_school', 'وجود صفوف إعدادية', middleSchoolRecords.length > 0 ? 'ok' : 'error', middleSchoolRecords.length > 0 ? `تم العثور على ${middleSchoolRecords.length} صفوف.` : 'خطأ فادح: لم يتم العثور على أي صفوف إعدادية.');
             
-            const secondarySchoolRecords = data.filter(g => g.level_ar?.includes('ثانوي') || g.level?.toLowerCase() === 'secondary');
+            const secondarySchoolRecords = data.filter(g => g.level_ar?.includes('الثانوي') || g.level?.toLowerCase() === 'secondary');
             updateCheck('secondary_school', 'وجود صفوف ثانوية', secondarySchoolRecords.length > 0 ? 'ok' : 'warning', secondarySchoolRecords.length > 0 ? `تم العثور على ${secondarySchoolRecords.length} صفوف.` : 'لم يتم العثور على أي صفوف ثانوية.');
 
             const missingLevelAr = data.filter(g => !g.level_ar || g.level_ar.trim() === '');

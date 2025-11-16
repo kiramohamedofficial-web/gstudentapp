@@ -113,18 +113,20 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
             await initData();
         }
         
+        const { data: { session } } = await supabase.auth.getSession();
+
         const { data: profile } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', currentUser.id)
             .single();
         
-        if (profile) {
+        if (profile && session) {
             const gradeData = getGradeByIdSync(profile.grade_id);
             const mergedUser: User = {
                 id: currentUser.id,
                 name: profile.name,
-                email: currentUser.email,
+                email: session.user.email || profile.email,
                 phone: profile.phone,
                 guardianPhone: profile.guardian_phone,
                 grade: profile.grade_id,

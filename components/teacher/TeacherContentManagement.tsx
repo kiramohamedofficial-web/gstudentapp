@@ -1,8 +1,10 @@
+
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Grade, Semester, Unit, Lesson, LessonType, ToastType, Teacher, QuizType, QuizQuestion } from '../../types';
 import {
     getAllGrades, addLessonToUnit, updateLesson, deleteLesson,
-    addUnitToSemester, updateUnit, deleteUnit
+    addUnitToSemester, updateUnit, deleteUnit, getUnitsForSemester,
+    getLessonsByUnit
 } from '../../services/storageService';
 import Modal from '../common/Modal';
 import { PlusIcon, PencilIcon, TrashIcon, DotsVerticalIcon, BookOpenIcon, VideoCameraIcon, DocumentTextIcon, ChevronDownIcon, SparklesIcon, XIcon } from '../common/Icons';
@@ -10,6 +12,12 @@ import { useToast } from '../../useToast';
 import ImageUpload from '../common/ImageUpload';
 import { generateQuiz } from '../../services/geminiService';
 import Loader from '../common/Loader';
+
+// Props for the new component
+interface TeacherContentManagementProps {
+    teacher: Teacher;
+    isReadOnly: boolean;
+}
 
 // Reusable Confirmation Modal
 const ConfirmationModal: React.FC<{ isOpen: boolean; onClose: () => void; onConfirm: () => void; title: string; message: string; }> = ({ isOpen, onClose, onConfirm, title, message }) => (
@@ -22,23 +30,22 @@ const ConfirmationModal: React.FC<{ isOpen: boolean; onClose: () => void; onConf
     </Modal>
 );
 
-// Unit Add/Edit Modal
-const UnitModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (data: Partial<Unit>) => void; unit: Unit | null; teacher: Teacher, selectedGrade: Grade | null }> = ({ isOpen, onClose, onSave, unit, teacher, selectedGrade }) => {
-    const [formData, setFormData] = useState({ title: '', teacherId: '', track: 'All' });
+// Unit Add/Edit Modal (Adapted for single teacher context)
+const UnitModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (data: Partial<Unit>) => void; unit: Unit | null; selectedGrade: Grade | null }> = ({ isOpen, onClose, onSave, unit, selectedGrade }) => {
+    const [formData, setFormData] = useState({ title: '', track: 'All' });
 
     useEffect(() => {
         if (isOpen) {
             setFormData({
                 title: unit?.title || '',
-                teacherId: teacher.id,
                 track: unit?.track || 'All'
             });
         }
-    }, [unit, isOpen, teacher.id]);
+    }, [unit, isOpen]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (formData.title.trim() && formData.teacherId) {
+        if (formData.title.trim()) {
             onSave(formData);
         }
     };
@@ -60,7 +67,7 @@ const UnitModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (data:
     );
 };
 
-// Lesson Add/Edit Modal
+// Lesson Add/Edit Modal (Copied and adapted)
 const LessonModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (data: Lesson | Omit<Lesson, 'id'>) => void; lesson: Partial<Lesson> | null; gradeName: string }> = ({ isOpen, onClose, onSave, lesson, gradeName }) => {
     const { addToast } = useToast();
     const [formData, setFormData] = useState<Partial<Lesson>>({});
@@ -70,7 +77,7 @@ const LessonModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (dat
     
     useEffect(() => {
         if (isOpen) {
-            const initialData = lesson ? { ...lesson } : { type: LessonType.EXPLANATION, correctAnswers: [] };
+            const initialData = lesson ? { ...lesson } : { type: LessonType.EXPLANATION, correctAnswers: [], isFree: false };
             if (!initialData.type) initialData.type = LessonType.EXPLANATION;
             setFormData(initialData);
             setQuizEditorMode(initialData.quizType === 'mcq' ? 'mcq' : 'image');
@@ -158,7 +165,6 @@ const LessonModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (dat
                 dataToSave.correctAnswers = undefined;
             }
         } else {
-            // If not a quiz, clear all quiz-related fields
             dataToSave.quizType = undefined;
             dataToSave.questions = undefined;
             dataToSave.imageUrl = undefined;
@@ -179,6 +185,16 @@ const LessonModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (dat
                 <select name="type" value={formData.type} onChange={handleChange} className="w-full p-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md">
                     {Object.values(LessonType).map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
+                <label className="flex items-center space-x-2 space-x-reverse cursor-pointer p-2 rounded-md hover:bg-white/5">
+                    <input 
+                        type="checkbox" 
+                        name="isFree" 
+                        checked={!!formData.isFree} 
+                        onChange={e => setFormData(prev => ({ ...prev, isFree: e.target.checked }))} 
+                        className="h-4 w-4 rounded border-gray-500 bg-transparent text-purple-600 focus:ring-purple-500" 
+                    />
+                    <span className="text-[var(--text-secondary)] text-sm font-semibold">درس مجاني للجميع</span>
+                </label>
                 
                 {type === LessonType.EXPLANATION && <input type="text" placeholder="معرف فيديو يوتيوب" name="content" value={formData.content || ''} onChange={handleChange} className="w-full p-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md"/>}
                 {type === LessonType.SUMMARY && <textarea placeholder="محتوى الملخص" name="content" value={formData.content || ''} onChange={handleChange} className="w-full p-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md" rows={5}></textarea>}
@@ -281,6 +297,7 @@ const LessonModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: (dat
     );
 };
 
+
 const getLessonIcon = (type: LessonType) => {
     switch(type) {
         case LessonType.EXPLANATION: return VideoCameraIcon;
@@ -291,7 +308,7 @@ const getLessonIcon = (type: LessonType) => {
     }
 }
 
-const LessonPartItem: React.FC<{ lesson: Lesson, onEdit: () => void, onDelete: () => void, isReadOnly: boolean }> = ({ lesson, onEdit, onDelete, isReadOnly }) => {
+const LessonPartItem: React.FC<{ lesson: Lesson, onEdit: () => void, onDelete: () => void }> = ({ lesson, onEdit, onDelete }) => {
     const Icon = getLessonIcon(lesson.type);
     return (
         <div className="p-2 pl-3 bg-[var(--bg-secondary)] rounded-lg flex justify-between items-center">
@@ -299,12 +316,10 @@ const LessonPartItem: React.FC<{ lesson: Lesson, onEdit: () => void, onDelete: (
                 <Icon className="w-5 h-5 text-[var(--text-secondary)]" />
                 <span className="text-sm font-medium">{lesson.title}</span>
             </div>
-            {!isReadOnly && (
-                <div className="flex gap-2">
-                    <button onClick={onEdit} className="p-1.5 text-[var(--text-secondary)] hover:text-yellow-400"><PencilIcon className="w-4 h-4"/></button>
-                    <button onClick={onDelete} className="p-1.5 text-[var(--text-secondary)] hover:text-red-500"><TrashIcon className="w-4 h-4"/></button>
-                </div>
-            )}
+            <div className="flex gap-2">
+                <button onClick={onEdit} className="p-1.5 text-[var(--text-secondary)] hover:text-yellow-400"><PencilIcon className="w-4 h-4"/></button>
+                <button onClick={onDelete} className="p-1.5 text-[var(--text-secondary)] hover:text-red-500"><TrashIcon className="w-4 h-4"/></button>
+            </div>
         </div>
     );
 };
@@ -325,22 +340,9 @@ const AddPartButton: React.FC<{ type: LessonType, onClick: () => void }> = ({ ty
     );
 };
 
-
-interface GroupedLesson {
-    baseTitle: string;
-    explanations: Lesson[];
-    homeworks: Lesson[];
-    exams: Lesson[];
-    summaries: Lesson[];
-}
-
-interface TeacherContentManagementProps {
-    teacher: Teacher;
-    isReadOnly: boolean;
-}
-
 const UnitItem: React.FC<{
   unit: Unit;
+  teacherName: string;
   lessonsForUnit: Lesson[];
   expanded: boolean;
   onToggle: () => void;
@@ -349,11 +351,10 @@ const UnitItem: React.FC<{
   setOptionsMenuUnitId: React.Dispatch<React.SetStateAction<string | null>>;
   optionsMenuRef: React.RefObject<HTMLDivElement>;
   openModal: (type: string, data?: any) => void;
-  isReadOnly: boolean;
-}> = ({ unit, lessonsForUnit, expanded, onToggle, isLoadingLessons, optionsMenuUnitId, setOptionsMenuUnitId, optionsMenuRef, openModal, isReadOnly }) => {
+}> = ({ unit, teacherName, lessonsForUnit, expanded, onToggle, isLoadingLessons, optionsMenuUnitId, setOptionsMenuUnitId, optionsMenuRef, openModal }) => {
     
     const lessonCount = lessonsForUnit.length;
-    const groupedLessons = useMemo((): GroupedLesson[] => {
+    const groupedLessons = useMemo(() => {
         if (!lessonsForUnit) return [];
         const lessonGroups: Record<string, { baseTitle: string, explanations: Lesson[], homeworks: Lesson[], exams: Lesson[], summaries: Lesson[] }> = {};
         lessonsForUnit.forEach(lesson => {
@@ -377,11 +378,25 @@ const UnitItem: React.FC<{
             <header onClick={onToggle} className="p-4 flex justify-between items-center cursor-pointer">
                 <div className="flex items-center gap-3">
                     <ChevronDownIcon className={`w-6 h-6 text-[var(--text-secondary)] transition-transform ${expanded ? 'rotate-180' : ''}`} />
-                    <h3 className="font-bold text-lg text-[var(--text-primary)]">{unit.title}</h3>
+                    <div>
+                        <h3 className="font-bold text-lg text-[var(--text-primary)]">{unit.title}</h3>
+                        <p className="text-xs text-[var(--text-secondary)]">أ. {teacherName}</p>
+                    </div>
                 </div>
-                <span className="text-sm font-semibold bg-[var(--bg-tertiary)] px-3 py-1 rounded-full">
-                    {lessonCount} أجزاء
-                </span>
+                <div className="flex items-center gap-4">
+                    <span className="text-sm font-semibold bg-[var(--bg-tertiary)] px-3 py-1 rounded-full">
+                        {lessonCount > 0 ? `${lessonCount} أجزاء` : 'فارغ'}
+                    </span>
+                    <div className="relative">
+                        <button onClick={(e) => { e.stopPropagation(); setOptionsMenuUnitId(p => p === unit.id ? null : unit.id); }} className="p-2 text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] rounded-full"><DotsVerticalIcon className="w-5 h-5"/></button>
+                        {optionsMenuUnitId === unit.id && (
+                            <div ref={optionsMenuRef} className="absolute top-full left-0 mt-2 w-32 bg-[var(--bg-primary)] border border-[var(--border-secondary)] rounded-lg shadow-lg z-10 fade-in-up">
+                                <button onClick={() => { openModal('edit-unit', { unit }); setOptionsMenuUnitId(null); }} className="w-full text-right px-3 py-2 text-sm hover:bg-[var(--bg-tertiary)]">تعديل</button>
+                                <button onClick={() => { openModal('delete-unit', { unit }); setOptionsMenuUnitId(null); }} className="w-full text-right px-3 py-2 text-sm text-red-500 hover:bg-[var(--bg-tertiary)]">حذف</button>
+                            </div>
+                        )}
+                    </div>
+                </div>
             </header>
             {expanded && (
                 <div className="p-4 border-t border-[var(--border-primary)] space-y-6">
@@ -393,23 +408,23 @@ const UnitItem: React.FC<{
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <h5 className="font-semibold text-sm text-[var(--text-secondary)] mb-2">الشرح</h5>
-                                        {group.explanations.map(l => <LessonPartItem key={l.id} lesson={l} onEdit={() => openModal('edit-lesson', {unit, lesson: l})} onDelete={() => openModal('delete-lesson', {unit, lesson: l})} isReadOnly={isReadOnly} />)}
-                                        {!isReadOnly && group.explanations.length === 0 && <AddPartButton type={LessonType.EXPLANATION} onClick={() => openModal('add-lesson', {unit, lesson: {type: LessonType.EXPLANATION, title: `${group.baseTitle} - شرح`}})}/>}
+                                        {group.explanations.map(l => <LessonPartItem key={l.id} lesson={l} onEdit={() => openModal('edit-lesson', {unit, lesson: l})} onDelete={() => openModal('delete-lesson', {unit, lesson: l})}/>)}
+                                        {group.explanations.length === 0 && <AddPartButton type={LessonType.EXPLANATION} onClick={() => openModal('add-lesson', {unit, lesson: {type: LessonType.EXPLANATION, title: `${group.baseTitle} - شرح`}})}/>}
                                     </div>
                                     <div>
                                         <h5 className="font-semibold text-sm text-[var(--text-secondary)] mb-2">الواجب</h5>
-                                        {group.homeworks.map(l => <LessonPartItem key={l.id} lesson={l} onEdit={() => openModal('edit-lesson', {unit, lesson: l})} onDelete={() => openModal('delete-lesson', {unit, lesson: l})} isReadOnly={isReadOnly} />)}
-                                        {!isReadOnly && group.homeworks.length === 0 && <AddPartButton type={LessonType.HOMEWORK} onClick={() => openModal('add-lesson', {unit, lesson: {type: LessonType.HOMEWORK, title: `${group.baseTitle} - واجب`}})}/>}
+                                        {group.homeworks.map(l => <LessonPartItem key={l.id} lesson={l} onEdit={() => openModal('edit-lesson', {unit, lesson: l})} onDelete={() => openModal('delete-lesson', {unit, lesson: l})}/>)}
+                                        {group.homeworks.length === 0 && <AddPartButton type={LessonType.HOMEWORK} onClick={() => openModal('add-lesson', {unit, lesson: {type: LessonType.HOMEWORK, title: `${group.baseTitle} - واجب`}})}/>}
                                     </div>
                                     <div>
                                         <h5 className="font-semibold text-sm text-[var(--text-secondary)] mb-2">الامتحان</h5>
-                                        {group.exams.map(l => <LessonPartItem key={l.id} lesson={l} onEdit={() => openModal('edit-lesson', {unit, lesson: l})} onDelete={() => openModal('delete-lesson', {unit, lesson: l})} isReadOnly={isReadOnly} />)}
-                                        {!isReadOnly && group.exams.length === 0 && <AddPartButton type={LessonType.EXAM} onClick={() => openModal('add-lesson', {unit, lesson: {type: LessonType.EXAM, title: `${group.baseTitle} - امتحان`}})}/>}
+                                        {group.exams.map(l => <LessonPartItem key={l.id} lesson={l} onEdit={() => openModal('edit-lesson', {unit, lesson: l})} onDelete={() => openModal('delete-lesson', {unit, lesson: l})}/>)}
+                                        {group.exams.length === 0 && <AddPartButton type={LessonType.EXAM} onClick={() => openModal('add-lesson', {unit, lesson: {type: LessonType.EXAM, title: `${group.baseTitle} - امتحان`}})}/>}
                                     </div>
                                     <div>
                                         <h5 className="font-semibold text-sm text-[var(--text-secondary)] mb-2">الملخص</h5>
-                                        {group.summaries.map(l => <LessonPartItem key={l.id} lesson={l} onEdit={() => openModal('edit-lesson', {unit, lesson: l})} onDelete={() => openModal('delete-lesson', {unit, lesson: l})} isReadOnly={isReadOnly} />)}
-                                        {!isReadOnly && group.summaries.length === 0 && <AddPartButton type={LessonType.SUMMARY} onClick={() => openModal('add-lesson', {unit, lesson: {type: LessonType.SUMMARY, title: `${group.baseTitle} - ملخص`}})}/>}
+                                        {group.summaries.map(l => <LessonPartItem key={l.id} lesson={l} onEdit={() => openModal('edit-lesson', {unit, lesson: l})} onDelete={() => openModal('delete-lesson', {unit, lesson: l})}/>)}
+                                        {group.summaries.length === 0 && <AddPartButton type={LessonType.SUMMARY} onClick={() => openModal('add-lesson', {unit, lesson: {type: LessonType.SUMMARY, title: `${group.baseTitle} - ملخص`}})}/>}
                                     </div>
                                 </div>
                             </div>
@@ -417,17 +432,16 @@ const UnitItem: React.FC<{
                      ) : (
                         <p className="text-center text-sm text-[var(--text-secondary)] py-4">لا توجد دروس في هذه الوحدة.</p>
                      )}
-                    {!isReadOnly && (
-                        <button onClick={() => openModal('add-lesson', {unit, lesson: { type: LessonType.EXPLANATION }})} className="w-full p-3 border-2 border-dashed border-[var(--border-primary)] rounded-lg flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:border-solid transition-all">
-                            <PlusIcon className="w-5 h-5 ml-2"/> 
-                            إضافة درس جديد (ابدأ بإضافة شرح)
-                        </button>
-                    )}
+                    <button onClick={() => openModal('add-lesson', {unit, lesson: { type: LessonType.EXPLANATION }})} className="w-full p-3 border-2 border-dashed border-[var(--border-primary)] rounded-lg flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:border-solid transition-all">
+                        <PlusIcon className="w-5 h-5 ml-2"/> 
+                        إضافة درس جديد (ابدأ بإضافة شرح)
+                    </button>
                 </div>
             )}
         </div>
     );
 };
+
 
 const TeacherContentManagement: React.FC<TeacherContentManagementProps> = ({ teacher, isReadOnly }) => {
     const [dataVersion, setDataVersion] = useState(0);
@@ -436,7 +450,11 @@ const TeacherContentManagement: React.FC<TeacherContentManagementProps> = ({ tea
     const [grades, setGrades] = useState<Grade[]>([]);
     const [selectedGradeId, setSelectedGradeId] = useState<string>('');
     const [selectedSemesterId, setSelectedSemesterId] = useState<string>('');
+    const [units, setUnits] = useState<Unit[]>([]);
+    const [lessonsMap, setLessonsMap] = useState<Record<string, Lesson[]>>({});
+    const [isLoadingUnits, setIsLoadingUnits] = useState(false);
     const [expandedUnitId, setExpandedUnitId] = useState<string | null>(null);
+    const [loadingLessons, setLoadingLessons] = useState<Set<string>>(new Set());
     const [optionsMenuUnitId, setOptionsMenuUnitId] = useState<string | null>(null);
     const optionsMenuRef = useRef<HTMLDivElement>(null);
 
@@ -444,40 +462,42 @@ const TeacherContentManagement: React.FC<TeacherContentManagementProps> = ({ tea
     const closeModal = useCallback(() => setModalState({ type: null, data: {} }), []);
     const openModal = useCallback((type: string, data = {}) => {
         if (isReadOnly) {
-            addToast("وضع المشرف للقراءة فقط. لا يمكن إجراء تعديلات.", ToastType.INFO);
+            addToast('لا تملك صلاحية التعديل.', ToastType.WARNING);
             return;
         }
         setModalState({ type, data });
     }, [isReadOnly, addToast]);
-    
+
     useEffect(() => {
-        const fetchDataAndSetDefaults = async () => {
+        const fetchData = async () => {
             const gradesData = await getAllGrades();
-            setGrades(gradesData);
-            if (gradesData.length > 0) {
-                let gradeToSelect: Grade | undefined;
-                let semesterToSelect: Semester | undefined;
-
-                for (const grade of gradesData) {
-                    const semester = (grade.semesters || []).find(s => (s.units || []).some(u => u.teacherId === teacher.id));
-                    if (semester) {
-                        gradeToSelect = grade;
-                        semesterToSelect = semester;
-                        break;
-                    }
-                }
-                
-                if (!gradeToSelect) {
-                    gradeToSelect = gradesData[0];
-                    semesterToSelect = gradeToSelect.semesters?.[0];
-                }
-
-                setSelectedGradeId(gradeToSelect.id.toString());
-                setSelectedSemesterId(semesterToSelect?.id || '');
+            const teacherGrades = gradesData.filter(g => teacher.teachingGrades?.includes(g.id));
+            setGrades(teacherGrades);
+            if(teacherGrades.length > 0) {
+              if(!selectedGradeId || !teacherGrades.some(g => g.id.toString() === selectedGradeId)) {
+                  setSelectedGradeId(teacherGrades[0].id.toString());
+                  setSelectedSemesterId(teacherGrades[0].semesters[0]?.id || '');
+              }
             }
         };
-        fetchDataAndSetDefaults();
-    }, [dataVersion, teacher.id]);
+        fetchData();
+    }, [dataVersion, teacher.teachingGrades, selectedGradeId]);
+
+    useEffect(() => {
+        if (selectedGradeId && selectedSemesterId) {
+            const fetchUnits = async () => {
+                setIsLoadingUnits(true);
+                setExpandedUnitId(null);
+                setLessonsMap({});
+                const fetchedUnits = await getUnitsForSemester(parseInt(selectedGradeId), selectedSemesterId);
+                setUnits(fetchedUnits.filter(u => u.teacherId === teacher.id));
+                setIsLoadingUnits(false);
+            };
+            fetchUnits();
+        } else {
+            setUnits([]);
+        }
+    }, [selectedGradeId, selectedSemesterId, dataVersion, teacher.id]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -492,14 +512,26 @@ const TeacherContentManagement: React.FC<TeacherContentManagementProps> = ({ tea
     const selectedGrade = useMemo(() => grades.find(g => g.id.toString() === selectedGradeId), [grades, selectedGradeId]);
     const selectedSemester = useMemo(() => selectedGrade?.semesters.find(s => s.id === selectedSemesterId), [selectedGrade, selectedSemesterId]);
     
-    const unitsForTeacher = useMemo(() => {
-        if (!selectedSemester) return [];
-        return selectedSemester.units.filter(u => u.teacherId === teacher.id);
-    }, [selectedSemester, teacher.id]);
-    
-    const handleToggleExpand = useCallback((unitId: string) => {
-        setExpandedUnitId(prev => (prev === unitId ? null : unitId));
-    }, []);
+    const handleToggleExpand = useCallback(async (unitId: string) => {
+        const newExpandedId = expandedUnitId === unitId ? null : unitId;
+        setExpandedUnitId(newExpandedId);
+
+        if (newExpandedId && !lessonsMap[newExpandedId] && selectedGradeId && selectedSemesterId) {
+            setLoadingLessons(prev => new Set(prev).add(unitId));
+            try {
+                const fetchedLessons = await getLessonsByUnit(newExpandedId);
+                setLessonsMap(prevMap => ({ ...prevMap, [newExpandedId]: fetchedLessons }));
+            } catch (error) {
+                addToast('فشل تحميل الدروس لهذه الوحدة.', ToastType.ERROR);
+            } finally {
+                setLoadingLessons(prev => {
+                    const newSet = new Set(prev);
+                    newSet.delete(unitId);
+                    return newSet;
+                });
+            }
+        }
+    }, [expandedUnitId, lessonsMap, selectedGradeId, selectedSemesterId, addToast]);
 
     const handleSaveUnit = useCallback(async (unitData: Partial<Unit>) => {
         if (selectedGrade && selectedSemester) {
@@ -508,7 +540,7 @@ const TeacherContentManagement: React.FC<TeacherContentManagementProps> = ({ tea
                     await updateUnit(selectedGrade.id, selectedSemester.id, { ...modalState.data.unit, ...unitData });
                     addToast('تم تعديل الوحدة!', ToastType.SUCCESS);
                 } else { // Adding
-                    await addUnitToSemester(selectedGrade.id, selectedSemester.id, { ...unitData, teacherId: teacher.id } as Omit<Unit, 'id' | 'lessons'>);
+                    await addUnitToSemester(selectedGrade.id, selectedSemester.id, { ...unitData, teacherId: teacher.id } as Omit<Unit, 'id'|'lessons'>);
                     addToast('تمت إضافة الوحدة!', ToastType.SUCCESS);
                 }
                 refreshData();
@@ -519,10 +551,20 @@ const TeacherContentManagement: React.FC<TeacherContentManagementProps> = ({ tea
         }
     }, [addToast, closeModal, modalState.data, refreshData, selectedGrade, selectedSemester, teacher.id]);
 
-    const handleAddLesson = useCallback((unit: Unit, type: LessonType) => {
-        openModal('add-lesson', { unit, lesson: { type } });
-    }, [openModal]);
-
+    const handleDeleteUnit = useCallback(async () => {
+        const { unit } = modalState.data;
+        if (selectedGrade && selectedSemester && unit) {
+            try {
+                await deleteUnit(selectedGrade.id, selectedSemester.id, unit.id);
+                addToast('تم حذف الوحدة.', ToastType.SUCCESS);
+                refreshData();
+                closeModal();
+            } catch (error: any) {
+                addToast(`فشل حذف الوحدة: ${error.message}`, ToastType.ERROR);
+            }
+        }
+    }, [addToast, closeModal, modalState.data, refreshData, selectedGrade, selectedSemester]);
+    
     const handleSaveLesson = useCallback(async (lessonData: Lesson | Omit<Lesson, 'id'>) => {
         const { unit } = modalState.data;
         if (selectedGrade && selectedSemester && unit) {
@@ -559,20 +601,20 @@ const TeacherContentManagement: React.FC<TeacherContentManagementProps> = ({ tea
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="text-3xl font-bold mb-1 text-[var(--text-primary)]">إدارة المحتوى الدراسي</h1>
-                <p className="text-[var(--text-secondary)]">إضافة وتعديل الوحدات والدروس الخاصة بك.</p>
+                <h1 className="text-3xl font-bold mb-1 text-[var(--text-primary)]">إدارة محتوى المدرس: {teacher.name}</h1>
+                <p className="text-[var(--text-secondary)]">فلترة المحتوى وتنظيمه بسهولة.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <select 
-                    value={selectedGradeId} 
+                <select
+                    value={selectedGradeId}
                     onChange={(e) => {
                         const newGradeId = e.target.value;
                         setSelectedGradeId(newGradeId);
                         const newGrade = grades.find(g => g.id.toString() === newGradeId);
                         setSelectedSemesterId(newGrade?.semesters[0]?.id || '');
                         setExpandedUnitId(null);
-                    }} 
+                    }}
                     className="w-full p-3 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg focus:ring-2 focus:ring-[var(--accent-primary)] transition-all"
                 >
                     {grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
@@ -583,39 +625,44 @@ const TeacherContentManagement: React.FC<TeacherContentManagementProps> = ({ tea
             </div>
 
             <div className="space-y-4">
-                {unitsForTeacher.map(unit => (
-                    <UnitItem
-                        key={unit.id}
-                        unit={unit}
-                        lessonsForUnit={unit.lessons || []}
-                        expanded={expandedUnitId === unit.id}
-                        onToggle={() => handleToggleExpand(unit.id)}
-                        isLoadingLessons={false}
-                        optionsMenuUnitId={optionsMenuUnitId}
-                        setOptionsMenuUnitId={setOptionsMenuUnitId}
-                        optionsMenuRef={optionsMenuRef}
-                        openModal={openModal}
-                        isReadOnly={isReadOnly}
-                    />
-                ))}
+                {isLoadingUnits ? (
+                    <div className="flex justify-center items-center py-20"><Loader /></div>
+                ) : (
+                    units.map(unit => (
+                        <UnitItem
+                            key={unit.id}
+                            unit={unit}
+                            teacherName={teacher.name}
+                            lessonsForUnit={lessonsMap[unit.id] || []}
+                            expanded={expandedUnitId === unit.id}
+                            onToggle={() => handleToggleExpand(unit.id)}
+                            isLoadingLessons={loadingLessons.has(unit.id)}
+                            optionsMenuUnitId={optionsMenuUnitId}
+                            setOptionsMenuUnitId={setOptionsMenuUnitId}
+                            optionsMenuRef={optionsMenuRef}
+                            openModal={openModal}
+                        />
+                    ))
+                )}
             </div>
 
-            {selectedSemester && !isReadOnly && (
+            {selectedSemester && !isLoadingUnits && !isReadOnly && (
                 <button onClick={() => openModal('add-unit', { grade: selectedGrade, semester: selectedSemester })} className="w-full p-6 border-2 border-dashed border-[var(--border-primary)] rounded-xl flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:border-solid transition-all">
                     <PlusIcon className="w-6 h-6 ml-2"/> 
                     <span className="font-semibold">إضافة وحدة جديدة</span>
                 </button>
             )}
 
-            {!selectedSemester && (
+            {!selectedSemester && !isLoadingUnits && (
                  <div className="text-center p-12 bg-[var(--bg-secondary)] rounded-xl border-2 border-dashed border-[var(--border-primary)] mt-8">
                     <BookOpenIcon className="w-16 h-16 mx-auto opacity-20 mb-4 text-[var(--text-secondary)]" />
                     <p className="text-[var(--text-secondary)]">اختر صفًا وفصلاً دراسيًا لبدء إدارة المحتوى.</p>
                 </div>
             )}
             
-            <UnitModal isOpen={['add-unit', 'edit-unit'].includes(modalState.type || '')} onClose={closeModal} onSave={handleSaveUnit} unit={modalState.data.unit} teacher={teacher} selectedGrade={selectedGrade}/>
+            <UnitModal isOpen={['add-unit', 'edit-unit'].includes(modalState.type || '')} onClose={closeModal} onSave={handleSaveUnit} unit={modalState.data.unit} selectedGrade={selectedGrade}/>
             <LessonModal isOpen={['add-lesson', 'edit-lesson'].includes(modalState.type || '')} onClose={closeModal} onSave={handleSaveLesson} lesson={modalState.data.lesson} gradeName={selectedGrade?.name || ''} />
+            <ConfirmationModal isOpen={modalState.type === 'delete-unit'} onClose={closeModal} onConfirm={handleDeleteUnit} title="تأكيد حذف الوحدة" message={`هل أنت متأكد من حذف وحدة "${modalState.data.unit?.title}" وكل دروسها؟`} />
             <ConfirmationModal isOpen={modalState.type === 'delete-lesson'} onClose={closeModal} onConfirm={handleDeleteLesson} title="تأكيد حذف الدرس" message={`هل أنت متأكد من حذف درس "${modalState.data.lesson?.title}"؟`} />
         </div>
     );
