@@ -1,4 +1,3 @@
-
 // NEW FILE
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useSession } from '../../hooks/useSession';
@@ -74,8 +73,7 @@ const TeacherChatView: React.FC<{ student: User, teacher: Teacher, onBack: () =>
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
-    const handleSendMessage = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleSendMessage = useCallback(async () => {
         const content = newMessage.trim();
         if (!content) return;
 
@@ -103,7 +101,8 @@ const TeacherChatView: React.FC<{ student: User, teacher: Teacher, onBack: () =>
             setMessages(prev => prev.filter(m => m.id !== optimisticMessage.id));
             setNewMessage(content);
         }
-    };
+    }, [newMessage, student.id, teacher.id, addToast]);
+
 
     return (
         <div className="flex flex-col h-full bg-[var(--bg-secondary)] sm:rounded-2xl shadow-lg border border-[var(--border-primary)]">
@@ -141,8 +140,15 @@ const TeacherChatView: React.FC<{ student: User, teacher: Teacher, onBack: () =>
                 className="p-3 border-t border-[var(--border-primary)] bg-[var(--bg-secondary)] sm:rounded-b-2xl" 
                 style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 1rem))' }}
             >
-                <form onSubmit={handleSendMessage} className="flex items-center gap-3">
-                    <input type="text" value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="اكتب رسالتك..." className="flex-1 px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-full focus:ring-2 focus:ring-purple-500 transition-all" />
+                <form onSubmit={(e) => { e.preventDefault(); handleSendMessage(); }} className="flex items-center gap-3">
+                    <textarea 
+                        value={newMessage} 
+                        onChange={e => setNewMessage(e.target.value)} 
+                        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
+                        placeholder="اكتب رسالتك..."
+                        rows={1}
+                        className="flex-1 px-4 py-3 resize-none bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-full focus:ring-2 focus:ring-purple-500 transition-all placeholder:text-[var(--text-secondary)]"
+                    />
                     <button type="submit" className="w-12 h-12 flex-shrink-0 bg-purple-600 text-white rounded-full flex items-center justify-center transition-transform hover:scale-110 disabled:bg-gray-500 disabled:scale-100" disabled={!newMessage.trim()}>
                         <PaperAirplaneIcon className="w-6 h-6"/>
                     </button>
