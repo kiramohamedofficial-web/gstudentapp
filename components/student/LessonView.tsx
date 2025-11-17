@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useContext } from 'react';
 import { Lesson, LessonType, Grade, User, StudentView, Subscription, WatchedVideo, Unit } from '../../types';
 import { getAIExplanation } from '../../services/geminiService';
 import Modal from '../common/Modal';
@@ -8,6 +8,7 @@ import QuizTaker from './QuizTaker';
 import CustomYouTubePlayer from './CustomYouTubePlayer';
 import { useSession } from '../../hooks/useSession';
 import { useSubscription } from '../../hooks/useSubscription';
+import { AppLifecycleContext } from '../../App';
 
 interface LessonViewProps {
   lesson: Lesson;
@@ -40,6 +41,7 @@ const parseYouTubeVideoId = (url: any): string | null => {
 const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, grade, onLessonComplete, onNavigate, isDataSaverEnabled }) => {
     const { currentUser: user } = useSession();
     const { subscriptions, activeSubscriptions, isLoading: isSubLoading } = useSubscription();
+    const { setRefreshPaused } = useContext(AppLifecycleContext);
 
     const [isHelpModalOpen, setHelpModalOpen] = useState(false);
     const [aiQuestion, setAiQuestion] = useState('');
@@ -51,6 +53,16 @@ const LessonView: React.FC<LessonViewProps> = ({ lesson, onBack, grade, onLesson
     useEffect(() => {
         setCurrentLesson(lesson);
     }, [lesson]);
+    
+    useEffect(() => {
+        const isVideo = currentLesson.type === LessonType.EXPLANATION;
+        setRefreshPaused(isVideo);
+        
+        // Cleanup function to resume refresh when component unmounts or lesson type changes
+        return () => {
+            setRefreshPaused(false);
+        };
+    }, [currentLesson.type, setRefreshPaused]);
 
     const canAccess = useMemo(() => {
         if (currentLesson.isFree) {

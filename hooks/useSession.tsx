@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useEffect, useCallback, useContext } from 'react';
 import { User, Grade, ToastType } from '../types';
 import { 
@@ -33,6 +34,7 @@ interface SessionContextType {
     handleUpdatePassword: (password: string) => Promise<void>;
     isPostRegistrationModalOpen: boolean;
     closePostRegistrationModal: () => void;
+    refetchUser: (shouldRefetchCurriculum?: boolean) => Promise<void>;
 }
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
@@ -107,24 +109,25 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }, [addToast]);
     
     const refetchUserAndGradeData = useCallback(async (shouldRefetchCurriculum = false) => {
-        if (!currentUser) return;
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+            return;
+        }
 
         if (shouldRefetchCurriculum) {
             await initData();
         }
         
-        const { data: { session } } = await supabase.auth.getSession();
-
         const { data: profile } = await supabase
             .from('profiles')
             .select('*')
-            .eq('id', currentUser.id)
+            .eq('id', session.user.id)
             .single();
         
-        if (profile && session) {
+        if (profile) {
             const gradeData = getGradeByIdSync(profile.grade_id);
             const mergedUser: User = {
-                id: currentUser.id,
+                id: session.user.id,
                 name: profile.name,
                 email: session.user.email || profile.email,
                 phone: profile.phone,
@@ -138,7 +141,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
             };
             setCurrentUser(mergedUser);
         }
-    }, [currentUser]);
+    }, []);
 
     useEffect(() => {
         if (!currentUser) return;
@@ -283,7 +286,8 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         handleSendPasswordReset,
         handleUpdatePassword,
         isPostRegistrationModalOpen,
-        closePostRegistrationModal
+        closePostRegistrationModal,
+        refetchUser: refetchUserAndGradeData,
     };
 
     return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

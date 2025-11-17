@@ -1,3 +1,5 @@
+
+
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { ShieldExclamationIcon } from './Icons';
 
@@ -44,7 +46,7 @@ class ErrorBoundary extends Component<Props, State> {
       );
     }
 
-    // FIX: In a React class component, props are accessed via `this.props`.
+    // FIX: In a class component, props must be accessed via `this.props`.
     return this.props.children;
   }
 }

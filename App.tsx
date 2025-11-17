@@ -1,7 +1,5 @@
 
 
-
-
 import React, { useState, useEffect, createContext, useContext, useCallback } from 'react';
 import { Role, Mode, Style, AppearanceSettings, FullTheme, CustomColors } from './types';
 import { useSession } from './hooks/useSession';
@@ -17,6 +15,7 @@ import ErrorBoundary from './components/common/ErrorBoundary';
 import Modal from './components/common/Modal';
 // FIX: Import signOut to handle session termination consistently.
 import { curriculumCache, initData, supabase, signOut } from './services/storageService';
+import { useSubscription } from './hooks/useSubscription';
 import { useIcons } from './IconContext';
 
 // =================================================================
@@ -94,8 +93,7 @@ const AppearanceProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                     customColors: { ...prev.customColors, ...parsedSettings.customColors }
                 }));
             } catch (e) {
-                // FIX: The caught error `e` is of type `unknown`. A type guard is necessary to
-                // check if `e` is an `Error` before accessing `e.message`.
+                // FIX: Safely handle the error object of type 'unknown' by checking if it's an instance of Error before accessing its properties.
                 if (e instanceof Error) {
                     console.error("Failed to parse appearance settings from localStorage:", e.message);
                 } else {
@@ -150,13 +148,22 @@ const AppearanceProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
 
 // =================================================================
+// APP LIFECYCLE CONTEXT
+// =================================================================
+export const AppLifecycleContext = createContext({
+  setRefreshPaused: (paused: boolean) => {}
+});
+
+
+// =================================================================
 // MAIN APP COMPONENT
 // =================================================================
 
 const App: React.FC = () => {
-  const { currentUser, isLoading, authView, setAuthView, isPostRegistrationModalOpen, closePostRegistrationModal } = useSession();
-  const [appKey, setAppKey] = useState(0);
+  const { currentUser, isLoading, authView, setAuthView, isPostRegistrationModalOpen, closePostRegistrationModal, refetchUser } = useSession();
+  const { refetchSubscription } = useSubscription();
   const icons = useIcons();
+  const [isRefreshPaused, setRefreshPaused] = useState(false);
 
   useEffect(() => {
     // Dynamically set favicon
@@ -174,9 +181,11 @@ const App: React.FC = () => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         // When a tab becomes visible after being hidden, its state can be broken.
-        // Remounting the app by changing its key is a robust and less disruptive
-        // way to reset the app's state compared to a full page reload.
-        setAppKey(k => k + 1);
+        // Refetching data is a robust way to reset the app's state compared to a full page reload.
+        if (currentUser) {
+            refetchUser(true);
+            refetchSubscription();
+        }
       }
     };
 
@@ -195,16 +204,21 @@ const App: React.FC = () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('pageshow', handlePageShow);
     };
-  }, []);
+  }, [currentUser, refetchUser, refetchSubscription]);
 
   useEffect(() => {
-    // Automatically refresh app state every minute to fetch latest updates
+    // Automatically perform a background refresh every minute to fetch latest updates, unless paused.
+    if (isRefreshPaused || !currentUser) {
+      return;
+    }
     const refreshInterval = setInterval(() => {
-      setAppKey(k => k + 1);
+      // This is a background refresh, it will not interrupt the user.
+      refetchUser(true); // passing true to also refetch curriculum data
+      refetchSubscription();
     }, 60000); // 60 seconds
 
     return () => clearInterval(refreshInterval);
-  }, []);
+  }, [isRefreshPaused, currentUser, refetchUser, refetchSubscription]);
 
 
   const renderContent = () => {
@@ -243,39 +257,41 @@ const App: React.FC = () => {
   }
 
   return (
-    <AppearanceProvider>
-      <div key={appKey} className={`transition-all duration-300`}>
-        <ErrorBoundary>
-          {renderContent()}
-        </ErrorBoundary>
-      </div>
-      
-      <ToastContainer />
+    <AppLifecycleContext.Provider value={{ setRefreshPaused }}>
+      <AppearanceProvider>
+        <div className={`transition-all duration-300`}>
+          <ErrorBoundary>
+            {renderContent()}
+          </ErrorBoundary>
+        </div>
+        
+        <ToastContainer />
 
-      <Modal
-        isOpen={isPostRegistrationModalOpen}
-        onClose={closePostRegistrationModal}
-        title="⚠️ تنبيه هام عند التسجيل"
-      >
-        <div className="bg-red-500/10 border border-red-500/30 text-red-300 p-4 rounded-lg space-y-3">
-          <ul className="list-disc list-inside space-y-2 text-right">
-            <li>سيتم <strong>حذف حسابك تلقائيًّا بعد 60 يومًا من عدم النشاط</strong> (عدم الدخول إلى المنصة).</li>
-            <li><strong>تسجيل الدخول مسموح به من جهاز واحد فقط</strong> في نفس الوقت.</li>
-          </ul>
-          <p className="font-semibold pt-2 border-t border-red-500/30">
-            يُرجى الالتزام بسياسة الاستخدام لضمان استمرارية حسابك.
-          </p>
-        </div>
-        <div className="mt-6 flex justify-end">
-          <button
-            onClick={closePostRegistrationModal}
-            className="px-6 py-2 font-bold bg-red-600 text-white rounded-lg transition-colors hover:bg-red-700"
-          >
-            حسنًا، فهمت
-          </button>
-        </div>
-      </Modal>
-    </AppearanceProvider>
+        <Modal
+          isOpen={isPostRegistrationModalOpen}
+          onClose={closePostRegistrationModal}
+          title="⚠️ تنبيه هام عند التسجيل"
+        >
+          <div className="bg-red-500/10 border border-red-500/30 text-red-300 p-4 rounded-lg space-y-3">
+            <ul className="list-disc list-inside space-y-2 text-right">
+              <li>سيتم <strong>حذف حسابك تلقائيًّا بعد 60 يومًا من عدم النشاط</strong> (عدم الدخول إلى المنصة).</li>
+              <li><strong>تسجيل الدخول مسموح به من جهاز واحد فقط</strong> في نفس الوقت.</li>
+            </ul>
+            <p className="font-semibold pt-2 border-t border-red-500/30">
+              يُرجى الالتزام بسياسة الاستخدام لضمان استمرارية حسابك.
+            </p>
+          </div>
+          <div className="mt-6 flex justify-end">
+            <button
+              onClick={closePostRegistrationModal}
+              className="px-6 py-2 font-bold bg-red-600 text-white rounded-lg transition-colors hover:bg-red-700"
+            >
+              حسنًا، فهمت
+            </button>
+          </div>
+        </Modal>
+      </AppearanceProvider>
+    </AppLifecycleContext.Provider>
   );
 };
 
